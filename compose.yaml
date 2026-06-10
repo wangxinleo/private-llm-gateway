@@ -1,0 +1,44 @@
+services:
+  privacy-proxy:
+    build:
+      context: .
+    image: privacy-proxy:local
+    restart: unless-stopped
+    environment:
+      PORT: ${PRIVACY_PROXY_CONTAINER_PORT:-3000}
+      DB_PATH: ${PRIVACY_PROXY_DB_PATH:-/data/audit.sqlite}
+      CCLOAD_URL: ${PRIVACY_PROXY_CCLOAD_URL:-http://ccload:8787}
+    ports:
+      - "${PRIVACY_PROXY_PORT:-3000}:${PRIVACY_PROXY_CONTAINER_PORT:-3000}"
+    volumes:
+      - privacy_proxy_data:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:' + (process.env.PORT || '3000') + '/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  mock-ccload:
+    image: node:22-alpine
+    profiles:
+      - mock
+    working_dir: /app
+    command: ["node", "mock-upstream.mjs"]
+    volumes:
+      - ./mock-upstream.mjs:/app/mock-upstream.mjs:ro
+    expose:
+      - "8787"
+    networks:
+      default:
+        aliases:
+          - ccload
+
+volumes:
+  privacy_proxy_data:

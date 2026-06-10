@@ -1,0 +1,41 @@
+# dependencies
+node_modules
+.pnp
+.pnp.*
+.yarn
+
+# build outputs
+.next
+out
+build
+coverage
+*.tsbuildinfo
+next-env.d.ts
+
+# local runtime data
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+audit.sqlite
+audit.sqlite-shm
+audit.sqlite-wal
+data
+
+# local env and editor files
+.env
+.env.*
+!.env.example
+!.env.production.example
+.DS_Store
+.vercel
+
+# agent/workflow state
+.agents
+.claude
+.codex
+.trellis
+
+# VCS
+.git
+.gitignore

@@ -1,0 +1,129 @@
+import type { Finding, SizeTier, ScanResult } from "@/types";
+import { isBlockCategory } from "@/types";
+import { scanSecrets } from "./secrets";
+import { scanContextKey } from "./context-key";
+import { scanPii, applyMasks } from "./pii";
+import { scanFilename } from "./filename";
+import { SIZE_THRESHOLDS, CHUNK_SIZE } from "@/config";
+
+export function getSizeTier(bodySize: number): SizeTier {
+  if (bodySize < SIZE_THRESHOLDS.FULL_SCAN) return "full";
+  if (bodySize < SIZE_THRESHOLDS.CHUNKED_SCAN) return "chunked";
+  return "minimal";
+}
+
+function scanTextFull(text: string): Finding[] {
+  const findings: Finding[] = [];
+
+  const secretFindings = scanSecrets(text);
+  findings.push(...secretFindings);
+
+  const contextFindings = scanContextKey(text);
+  findings.push(...contextFindings);
+
+  const piiFindings = scanPii(text);
+  findings.push(...piiFindings);
+
+  return findings;
+}
+
+function scanTextMinimal(text: string): Finding[] {
+  const findings: Finding[] = [];
+
+  const secretFindings = scanSecrets(text);
+  findings.push(...secretFindings);
+
+  const piiFindings = scanPii(text);
+  findings.push(...piiFindings);
+
+  return findings;
+}
+
+function scanTextChunked(text: string): Finding[] {
+  const allFindings: Finding[] = [];
+  const seen = new Set<string>();
+
+  for (let offset = 0; offset < text.length; offset += CHUNK_SIZE) {
+    const end = Math.min(offset + CHUNK_SIZE, text.length);
+    const chunk = text.slice(offset, end);
+
+    if (allFindings.some((f) => isBlockCategory(f.category))) {
+      break;
+    }
+
+    let chunkFindings: Finding[];
+    chunkFindings = scanSecrets(chunk);
+    for (const f of chunkFindings) {
+      if (!seen.has(f.matched)) {
+        seen.add(f.matched);
+        allFindings.push(f);
+      }
+    }
+
+    chunkFindings = scanContextKey(chunk);
+    for (const f of chunkFindings) {
+      if (!seen.has(f.matched)) {
+        seen.add(f.matched);
+        allFindings.push(f);
+      }
+    }
+
+    if (allFindings.some((f) => isBlockCategory(f.category))) break;
+  }
+
+  const piiFindings = scanPii(text);
+  allFindings.push(...piiFindings);
+
+  return allFindings;
+}
+
+function scanText(text: string, tier: SizeTier): Finding[] {
+  switch (tier) {
+    case "full":
+      return scanTextFull(text);
+    case "chunked":
+      return scanTextChunked(text);
+    case "minimal":
+      return scanTextMinimal(text);
+  }
+}
+
+export function runPipeline(
+  text: string,
+  bodySize: number,
+  filenames: string[] = []
+): ScanResult {
+  const tier = getSizeTier(bodySize);
+
+  const fileFindings: Finding[] = [];
+  for (const name of filenames) {
+    const r = scanFilename(name);
+    if (r) fileFindings.push(r);
+  }
+  if (fileFindings.some((f) => isBlockCategory(f.category))) {
+    return {
+      findings: fileFindings,
+      maskedBody: text,
+      action: "block",
+    };
+  }
+
+  const textFindings = scanText(text, tier);
+  const allFindings = [...fileFindings, ...textFindings];
+
+  const hasMask = allFindings.some((f) => f.action === "mask");
+
+  if (hasMask) {
+    return {
+      findings: allFindings,
+      maskedBody: applyMasks(text, allFindings),
+      action: "mask",
+    };
+  }
+
+  return {
+    findings: [],
+    maskedBody: text,
+    action: "allow",
+  };
+}
