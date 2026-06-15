@@ -1,10 +1,12 @@
 import { NextRequest } from "next/server";
 import { runPipeline } from "@/scanner/pipeline";
+import { isJsonContentType, maskJsonBody } from "@/scanner/json-mask";
 import { parseMultipart, collectMultipartText, collectFilenames } from "@/scanner/multipart";
 import { blockedResponse } from "@/engine/policy";
 import { forwardRequest } from "@/proxy/forwarder";
 import { createStreamingResponse } from "@/proxy/streaming";
 import { logAudit } from "@/audit/logger";
+import { DEBUG } from "@/config";
 
 const MULTIPART = "multipart/form-data";
 
@@ -62,6 +64,7 @@ export async function DELETE(request: NextRequest) {
 }
 
 async function handleRequest(request: NextRequest): Promise<Response> {
+  const startTime = performance.now();
   const path = extractPath(request);
   const method = request.method;
   const contentType = request.headers.get("content-type") ?? "";
@@ -78,11 +81,21 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     bodySize = extracted.size;
   }
 
-  console.log(`[proxy] ${method} ${path} | contentType: ${contentType} | bodySize: ${bodySize}`);
+  if (DEBUG) {
+    console.log(`[proxy] ${method} ${path} | contentType: ${contentType} | bodySize: ${bodySize}`);
+  }
 
-  const result = runPipeline(bodyText, bodySize, filenames);
+  const scanFn = (text: string, size: number) => runPipeline(text, size, filenames);
+  const result = isJsonContentType(contentType) && !isMultipart(contentType)
+    ? maskJsonBody(bodyText, scanFn)
+    : runPipeline(bodyText, bodySize, filenames);
 
-  console.log(`[proxy] pipeline result | action: ${result.action} | findings: ${result.findings.length}`);
+  const hitCategories = result.findings.map(f => f.category).join(", ");
+  const duration = (performance.now() - startTime).toFixed(2);
+
+  if (result.action !== "allow" || DEBUG) {
+    console.log(`[proxy] ${method} ${path} | action: ${result.action} | hits: ${hitCategories || "none"} | ${duration}ms`);
+  }
 
   logAudit({
     path,

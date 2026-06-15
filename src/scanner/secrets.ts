@@ -1,4 +1,5 @@
 import type { Finding } from "@/types";
+import { DEBUG } from "@/config";
 
 const PRIVATE_KEY_RE =
   /-----BEGIN\s+(?:RSA\s+|OPENSSH\s+|EC\s+|DSA\s+)?PRIVATE\s+KEY-----[\s\S]*?-----END\s+(?:RSA\s+|OPENSSH\s+|EC\s+|DSA\s+)?PRIVATE\s+KEY-----/;
@@ -47,7 +48,9 @@ export function scanSecrets(text: string): Finding[] {
     const match = rule.pattern.exec(text);
     if (match) {
       const matched = match[0];
-      console.log(`[scanner] ✅ HIT: ${rule.category} | matched ${matched.length} chars | preview: ${matched.slice(0, 80)}...`);
+      if (DEBUG) {
+        console.log(`[scanner] ✅ HIT: ${rule.category} | matched ${matched.length} chars | preview: ${matched.slice(0, 80)}...`);
+      }
       if (!seen.has(matched)) {
         seen.add(matched);
         findings.push({
@@ -59,6 +62,8 @@ export function scanSecrets(text: string): Finding[] {
       }
     }
   }
-  console.log(`[scanner] secrets scan complete | findings: ${findings.length} | categories: [${findings.map(f => f.category).join(", ")}]`);
+  if (DEBUG) {
+    console.log(`[scanner] secrets scan complete | findings: ${findings.length} | categories: [${findings.map(f => f.category).join(", ")}]`);
+  }
   return findings;
 }

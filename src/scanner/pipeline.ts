@@ -4,7 +4,7 @@ import { scanSecrets } from "./secrets";
 import { scanContextKey } from "./context-key";
 import { scanPii, applyMasks } from "./pii";
 import { scanFilename } from "./filename";
-import { SIZE_THRESHOLDS, CHUNK_SIZE } from "@/config";
+import { SIZE_THRESHOLDS, CHUNK_SIZE, DEBUG } from "@/config";
 
 export function getSizeTier(bodySize: number): SizeTier {
   if (bodySize < SIZE_THRESHOLDS.FULL_SCAN) return "full";
@@ -94,8 +94,11 @@ export function runPipeline(
   filenames: string[] = []
 ): ScanResult {
   const tier = getSizeTier(bodySize);
-  console.log(`[pipeline] scan start | size: ${bodySize} bytes | tier: ${tier} | filenames: [${filenames.join(", ")}]`);
-  console.log(`[pipeline] body preview (first 200 chars): ${text.slice(0, 200)}`);
+  
+  if (DEBUG) {
+    console.log(`[pipeline] scan start | size: ${bodySize} bytes | tier: ${tier} | filenames: [${filenames.join(", ")}]`);
+    console.log(`[pipeline] body preview (first 200 chars): ${text.slice(0, 200)}`);
+  }
 
   const fileFindings: Finding[] = [];
   for (const name of filenames) {
@@ -113,15 +116,19 @@ export function runPipeline(
   const textFindings = scanText(text, tier);
   const allFindings = [...fileFindings, ...textFindings];
 
-  console.log(`[pipeline] scan complete | total findings: ${allFindings.length}`);
-  for (const f of allFindings) {
-    console.log(`[pipeline]   → ${f.category} | action: ${f.action} | matched preview: ${f.matched.slice(0, 80)}...`);
+  if (DEBUG) {
+    console.log(`[pipeline] scan complete | total findings: ${allFindings.length}`);
+    for (const f of allFindings) {
+      console.log(`[pipeline]   → ${f.category} | action: ${f.action} | matched preview: ${f.matched.slice(0, 80)}...`);
+    }
   }
 
   const hasMask = allFindings.some((f) => f.action === "mask");
 
   if (hasMask) {
-    console.log(`[pipeline] decision: MASK (脱敏后转发)`);
+    if (DEBUG) {
+      console.log(`[pipeline] decision: MASK (脱敏后转发)`);
+    }
     return {
       findings: allFindings,
       maskedBody: applyMasks(text, allFindings),
@@ -129,7 +136,9 @@ export function runPipeline(
     };
   }
 
-  console.log(`[pipeline] decision: ALLOW (放行，未命中任何规则)`);
+  if (DEBUG) {
+    console.log(`[pipeline] decision: ALLOW (放行，未命中任何规则)`);
+  }
   return {
     findings: [],
     maskedBody: text,

@@ -222,6 +222,21 @@ v1 不做语义层面的人名或地址识别。
 
 只记录元数据。
 
+### 日志模式
+
+系统支持两种日志模式,通过环境变量 `DEBUG` 控制:
+
+**生产模式 (DEBUG=false 或未设置)**:
+- 仅输出命中规则的请求摘要
+- 格式: `[proxy] METHOD PATH | action: ACTION | hits: CATEGORIES | DURATION ms`
+- 示例: `[proxy] POST /v1/chat/completions | action: mask | hits: BEARER_TOKEN, PHONE | 12.34ms`
+- allow 放行的请求不产生日志,降低噪音
+
+**调试模式 (DEBUG=true)**:
+- 输出完整扫描流程
+- 包括请求预览、扫描层级、命中详情等
+- 用于故障排查和开发调试
+
 建议记录字段：
 
 - 时间戳
@@ -232,6 +247,7 @@ v1 不做语义层面的人名或地址识别。
 - 文件名
 - 命中类别
 - 执行动作
+- 处理耗时
 
 不要记录：
 
@@ -273,6 +289,7 @@ v1 不做语义层面的人名或地址识别。
 | `NODE_ENV` | `production` | Node 运行环境 |
 | `PORT` | `3000` | 容器内 Next.js 监听端口 |
 | `HOSTNAME` | `0.0.0.0` | 容器内绑定的网络接口 |
+| `DEBUG` | `false` | 调试模式。`true` 显示详细日志,`false` 仅显示关键信息 |
 | `HOST_PORT` | `3000` | 映射到宿主机的端口（仅用于 Docker Compose） |
 | `UPSTREAM_URL` | `http://ccload:8787` | 上游服务的 base URL（被代理的目标服务地址） |
 | `DB_PATH` | `/data/audit.sqlite` | SQLite 审计库路径 |

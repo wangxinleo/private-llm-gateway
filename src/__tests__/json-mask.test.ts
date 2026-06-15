@@ -1,0 +1,192 @@
+import { describe, it, expect } from "vitest";
+import { isJsonContentType, maskJsonBody } from "@/scanner/json-mask";
+import { runPipeline } from "@/scanner/pipeline";
+
+describe("isJsonContentType", () => {
+  it("returns true for application/json", () => {
+    expect(isJsonContentType("application/json")).toBe(true);
+  });
+
+  it("returns true for application/json; charset=utf-8", () => {
+    expect(isJsonContentType("application/json; charset=utf-8")).toBe(true);
+  });
+
+  it("returns true for application/vnd.api+json", () => {
+    expect(isJsonContentType("application/vnd.api+json")).toBe(true);
+  });
+
+  it("returns false for text/plain", () => {
+    expect(isJsonContentType("text/plain")).toBe(false);
+  });
+
+  it("returns false for multipart/form-data", () => {
+    expect(isJsonContentType("multipart/form-data; boundary=abc")).toBe(false);
+  });
+
+  it("returns false for empty string", () => {
+    expect(isJsonContentType("")).toBe(false);
+  });
+});
+
+describe("maskJsonBody", () => {
+  const scan = (text: string) => runPipeline(text, text.length);
+
+  it("S1: masks PII inside JSON string values, output is valid JSON", () => {
+    const body = JSON.stringify({
+      model: "gpt-4",
+      messages: [
+        { role: "user", content: "My phone is 13912345678" },
+      ],
+    });
+
+    const result = maskJsonBody(body, scan);
+    expect(result.action).toBe("mask");
+
+    // Must be parseable as valid JSON
+    const parsed = JSON.parse(result.maskedBody);
+    expect(parsed.model).toBe("gpt-4");
+    expect(parsed.messages[0].content).toContain("[PHONE]");
+    expect(parsed.messages[0].content).not.toContain("13912345678");
+  });
+
+  it("S2: does NOT match JSON number values, output is valid JSON", () => {
+    const body = JSON.stringify({
+      model: "gpt-4",
+      max_tokens: 4096,
+      user_id: 1234567890123456,
+      timestamp: 1648601234567890,
+    });
+
+    const result = maskJsonBody(body, scan);
+
+    // Must be parseable as valid JSON
+    const parsed = JSON.parse(result.maskedBody);
+    expect(parsed.user_id).toBe(1234567890123456);
+    expect(parsed.timestamp).toBe(1648601234567890);
+    expect(parsed.max_tokens).toBe(4096);
+    // No mask tags in the body
+    expect(result.maskedBody).not.toContain("[BANK_CARD]");
+  });
+
+  it("S3: masks PII in deeply nested JSON string values", () => {
+    const body = JSON.stringify({
+      data: {
+        users: [
+          {
+            profile: {
+              contact: "email: user@example.com",
+              notes: ["call 13912345678", "safe text"],
+            },
+          },
+        ],
+      },
+    });
+
+    const result = maskJsonBody(body, scan);
+    expect(result.action).toBe("mask");
+
+    const parsed = JSON.parse(result.maskedBody);
+    expect(parsed.data.users[0].profile.contact).toContain("[EMAIL]");
+    expect(parsed.data.users[0].profile.notes[0]).toContain("[PHONE]");
+    expect(parsed.data.users[0].profile.notes[1]).toBe("safe text");
+  });
+
+  it("S4: masks secrets inside JSON string values", () => {
+    const body = JSON.stringify({
+      messages: [
+        {
+          role: "system",
+          content: "Use this key: Bearer abc123def456ghi789",
+        },
+      ],
+    });
+
+    const result = maskJsonBody(body, scan);
+    expect(result.action).toBe("mask");
+
+    const parsed = JSON.parse(result.maskedBody);
+    expect(parsed.messages[0].content).toContain("[BEARER_TOKEN]");
+    expect(parsed.messages[0].content).not.toContain("abc123def456ghi789");
+  });
+
+  it("S5: preserves JSON structure for complex LLM request", () => {
+    const body = JSON.stringify({
+      model: "gpt-4",
+      messages: [
+        { role: "system", content: "You are a helpful assistant." },
+        { role: "user", content: "Analyze this code:\n```\nconst x = 42;\n```" },
+      ],
+      temperature: 0.7,
+      max_tokens: 2048,
+      stream: true,
+      n: 1,
+    });
+
+    const result = maskJsonBody(body, scan);
+
+    // Even if no PII found, result must be valid JSON
+    const parsed = JSON.parse(result.maskedBody);
+    expect(parsed.model).toBe("gpt-4");
+    expect(parsed.temperature).toBe(0.7);
+    expect(parsed.stream).toBe(true);
+    expect(parsed.n).toBe(1);
+    expect(parsed.messages).toHaveLength(2);
+  });
+
+  it("S6: handles empty JSON object", () => {
+    const result = maskJsonBody("{}", scan);
+    expect(JSON.parse(result.maskedBody)).toEqual({});
+  });
+
+  it("S7: handles JSON array at top level", () => {
+    const body = JSON.stringify([
+      { text: "phone 13912345678" },
+      { text: "no pii here" },
+    ]);
+
+    const result = maskJsonBody(body, scan);
+    const parsed = JSON.parse(result.maskedBody);
+    expect(parsed[0].text).toContain("[PHONE]");
+    expect(parsed[1].text).toBe("no pii here");
+  });
+
+  it("S8: falls back to flat scan for invalid JSON", () => {
+    const invalidJson = 'not json at all { phone 13912345678';
+    const result = maskJsonBody(invalidJson, scan);
+    // Should still produce a result (flat scan fallback)
+    expect(result.maskedBody).toBeDefined();
+    // Invalid JSON in, flat scan out — should contain mask if PII found
+    expect(result.maskedBody).toContain("[PHONE]");
+  });
+
+  it("S9: does not corrupt JSON with valid PII in string value vs number value", () => {
+    // 13912345678 is a valid PHONE that will be masked in string context
+    const body = JSON.stringify({
+      message: "Call me at 13912345678",
+      phone_number: 13912345678,
+    });
+
+    const result = maskJsonBody(body, scan);
+    const parsed = JSON.parse(result.maskedBody);
+    expect(parsed.message).toContain("[PHONE]");
+    // JSON number value should NOT be matched by digit-based regex
+    expect(parsed.phone_number).toBe(13912345678);
+  });
+
+  it("S10: preserves JSON numbers alongside string masking", () => {
+    const body = JSON.stringify({
+      config: {
+        email: "user@example.com",
+        timeout: 30,
+        retries: 5,
+      },
+    });
+
+    const result = maskJsonBody(body, scan);
+
+    const parsed = JSON.parse(result.maskedBody);
+    expect(parsed.config.email).toContain("[EMAIL]");
+    expect(parsed.config.timeout).toBe(30);
+    expect(parsed.config.retries).toBe(5);
+  });
+});
