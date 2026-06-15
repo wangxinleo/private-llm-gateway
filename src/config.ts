@@ -9,7 +9,7 @@ const SIZE_THRESHOLDS = {
 const CHUNK_SIZE = 64 * 1024;
 
 const CONTEXT_KEY = {
-  MIN_LENGTH: 20,
+  MIN_LENGTH: 8,
   MAX_LENGTH: 200,
   ALLOWED_CHARSET: /^[A-Za-z0-9._=-]+$/,
   MAX_SPACES: 2,

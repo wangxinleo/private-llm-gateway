@@ -48,9 +48,34 @@ const HIGH_RISK_KEYWORDS: ReadonlySet<string> = new Set([
   "secretkey",
   "clientid",
   "clientsecret",
+  "username",
+  "user",
+  "userid",
+  "user_id",
+  "login",
+  "loginid",
+  "login_id",
+  "email",
+  "account",
+  "account_id",
+  "accountid",
+  "uid",
+  "member_id",
 ]);
 
-const KEY_PATTERN = /["']?(\w+)["']?\s*[:=]\s*["']?([^\s"']+)["']?/g;
+interface KeyPattern {
+  name: string;
+  pattern: RegExp;
+}
+
+const KEY_PATTERNS: KeyPattern[] = [
+  { name: "KV", pattern: /["']?(\w+)["']?\s*[:=]\s*["']?([^\s"'&]+)["']?/g },
+  { name: "BRACKET", pattern: /(\w+)\s*\[\s*["']?([^"'\]]+)["']?\s*\]/g },
+  { name: "DICT_ACCESS", pattern: /\[\s*["'](\w+)["']\s*\]\s*[:=]\s*["']?([^\s"'&]+)["']?/g },
+  { name: "XML", pattern: /<(\w+)>([^<]+)<\/\1>/g },
+  { name: "NEWLINE", pattern: /(\w+)\s*\n\s*([^\n]+)/g },
+  { name: "DOT", pattern: /\.(\w+)\s*[.:]\s*["']?([^\s"'&]+)["']?/g },
+];
 
 function isSuspiciousValue(value: string): boolean {
   if (value.length < CONTEXT_KEY.MIN_LENGTH) return false;
@@ -64,25 +89,27 @@ function isSuspiciousValue(value: string): boolean {
 export function scanContextKey(text: string): Finding[] {
   const findings: Finding[] = [];
   const seen = new Set<string>();
-  let match: RegExpExecArray | null;
 
-  KEY_PATTERN.lastIndex = 0;
-  while ((match = KEY_PATTERN.exec(text)) !== null) {
-    const key = match[1]?.toLowerCase() ?? "";
-    const value = match[2] ?? "";
+  for (const { pattern } of KEY_PATTERNS) {
+    pattern.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(text)) !== null) {
+      const key = match[1]?.toLowerCase() ?? "";
+      const value = match[2] ?? "";
 
-    if (
-      HIGH_RISK_KEYWORDS.has(key) &&
-      isSuspiciousValue(value) &&
-      !seen.has(value)
-    ) {
-      seen.add(value);
-      findings.push({
-        category: "CONTEXTUAL_SECRET",
-        action: "mask",
-        matched: value,
-        maskTag: "[CONTEXTUAL_SECRET]",
-      });
+      if (
+        HIGH_RISK_KEYWORDS.has(key) &&
+        isSuspiciousValue(value) &&
+        !seen.has(value)
+      ) {
+        seen.add(value);
+        findings.push({
+          category: "CONTEXTUAL_SECRET",
+          action: "mask",
+          matched: value,
+          maskTag: "[CONTEXTUAL_SECRET]",
+        });
+      }
     }
   }
 

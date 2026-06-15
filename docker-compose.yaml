@@ -5,9 +5,8 @@
 
 services:
   privacy-proxy:
-    build:
-      context: .
     image: ghcr.io/wangxinleo/private-llm-gateway:latest
+    container_name: privacy-proxy
     restart: unless-stopped
     environment:
       NODE_ENV: production
