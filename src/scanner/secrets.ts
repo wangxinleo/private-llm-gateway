@@ -47,6 +47,7 @@ export function scanSecrets(text: string): Finding[] {
     const match = rule.pattern.exec(text);
     if (match) {
       const matched = match[0];
+      console.log(`[scanner] ✅ HIT: ${rule.category} | matched ${matched.length} chars | preview: ${matched.slice(0, 80)}...`);
       if (!seen.has(matched)) {
         seen.add(matched);
         findings.push({
@@ -58,5 +59,6 @@ export function scanSecrets(text: string): Finding[] {
       }
     }
   }
+  console.log(`[scanner] secrets scan complete | findings: ${findings.length} | categories: [${findings.map(f => f.category).join(", ")}]`);
   return findings;
 }

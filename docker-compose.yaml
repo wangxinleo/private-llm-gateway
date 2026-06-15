@@ -1,23 +1,22 @@
 # ========================================
 # Docker Compose Configuration
 # ========================================
-# All configuration from .env file (see .env.template)
 # Uses ONLY bind mounts (no named volumes)
 
 services:
   privacy-proxy:
     build:
       context: .
-    image: privacy-proxy:local
+    image: ghcr.io/wangxinleo/private-llm-gateway:latest
     restart: unless-stopped
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: ${PORT:-3000}
-      HOSTNAME: ${HOSTNAME:-0.0.0.0}
-      UPSTREAM_URL: ${UPSTREAM_URL:?UPSTREAM_URL required in .env}
-      DB_PATH: ${DB_PATH:-/data/audit.sqlite}
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      UPSTREAM_URL: http://localhost:8787
+      DB_PATH: /data/audit.sqlite
     ports:
-      - "${HOST_PORT:?HOST_PORT required in .env}:${PORT:-3000}"
+      - "3000:3000"
     volumes:
       # Bind mount for persistent data (no named volumes per user requirement)
       - ./data:/data

@@ -78,7 +78,11 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     bodySize = extracted.size;
   }
 
+  console.log(`[proxy] ${method} ${path} | contentType: ${contentType} | bodySize: ${bodySize}`);
+
   const result = runPipeline(bodyText, bodySize, filenames);
+
+  console.log(`[proxy] pipeline result | action: ${result.action} | findings: ${result.findings.length}`);
 
   logAudit({
     path,
