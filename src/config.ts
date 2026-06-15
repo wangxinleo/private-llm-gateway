@@ -1,4 +1,4 @@
-const CCLOAD_URL = process.env.CCLOAD_URL ?? "http://localhost:8787";
+const UPSTREAM_URL = process.env.UPSTREAM_URL ?? "http://localhost:8787";
 const DB_PATH = process.env.DB_PATH ?? "audit.sqlite";
 
 const SIZE_THRESHOLDS = {
@@ -15,4 +15,4 @@ const CONTEXT_KEY = {
   MAX_SPACES: 2,
 } as const;
 
-export { CCLOAD_URL, DB_PATH, SIZE_THRESHOLDS, CHUNK_SIZE, CONTEXT_KEY };
+export { UPSTREAM_URL, DB_PATH, SIZE_THRESHOLDS, CHUNK_SIZE, CONTEXT_KEY };

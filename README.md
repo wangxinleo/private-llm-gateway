@@ -258,44 +258,60 @@ v1 不做语义层面的人名或地址识别。
 - 使用 `node:22-alpine` 多阶段构建。
 - 构建阶段运行 `npm ci` 和 `npm run build`，生成 Next.js standalone 输出。
 - 运行阶段只复制 `.next/standalone`、`.next/static` 和 `public`。
+- GitHub Actions 会在 `master` 分支发布镜像到 GitHub Container Registry (`ghcr.io/<owner>/<repo>:latest`)，并在 `v*` Git tag 上发布版本镜像。
 - `better-sqlite3` 是原生模块，builder 和 runner 使用同一个 Alpine 基础镜像以保持 ABI 一致。
 - 容器以 `node` 非 root 用户运行。
-- 审计数据库固定写入 `/data/audit.sqlite`，通过 Docker volume 持久化。
-- 健康检查访问代理根路径 `/`，只验证代理进程存活，不依赖上游 `ccload`。
+- 审计数据库固定写入 `/data/audit.sqlite`，通过宿主机目录映射 `./data` 持久化（bind mount）。
+- 健康检查访问代理根路径 `/`，只验证代理进程存活，不依赖上游服务。
 
 ### 运行时配置
 
+所有配置通过环境变量注入，参考 `.env.template` 创建 `.env` 文件。
+
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `PRIVACY_PROXY_PORT` | `3000` | 映射到宿主机的端口，仅用于 Compose |
-| `PRIVACY_PROXY_CONTAINER_PORT` | `3000` | 容器内 Next.js 监听端口 |
-| `PRIVACY_PROXY_CCLOAD_URL` | `http://ccload:8787` | 容器内访问上游 `ccload` 的 base URL，会映射为应用内 `CCLOAD_URL` |
-| `PRIVACY_PROXY_DB_PATH` | `/data/audit.sqlite` | SQLite 审计库路径，会映射为应用内 `DB_PATH` |
+| `NODE_ENV` | `production` | Node 运行环境 |
+| `PORT` | `3000` | 容器内 Next.js 监听端口 |
+| `HOSTNAME` | `0.0.0.0` | 容器内绑定的网络接口 |
+| `HOST_PORT` | `3000` | 映射到宿主机的端口（仅用于 Docker Compose） |
+| `UPSTREAM_URL` | `http://ccload:8787` | 上游服务的 base URL（被代理的目标服务地址） |
+| `DB_PATH` | `/data/audit.sqlite` | SQLite 审计库路径 |
 
-生产环境建议从样例文件创建配置：
+生产环境配置：
 
 ```bash
-cp .env.production.example .env.production
+# 从模板创建配置文件
+cp .env.template .env
+# 编辑 .env 填入生产配置
 ```
 
 如果 `ccload` 是同一个 Compose 项目里的服务，保持：
 
 ```env
-PRIVACY_PROXY_CCLOAD_URL=http://ccload:8787
+UPSTREAM_URL=http://ccload:8787
 ```
 
 如果 `ccload` 跑在宿主机上，Docker Desktop 可使用：
 
 ```env
-PRIVACY_PROXY_CCLOAD_URL=http://host.docker.internal:8787
+UPSTREAM_URL=http://host.docker.internal:8787
 ```
 
 Linux 服务器上更推荐把 `ccload` 和 `privacy-proxy` 放进同一个 Docker network，并使用服务名访问。
 
 ### 生产启动
 
+使用仓库源码在服务器本地构建：
+
 ```bash
-docker compose --env-file .env.production up -d --build privacy-proxy
+docker compose up -d --build privacy-proxy
+```
+
+或直接拉取 GitHub Container Registry 中的镜像：
+
+```bash
+# 替换为你的仓库地址
+docker pull ghcr.io/<your-username>/<your-repo>:latest
 ```
 
 查看状态和日志：
@@ -311,15 +327,20 @@ docker compose logs -f privacy-proxy
 docker compose down
 ```
 
-保留审计数据时不要删除 volume。确实要清空审计数据时再执行：
+审计数据存储在宿主机 `./data/audit.sqlite`。如需清空审计数据：
 
 ```bash
-docker compose down -v
+# 停止服务
+docker compose down
+# 删除审计数据库
+rm -rf ./data/audit.sqlite
+# 或清空整个数据目录
+rm -rf ./data
 ```
 
 ### 本地容器烟测
 
-项目提供 `mock-upstream.mjs` 模拟 `ccload`。使用 `mock` profile 可以在没有真实上游的情况下验证容器链路：
+项目提供 `mock-upstream.mjs` 模拟上游服务。使用 `mock` profile 可以在没有真实上游的情况下验证容器链路：
 
 ```bash
 docker compose --profile mock up -d --build

@@ -32,6 +32,7 @@ yarn-error.log.log*
 .env*
 !.env.example
 !.env.production.example
+!.env.template
 
 # vercel
 .vercel
@@ -45,6 +46,7 @@ next-env.d.ts
 .claude
 .codex
 .trellis
+.omo
 
 # sqlite
 *.sqlite

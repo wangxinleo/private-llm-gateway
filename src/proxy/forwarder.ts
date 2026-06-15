@@ -1,11 +1,11 @@
-import { CCLOAD_URL } from "@/config";
+import { UPSTREAM_URL } from "@/config";
 
 export async function forwardRequest(
   path: string,
   request: Request,
   body?: BodyInit
 ): Promise<Response> {
-  const url = `${CCLOAD_URL}${path}`;
+  const url = `${UPSTREAM_URL}${path}`;
   const headers = new Headers(request.headers);
   headers.delete("host");
 

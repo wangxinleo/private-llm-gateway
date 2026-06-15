@@ -1,0 +1,35 @@
+# ========================================
+# Docker Compose Configuration
+# ========================================
+# All configuration from .env file (see .env.template)
+# Uses ONLY bind mounts (no named volumes)
+
+services:
+  privacy-proxy:
+    build:
+      context: .
+    image: privacy-proxy:local
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      HOSTNAME: ${HOSTNAME:-0.0.0.0}
+      UPSTREAM_URL: ${UPSTREAM_URL:?UPSTREAM_URL required in .env}
+      DB_PATH: ${DB_PATH:-/data/audit.sqlite}
+    ports:
+      - "${HOST_PORT:?HOST_PORT required in .env}:${PORT:-3000}"
+    volumes:
+      # Bind mount for persistent data (no named volumes per user requirement)
+      - ./data:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:' + (process.env.PORT || '3000') + '/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
