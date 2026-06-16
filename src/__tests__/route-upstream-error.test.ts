@@ -21,7 +21,7 @@ function makeRequest(
   contentType = "application/json",
 ): NextRequest {
   const url = `http://localhost:3000/api${path}`;
-  const init: RequestInit = { method, headers: { "content-type": contentType } };
+  const init: { method: string; headers: Record<string, string>; body?: string } = { method, headers: { "content-type": contentType } };
   if (body !== undefined) init.body = body;
   return new NextRequest(url, init);
 }

@@ -18,6 +18,10 @@ const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
 const DIM = "\x1b[2m";
 
+const NO_COLOR = typeof process.env.NO_COLOR !== "undefined"
+  || process.env.FORCE_COLOR === "0"
+  || process.env.NODE_ENV === "production";
+
 function shouldLog(level: Level, debug: boolean): boolean {
   const maxLevel = debug ? "debug" : "info";
   return LEVEL_ORDER[level] <= LEVEL_ORDER[maxLevel];
@@ -30,6 +34,10 @@ function formatTime(date: Date): string {
 
 function formatMsg(level: Level, tag: string, args: unknown[]): string {
   const ts = formatTime(new Date());
+  if (NO_COLOR) {
+    const rest = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
+    return `${ts} ${level.toUpperCase().padEnd(5)} [${tag}] ${rest}`;
+  }
   const tagPart = `${BOLD}[${tag}]${RESET}`;
   const levelPart = `${COLOR[level]}${level.toUpperCase().padEnd(5)}${RESET}`;
   const rest = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");

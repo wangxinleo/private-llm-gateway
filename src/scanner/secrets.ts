@@ -11,7 +11,7 @@ const BASIC_AUTH_RE = /Basic\s+[A-Za-z0-9+/]+=*/i;
 
 const JWT_RE = /eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/;
 
-const COOKIE_HEADER_RE = /(?<!Set-)Cookie:\s*\S+/i;
+const COOKIE_HEADER_RE = /(?<![\w-])Cookie:\s*\S+/i;
 const SET_COOKIE_HEADER_RE = /Set-Cookie:\s*\S+/i;
 
 const DB_URI_RE =
@@ -51,7 +51,7 @@ export function scanSecrets(text: string): Finding[] {
     if (match) {
       const matched = match[0];
       if (!seen.has(matched)) {
-        log.debug(`HIT: ${rule.category} | matched ${matched.length} chars | preview: ${matched.slice(0, 80)}...`);
+        log.debug(`HIT: ${rule.category} | matched ${matched.length} chars`);
         seen.add(matched);
         findings.push({
           category: rule.category,

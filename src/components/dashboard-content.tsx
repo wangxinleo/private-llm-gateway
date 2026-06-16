@@ -1,0 +1,125 @@
+"use client";
+
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useLocale } from "@/i18n";
+import { ShieldAlert, Eye, CheckCircle, Activity } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+function StatCard({ title, value, icon: Icon, color }: { title: string; value: number; icon: React.ComponentType<{ className?: string }>; color: string }) {
+  return (
+    <Card className="border-border/50 bg-card/80 backdrop-blur-sm transition-colors hover:border-border">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <Icon className={`h-4 w-4 ${color}`} />
+      </CardHeader>
+      <CardContent>
+        <div className="font-mono text-3xl font-bold tabular-nums">{value.toLocaleString()}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface AuditRow {
+  id: number;
+  timestamp: string;
+  path: string;
+  method: string;
+  contentType: string;
+  bodySize: number;
+  filenames: string[];
+  findings: string[];
+  action: string;
+}
+
+interface Stats {
+  total: number;
+  blocked: number;
+  masked: number;
+  allowed: number;
+}
+
+export function DashboardContent() {
+  const { t } = useLocale();
+  const [stats, setStats] = useState<Stats>({ total: 0, blocked: 0, masked: 0, allowed: 0 });
+  const [recentBlocked, setRecentBlocked] = useState<AuditRow[]>([]);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [statsRes, auditRes] = await Promise.all([
+          fetch("/api/admin/stats"),
+          fetch("/api/admin/audit?limit=10&action=block"),
+        ]);
+        if (statsRes.ok) setStats(await statsRes.json());
+        if (auditRes.ok) {
+          const data = await auditRes.json();
+          setRecentBlocked(data.rows ?? []);
+        }
+      } catch { /* DB may not exist yet */ }
+    }
+    load();
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-mono text-xl font-bold tracking-tight">{t("overview.title")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("overview.desc")}</p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard title={t("overview.totalRequests")} value={stats.total} icon={Activity} color="text-muted-foreground" />
+        <StatCard title={t("overview.blocked")} value={stats.blocked} icon={ShieldAlert} color="text-destructive" />
+        <StatCard title={t("overview.masked")} value={stats.masked} icon={Eye} color="text-warning" />
+        <StatCard title={t("overview.allowed")} value={stats.allowed} icon={CheckCircle} color="text-success" />
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="font-mono text-sm font-semibold tracking-wide">
+            {t("overview.recentIncidents")}
+          </CardTitle>
+          <Link
+            href="/dashboard/audit"
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            {t("overview.viewAll")}
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {recentBlocked.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              {t("overview.noIncidents")}
+            </p>
+          ) : (
+            <div className="divide-y divide-border/50">
+              {recentBlocked.map((row) => (
+                <div key={row.id} className="flex items-center justify-between py-3">
+                  <div className="flex items-center gap-3">
+                    <Badge variant={row.action === "block" ? "destructive" : "warning"} className="font-mono text-[10px]">
+                      {t(`action.${row.action}`)}
+                    </Badge>
+                    <span className="font-mono text-sm text-muted-foreground">{row.method}</span>
+                    <span className="max-w-[300px] truncate text-sm">{row.path}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                      {row.findings.map((f: string) => (
+                        <Badge key={f} variant="outline" className="font-mono text-[10px]">{f}</Badge>
+                      ))}
+                    </div>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {new Date(row.timestamp).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

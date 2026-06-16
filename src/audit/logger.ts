@@ -1,5 +1,6 @@
 import type { Finding, ActionType, AuditEntry } from "@/types";
 import { insertAudit } from "./store";
+import { broadcastAudit } from "./sse";
 
 export function logAudit(params: {
   path: string;
@@ -21,5 +22,17 @@ export function logAudit(params: {
     action: params.action,
   };
 
-  insertAudit(entry);
+  const id = insertAudit(entry);
+
+  broadcastAudit({
+    id,
+    timestamp: entry.timestamp,
+    path: entry.path,
+    method: entry.method,
+    contentType: entry.contentType,
+    bodySize: entry.bodySize,
+    filenames: entry.filenames,
+    findings: entry.findings,
+    action: entry.action,
+  });
 }

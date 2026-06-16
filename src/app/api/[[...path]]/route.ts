@@ -128,7 +128,8 @@ async function handleRequest(request: NextRequest): Promise<Response> {
   } catch (err) {
     const cause = err instanceof Error && "cause" in err ? (err.cause as Error) : undefined;
     const code = cause && "code" in cause ? (cause as { code: string }).code : undefined;
-    log.warn(`${method} ${path} | upstream error: ${err instanceof Error ? err.message : String(err)}${code ? ` (${code})` : ""}`);
+    log.warn(`${method} ${path} | upstream error: fetch_failed${code ? ` (${code})` : ""}`);
+    log.debug(`upstream error detail: ${err instanceof Error ? err.message : String(err)}`);
     return Response.json(
       { error: "upstream_error" },
       { status: 502 }
