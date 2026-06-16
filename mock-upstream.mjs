@@ -23,5 +23,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Mock ccload listening on :${PORT}`);
+  console.log(`Mock upstream listening on :${PORT}`);
 });

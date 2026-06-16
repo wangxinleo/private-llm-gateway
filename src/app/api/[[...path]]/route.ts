@@ -6,7 +6,9 @@ import { blockedResponse } from "@/engine/policy";
 import { forwardRequest } from "@/proxy/forwarder";
 import { createStreamingResponse } from "@/proxy/streaming";
 import { logAudit } from "@/audit/logger";
-import { DEBUG } from "@/config";
+import { Logger } from "@/log";
+
+const log = new Logger("proxy");
 
 const MULTIPART = "multipart/form-data";
 
@@ -81,9 +83,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     bodySize = extracted.size;
   }
 
-  if (DEBUG) {
-    console.log(`[proxy] ${method} ${path} | contentType: ${contentType} | bodySize: ${bodySize}`);
-  }
+  log.debug(`${method} ${path} | contentType: ${contentType} | bodySize: ${bodySize}`);
 
   const scanFn = (text: string, size: number) => runPipeline(text, size, filenames);
   const result = isJsonContentType(contentType) && !isMultipart(contentType)
@@ -93,8 +93,8 @@ async function handleRequest(request: NextRequest): Promise<Response> {
   const hitCategories = result.findings.map(f => f.category).join(", ");
   const duration = (performance.now() - startTime).toFixed(2);
 
-  if (result.action !== "allow" || DEBUG) {
-    console.log(`[proxy] ${method} ${path} | action: ${result.action} | hits: ${hitCategories || "none"} | ${duration}ms`);
+  if (result.action !== "allow") {
+    log.info(`${method} ${path} | action: ${result.action} | hits: ${hitCategories || "none"} | ${duration}ms`);
   }
 
   logAudit({
@@ -112,16 +112,26 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     return Response.json(blocked.body, { status: blocked.status });
   }
 
-  const upstream = await forwardRequest(
-    path,
-    request,
-    result.action === "mask" ? result.maskedBody : hasBody ? bodyText : undefined
-  );
+  try {
+    const upstream = await forwardRequest(
+      path,
+      request,
+      result.action === "mask" ? result.maskedBody : hasBody ? bodyText : undefined
+    );
 
-  const upstreamContentType = upstream.headers.get("content-type") ?? "";
-  if (upstreamContentType.includes("text/event-stream")) {
-    return createStreamingResponse(upstream);
+    const upstreamContentType = upstream.headers.get("content-type") ?? "";
+    if (upstreamContentType.includes("text/event-stream")) {
+      return createStreamingResponse(upstream);
+    }
+
+    return upstream;
+  } catch (err) {
+    const cause = err instanceof Error && "cause" in err ? (err.cause as Error) : undefined;
+    const code = cause && "code" in cause ? (cause as { code: string }).code : undefined;
+    log.warn(`${method} ${path} | upstream error: ${err instanceof Error ? err.message : String(err)}${code ? ` (${code})` : ""}`);
+    return Response.json(
+      { error: "upstream_error" },
+      { status: 502 }
+    );
   }
-
-  return upstream;
 }

@@ -1,21 +1,16 @@
-<!-- TRELLIS:START -->
-# Trellis Instructions
+# Project Guidelines
 
-These instructions are for AI assistants working in this project.
+## Code Style
 
-This project is managed by Trellis. The working knowledge you need lives under `.trellis/`:
+- Concise and efficient; no redundancy in code, comments, or documentation.
+- Only make targeted changes for the requirement; never break existing functionality.
+- All configuration via environment variables; never hardcode secrets.
 
-- `.trellis/workflow.md` — development phases, when to create tasks, skill routing
-- `.trellis/spec/` — package- and layer-scoped coding guidelines (read before writing code in a given layer)
-- `.trellis/workspace/` — per-developer journals and session traces
-- `.trellis/tasks/` — active and archived tasks (PRDs, research, jsonl context)
+## Architecture
 
-If a Trellis command is available on your platform (e.g. `/trellis:finish-work`, `/trellis:continue`), prefer it over manual steps. Not every platform exposes every command.
-
-If you're using Codex or another agent-capable tool, additional project-scoped helpers may live in:
-- `.agents/skills/` — reusable Trellis skills
-- `.codex/agents/` — optional custom subagents
-
-Managed by Trellis. Edits outside this block are preserved; edits inside may be overwritten by a future `trellis update`.
-
-<!-- TRELLIS:END -->
+- `src/app/api/[[...path]]/route.ts` — Reverse proxy entry point.
+- `src/scanner/` — Privacy scanning pipeline (secrets, context keys, PII, filenames).
+- `src/proxy/` — Upstream forwarding and SSE streaming.
+- `src/audit/` — SQLite audit metadata.
+- `Dockerfile` — Multi-stage production image (Next.js standalone).
+- `docker-compose.yaml` — Local and production deployment.

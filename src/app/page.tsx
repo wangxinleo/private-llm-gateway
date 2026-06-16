@@ -11,7 +11,7 @@ export default function Home() {
     >
       <div style={{ textAlign: "center" }}>
         <h1>Privacy Proxy</h1>
-        <p>Local privacy proxy for ccload is running.</p>
+        <p>Privacy proxy is running. All requests are scanned before forwarding.</p>
         <p>
           All requests to <code>/api/*</code> are scanned and forwarded.
         </p>

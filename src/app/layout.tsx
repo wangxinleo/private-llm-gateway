@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Privacy Proxy",
-  description: "Local privacy proxy for ccload",
+  description: "Local privacy proxy for upstream LLM services",
 };
 
 export default function RootLayout({

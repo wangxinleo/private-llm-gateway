@@ -2,11 +2,11 @@
 
 ## 目标
 
-这个目录用于说明一个位于 `ccload` 前面的本地快速隐私代理在 v1 阶段的明确范围。
+这个目录用于说明一个本地快速隐私代理在 v1 阶段的明确范围。
 
 目标链路：
 
-`client -> privacy-proxy -> ccload -> upstream`
+`client -> privacy-proxy -> upstream-service -> LLM provider`
 
 这个版本重点追求低延迟和可预测的行为。
 
@@ -19,7 +19,7 @@
 
 ## 核心行为
 
-- 代理是位于 `ccload` 前面的透明 HTTP 反向代理。
+- 代理是位于上游服务前面的透明 HTTP 反向代理。
 - 所有进入的请求都会在转发前先被检查。
 - 文本字段会扫描高风险密钥和基础个人信息。
 - 文件上传仅检查文件名、扩展名和 MIME 类型。
@@ -265,7 +265,7 @@ v1 不做语义层面的人名或地址识别。
 - `src/proxy/`：上游转发与 SSE 响应透传。
 - `src/audit/`：SQLite 审计元数据写入。
 - `Dockerfile`：生产镜像，使用 Next.js standalone 输出。
-- `compose.yaml`：本地和生产部署入口。
+- `docker-compose.yaml`：本地和生产部署入口。
 
 ## Docker 部署设计
 
@@ -289,9 +289,10 @@ v1 不做语义层面的人名或地址识别。
 | `NODE_ENV` | `production` | Node 运行环境 |
 | `PORT` | `3000` | 容器内 Next.js 监听端口 |
 | `HOSTNAME` | `0.0.0.0` | 容器内绑定的网络接口 |
+| `TZ` | `Asia/Shanghai` | 容器时区，影响日志时间戳 |
 | `DEBUG` | `false` | 调试模式。`true` 显示详细日志,`false` 仅显示关键信息 |
 | `HOST_PORT` | `3000` | 映射到宿主机的端口（仅用于 Docker Compose） |
-| `UPSTREAM_URL` | `http://ccload:8787` | 上游服务的 base URL（被代理的目标服务地址） |
+| `UPSTREAM_URL` | `http://upstream-service:8787` | 上游服务的 base URL（被代理的目标服务地址） |
 | `DB_PATH` | `/data/audit.sqlite` | SQLite 审计库路径 |
 
 生产环境配置：
@@ -302,19 +303,19 @@ cp .env.template .env
 # 编辑 .env 填入生产配置
 ```
 
-如果 `ccload` 是同一个 Compose 项目里的服务，保持：
+如果上游服务是同一个 Compose 项目里的服务，保持：
 
 ```env
-UPSTREAM_URL=http://ccload:8787
+UPSTREAM_URL=http://upstream-service:8787
 ```
 
-如果 `ccload` 跑在宿主机上，Docker Desktop 可使用：
+如果上游服务跑在宿主机上，Docker Desktop 可使用：
 
 ```env
 UPSTREAM_URL=http://host.docker.internal:8787
 ```
 
-Linux 服务器上更推荐把 `ccload` 和 `privacy-proxy` 放进同一个 Docker network，并使用服务名访问。
+Linux 服务器上更推荐把上游服务和 `privacy-proxy` 放进同一个 Docker network，并使用服务名访问。
 
 ### 生产启动
 

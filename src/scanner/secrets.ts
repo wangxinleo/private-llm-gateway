@@ -1,5 +1,7 @@
 import type { Finding } from "@/types";
-import { DEBUG } from "@/config";
+import { Logger } from "@/log";
+
+const log = new Logger("scanner");
 
 const PRIVATE_KEY_RE =
   /-----BEGIN\s+(?:RSA\s+|OPENSSH\s+|EC\s+|DSA\s+)?PRIVATE\s+KEY-----[\s\S]*?-----END\s+(?:RSA\s+|OPENSSH\s+|EC\s+|DSA\s+)?PRIVATE\s+KEY-----/;
@@ -48,10 +50,8 @@ export function scanSecrets(text: string): Finding[] {
     const match = rule.pattern.exec(text);
     if (match) {
       const matched = match[0];
-      if (DEBUG) {
-        console.log(`[scanner] ✅ HIT: ${rule.category} | matched ${matched.length} chars | preview: ${matched.slice(0, 80)}...`);
-      }
       if (!seen.has(matched)) {
+        log.debug(`HIT: ${rule.category} | matched ${matched.length} chars | preview: ${matched.slice(0, 80)}...`);
         seen.add(matched);
         findings.push({
           category: rule.category,
@@ -62,8 +62,6 @@ export function scanSecrets(text: string): Finding[] {
       }
     }
   }
-  if (DEBUG) {
-    console.log(`[scanner] secrets scan complete | findings: ${findings.length} | categories: [${findings.map(f => f.category).join(", ")}]`);
-  }
+  log.debug(`secrets scan complete | findings: ${findings.length} | categories: [${findings.map(f => f.category).join(", ")}]`);
   return findings;
 }
