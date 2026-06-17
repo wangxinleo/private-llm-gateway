@@ -46,12 +46,12 @@ export function NavSidebar() {
       </nav>
       <div className="border-t border-sidebar-border px-3 py-3">
         <div className="flex items-center justify-between">
-          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
             {t("nav.version")}
           </p>
           <button
             onClick={() => setLocale(locale === "zh" ? "en" : "zh")}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
             <Languages className="h-3.5 w-3.5" />
             {locale === "zh" ? "EN" : "中文"}

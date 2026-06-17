@@ -29,7 +29,7 @@ const HIGH_RISK_KEYWORDS_PREVIEW = [
 
 function ActionBadge({ action, label }: { action: "mask" | "block" | "allow"; label: string }) {
   const variant = action === "block" ? "destructive" : action === "mask" ? "warning" : "success";
-  return <Badge variant={variant} className="font-mono text-[10px]">{label}</Badge>;
+  return <Badge variant={variant} className="font-mono text-xs">{label}</Badge>;
 }
 
 export default function RulesPage() {
@@ -45,7 +45,7 @@ export default function RulesPage() {
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-mono text-sm tracking-wide">
-            <Badge variant="destructive" className="font-mono text-[10px]">11 RULES</Badge>
+            <Badge variant="destructive" className="font-mono text-xs">11 RULES</Badge>
             {t("rules.credentialStrong")}
           </CardTitle>
         </CardHeader>
@@ -67,7 +67,7 @@ export default function RulesPage() {
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-mono text-sm tracking-wide">
-            <Badge variant="warning" className="font-mono text-[10px]">64 KEYWORDS</Badge>
+            <Badge variant="warning" className="font-mono text-xs">64 KEYWORDS</Badge>
             {t("rules.contextKey")}
           </CardTitle>
         </CardHeader>
@@ -75,9 +75,9 @@ export default function RulesPage() {
           <p className="text-sm text-muted-foreground">{t("rules.contextKeyDesc")}</p>
           <div className="flex flex-wrap gap-1.5">
             {HIGH_RISK_KEYWORDS_PREVIEW.map((kw) => (
-              <code key={kw} className="rounded border border-border/30 bg-muted/80 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">{kw}</code>
+              <code key={kw} className="rounded border border-border/30 bg-muted/80 px-1.5 py-0.5 font-mono text-xs text-muted-foreground">{kw}</code>
             ))}
-            <code className="rounded border border-warning/30 bg-warning/10 px-1.5 py-0.5 font-mono text-[10px] text-warning">{t("rules.moreKeywords")}</code>
+            <code className="rounded border border-warning/30 bg-warning/10 px-1.5 py-0.5 font-mono text-xs text-warning">{t("rules.moreKeywords")}</code>
           </div>
           <Separator />
           <div className="grid grid-cols-3 gap-4 font-mono text-xs">
@@ -96,7 +96,7 @@ export default function RulesPage() {
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-mono text-sm tracking-wide">
-            <Badge variant="warning" className="font-mono text-[10px]">4 RULES</Badge>
+            <Badge variant="warning" className="font-mono text-xs">4 RULES</Badge>
             {t("rules.piiMasking")}
           </CardTitle>
         </CardHeader>
@@ -123,7 +123,7 @@ export default function RulesPage() {
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-mono text-sm tracking-wide">
-            <Badge variant="destructive" className="font-mono text-[10px]">BLOCK</Badge>
+            <Badge variant="destructive" className="font-mono text-xs">BLOCK</Badge>
             {t("rules.filename")}
           </CardTitle>
         </CardHeader>

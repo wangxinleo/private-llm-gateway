@@ -140,7 +140,7 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-mono text-sm tracking-wide">
             {t("settings.dbStats")}
-            <Badge variant="outline" className="font-mono text-[10px]">{formatBytes(dbStats.dbFileSize)}</Badge>
+            <Badge variant="outline" className="font-mono text-xs">{formatBytes(dbStats.dbFileSize)}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>

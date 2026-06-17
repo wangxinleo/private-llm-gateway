@@ -100,16 +100,16 @@ export function DashboardContent() {
               {recentBlocked.map((row) => (
                 <div key={row.id} className="flex items-center justify-between py-3">
                   <div className="flex items-center gap-3">
-                    <Badge variant={row.action === "block" ? "destructive" : "warning"} className="font-mono text-[10px]">
-                      {t(`action.${row.action}`)}
-                    </Badge>
+    <Badge variant={row.action === "block" ? "destructive" : "warning"} className="font-mono text-xs">
+                       {t(`action.${row.action}`)}
+                     </Badge>
                     <span className="font-mono text-sm text-muted-foreground">{row.method}</span>
                     <span className="max-w-[300px] truncate text-sm">{row.path}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex gap-1">
                       {row.findings.map((f: string) => (
-                        <Badge key={f} variant="outline" className="font-mono text-[10px]">{f}</Badge>
+                        <Badge key={f} variant="outline" className="font-mono text-xs">{f}</Badge>
                       ))}
                     </div>
                     <span className="font-mono text-xs text-muted-foreground">

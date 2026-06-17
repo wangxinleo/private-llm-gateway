@@ -41,7 +41,7 @@ export function AdminLoginGate({ children }: { children: React.ReactNode }) {
           onChange={(e) => setKey(e.target.value)}
           autoFocus
         />
-        {error && <p className="text-center text-xs text-destructive">{error}</p>}
+        {error && <p className="text-center text-sm text-destructive">{error}</p>}
         <Button type="submit" className="w-full" disabled={!key.trim()}>
           {t("auth.login")}
         </Button>
