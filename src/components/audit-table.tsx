@@ -11,7 +11,6 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
@@ -32,12 +31,12 @@ import {
   X,
   AlertTriangle,
   Clock,
-  Search,
 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 
 type FindingCategory = string;
 type ActionType = "allow" | "mask" | "block";
+type TimeRangePreset = "today" | "last3days" | "thisWeek" | "thisMonth" | "last3months" | "last6months";
 
 interface AuditRow {
   id: number;
@@ -77,6 +76,56 @@ function ActionBadge({ action, label }: { action: ActionType; label: string }) {
   return <Badge variant={variant} className="font-mono text-xs">{label}</Badge>;
 }
 
+function startOfDay(date: Date): Date {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function startOfWeek(date: Date): Date {
+  const next = startOfDay(date);
+  const day = next.getDay();
+  const diff = day === 0 ? 6 : day - 1;
+  next.setDate(next.getDate() - diff);
+  return next;
+}
+
+function startOfMonth(date: Date): Date {
+  const next = startOfDay(date);
+  next.setDate(1);
+  return next;
+}
+
+function subtractDays(date: Date, days: number): Date {
+  const next = startOfDay(date);
+  next.setDate(next.getDate() - days);
+  return next;
+}
+
+function subtractMonths(date: Date, months: number): Date {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() - months);
+  return startOfDay(next);
+}
+
+function getTimeRangeBounds(range: TimeRangePreset): { from: Date; to: Date } {
+  const now = new Date();
+  switch (range) {
+    case "today":
+      return { from: startOfDay(now), to: now };
+    case "last3days":
+      return { from: subtractDays(now, 2), to: now };
+    case "thisWeek":
+      return { from: startOfWeek(now), to: now };
+    case "thisMonth":
+      return { from: startOfMonth(now), to: now };
+    case "last3months":
+      return { from: subtractMonths(now, 3), to: now };
+    case "last6months":
+      return { from: subtractMonths(now, 6), to: now };
+  }
+}
+
 export function AuditTable() {
   const { t, locale } = useLocale();
   const { adminKey, authedFetch } = useAdminAuth();
@@ -101,12 +150,11 @@ export function AuditTable() {
   const [method, setMethod] = useState("");
   const [finding, setFinding] = useState("");
   const [query, setQuery] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [timeRange, setTimeRange] = useState<TimeRangePreset>("today");
   const [sseConnected, setSseConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
-  const filtersRef = useRef({ action, method, finding, query, dateFrom, dateTo, page: data.page });
-  filtersRef.current = { action, method, finding, query, dateFrom, dateTo, page: data.page };
+  const filtersRef = useRef({ action, method, finding, query, timeRange, page: data.page });
+  filtersRef.current = { action, method, finding, query, timeRange, page: data.page };
 
   const ACTION_OPTIONS = [
     { value: "", label: t("audit.filter.allActions") },
@@ -124,20 +172,37 @@ export function AuditTable() {
     { value: "DELETE", label: "DELETE" },
   ];
 
+  const PATH_OPTIONS = [
+    { value: "", label: t("audit.filter.allPaths") },
+    { value: "/api/v1/messages", label: "/api/v1/messages" },
+    { value: "/api/v1/responses", label: "/api/v1/responses" },
+    { value: "/api/v1beta", label: "/api/v1beta" },
+  ];
+
+  const TIME_RANGE_OPTIONS: { value: TimeRangePreset; label: string }[] = [
+    { value: "today", label: t("audit.filter.range.today") },
+    { value: "last3days", label: t("audit.filter.range.last3days") },
+    { value: "thisWeek", label: t("audit.filter.range.thisWeek") },
+    { value: "thisMonth", label: t("audit.filter.range.thisMonth") },
+    { value: "last3months", label: t("audit.filter.range.last3months") },
+    { value: "last6months", label: t("audit.filter.range.last6months") },
+  ];
+
   const buildUrl = useCallback(
     (page: number) => {
       const params = new URLSearchParams();
+      const { from, to } = getTimeRangeBounds(timeRange);
       params.set("page", String(page));
       params.set("limit", "50");
       if (action) params.set("action", action);
       if (method) params.set("method", method);
       if (finding) params.set("finding", finding);
       if (query) params.set("q", query);
-      if (dateFrom) params.set("from", new Date(dateFrom).toISOString());
-      if (dateTo) params.set("to", new Date(dateTo).toISOString());
+      params.set("from", from.toISOString());
+      params.set("to", to.toISOString());
       return `/api/admin/audit?${params.toString()}`;
     },
-    [action, method, finding, query, dateFrom, dateTo]
+    [action, method, finding, query, timeRange]
   );
 
   const fetchData = useCallback(
@@ -177,7 +242,7 @@ export function AuditTable() {
         try {
           const row: AuditRow = JSON.parse(e.data);
           const f = filtersRef.current;
-          const hasFilters = f.action || f.method || f.finding || f.query || f.dateFrom || f.dateTo;
+          const hasFilters = f.action || f.method || f.finding || f.query || f.timeRange !== "today";
           if (f.page !== 1 || hasFilters) return;
           setData((prev) => ({ ...prev, rows: [row, ...prev.rows].slice(0, prev.limit), total: prev.total + 1 }));
         } catch { /* ignore */ }
@@ -248,7 +313,7 @@ export function AuditTable() {
   };
 
   const totalPages = Math.ceil(data.total / data.limit);
-  const hasFilters = action || method || finding || query || dateFrom || dateTo;
+  const hasFilters = action || method || finding || query || timeRange !== "today";
 
   const formatTime = (iso: string) => new Date(iso).toLocaleString(locale === "zh" ? "zh-CN" : "en-US", {
     year: "numeric", month: "2-digit", day: "2-digit",
@@ -280,21 +345,18 @@ export function AuditTable() {
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.filter.path")}</label>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-            <Input placeholder="/v1/chat..." value={query} onChange={(e) => setQuery(e.target.value)} className="h-9 w-48 pl-8" />
-          </div>
+          <select value={query} onChange={(e) => setQuery(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+            {PATH_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+          </select>
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.filter.from")}</label>
-          <Input type="datetime-local" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 w-44" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.filter.to")}</label>
-          <Input type="datetime-local" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 w-44" />
+          <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.filter.timeRange")}</label>
+          <select value={timeRange} onChange={(e) => setTimeRange(e.target.value as TimeRangePreset)} className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+            {TIME_RANGE_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+          </select>
         </div>
         {hasFilters && (
-          <Button variant="ghost" size="sm" className="mt-5 h-9 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setAction(""); setMethod(""); setFinding(""); setQuery(""); setDateFrom(""); setDateTo(""); }}>
+          <Button variant="ghost" size="sm" className="h-9 shrink-0 self-end px-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setAction(""); setMethod(""); setFinding(""); setQuery(""); setTimeRange("today"); }}>
             <X className="mr-1 h-3 w-3" />{t("audit.filter.clear")}
           </Button>
         )}
