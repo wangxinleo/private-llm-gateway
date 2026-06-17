@@ -3,6 +3,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocale } from "@/i18n";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 import { ShieldAlert, Eye, CheckCircle, Activity } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -42,6 +43,7 @@ interface Stats {
 
 export function DashboardContent() {
   const { t } = useLocale();
+  const { authedFetch } = useAdminAuth();
   const [stats, setStats] = useState<Stats>({ total: 0, blocked: 0, masked: 0, allowed: 0 });
   const [recentBlocked, setRecentBlocked] = useState<AuditRow[]>([]);
 
@@ -49,8 +51,8 @@ export function DashboardContent() {
     async function load() {
       try {
         const [statsRes, auditRes] = await Promise.all([
-          fetch("/api/admin/stats"),
-          fetch("/api/admin/audit?limit=10&action=block"),
+          authedFetch("/api/admin/stats"),
+          authedFetch("/api/admin/audit?limit=10&action=block"),
         ]);
         if (statsRes.ok) setStats(await statsRes.json());
         if (auditRes.ok) {
@@ -60,7 +62,7 @@ export function DashboardContent() {
       } catch { /* DB may not exist yet */ }
     }
     load();
-  }, []);
+  }, [authedFetch]);
 
   return (
     <div className="space-y-6">

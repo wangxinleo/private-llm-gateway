@@ -294,6 +294,7 @@ v1 不做语义层面的人名或地址识别。
 | `HOST_PORT` | `3000` | 映射到宿主机的端口（仅用于 Docker Compose） |
 | `UPSTREAM_URL` | `http://upstream-service:8787` | 上游服务的 base URL（被代理的目标服务地址） |
 | `DB_PATH` | `/data/audit.sqlite` | SQLite 审计库路径 |
+| `ADMIN_KEY` | _(空)_ | 管理后台访问密钥。必须设置才能访问 `/dashboard`。建议使用 `openssl rand -base64 32` 生成 |
 
 生产环境配置：
 
@@ -301,6 +302,14 @@ v1 不做语义层面的人名或地址识别。
 # 从模板创建配置文件
 cp .env.template .env
 # 编辑 .env 填入生产配置
+```
+
+**必须设置 ADMIN_KEY 才能访问管理后台**：
+
+```bash
+# 生成强随机密钥
+openssl rand -base64 32
+# 将生成的密钥填入 .env 文件的 ADMIN_KEY 变量
 ```
 
 如果上游服务是同一个 Compose 项目里的服务，保持：

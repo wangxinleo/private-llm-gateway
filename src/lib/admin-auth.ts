@@ -5,7 +5,7 @@ export function checkAdminAuth(req: Request): NextResponse | null {
   if (!adminKey) {
     return NextResponse.json({ error: "admin_not_configured" }, { status: 503 });
   }
-  const provided = req.headers.get("x-admin-key");
+  const provided = req.headers.get("x-admin-key") || new URL(req.url).searchParams.get("key");
   if (provided !== adminKey) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

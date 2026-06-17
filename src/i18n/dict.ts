@@ -120,6 +120,13 @@ const zh: Record<string, string> = {
   "settings.fullScanDesc": "低于此值完整扫描",
   "settings.chunkedScanDesc": "低于此值分块扫描",
   "settings.chunkSizeDesc": "分块扫描块大小",
+  // Auth
+  "auth.title": "管理员认证",
+  "auth.desc": "请输入 ADMIN_KEY 以访问管理后台",
+  "auth.placeholder": "输入 Admin Key",
+  "auth.login": "登录",
+  "auth.invalidKey": "Admin Key 无效",
+  "auth.notConfigured": "未配置 ADMIN_KEY，请设置环境变量",
   // Action labels
   "action.allow": "放行",
   "action.mask": "脱敏",
@@ -250,6 +257,12 @@ const en: Record<string, string> = {
   "action.mask": "Mask",
   "action.block": "Block",
   "action.any": "any",
+  "auth.title": "Admin Authentication",
+  "auth.desc": "Enter ADMIN_KEY to access the dashboard",
+  "auth.placeholder": "Enter Admin Key",
+  "auth.login": "Login",
+  "auth.invalidKey": "Invalid Admin Key",
+  "auth.notConfigured": "ADMIN_KEY not configured, please set the environment variable",
 };
 
 const dicts: Record<Locale, Record<string, string>> = { zh, en };

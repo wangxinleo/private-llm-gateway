@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocale } from "@/i18n";
 import { SIZE_THRESHOLDS, CHUNK_SIZE, CONTEXT_KEY } from "@/config";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 import { useEffect, useState } from "react";
 
 function formatBytes(bytes: number): string {
@@ -30,6 +31,7 @@ interface RuntimeEnv {
 
 export default function SettingsPage() {
   const { t, locale } = useLocale();
+  const { authedFetch } = useAdminAuth();
   const [dbStats, setDbStats] = useState<DbStats>({
     totalRecords: 0,
     earliestRecord: null,
@@ -45,7 +47,7 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
-    fetch("/api/admin/config")
+    authedFetch("/api/admin/config")
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (data?.dbStats) {
@@ -67,7 +69,7 @@ export default function SettingsPage() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [authedFetch]);
 
   const fmt = (iso: string | null) => iso ? new Date(iso).toLocaleString(locale === "zh" ? "zh-CN" : "en-US") : "—";
 

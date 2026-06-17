@@ -21,7 +21,7 @@ describe("checkAdminAuth", () => {
   });
 
   it("returns 401 when x-admin-key does not match", async () => {
-    process.env.ADMIN_KEY = "secret123";
+    process.env.ADMIN_KEY = "test-secret";
     const req = new Request("http://localhost/test", {
       headers: { "x-admin-key": "wrong" },
     });
@@ -31,18 +31,39 @@ describe("checkAdminAuth", () => {
   });
 
   it("returns null when x-admin-key matches", () => {
-    process.env.ADMIN_KEY = "secret123";
+    process.env.ADMIN_KEY = "test-secret";
     const req = new Request("http://localhost/test", {
-      headers: { "x-admin-key": "secret123" },
+      headers: { "x-admin-key": "test-secret" },
     });
     expect(checkAdminAuth(req)).toBeNull();
   });
 
   it("returns 401 when x-admin-key header is missing", async () => {
-    process.env.ADMIN_KEY = "secret123";
+    process.env.ADMIN_KEY = "test-secret";
     const req = new Request("http://localhost/test");
     const res = checkAdminAuth(req)!;
     expect(res.status).toBe(401);
     expect(await res.json()).toEqual({ error: "unauthorized" });
+  });
+
+  it("returns null when key query param matches", () => {
+    process.env.ADMIN_KEY = "test-secret";
+    const req = new Request("http://localhost/test?key=test-secret");
+    expect(checkAdminAuth(req)).toBeNull();
+  });
+
+  it("returns 401 when key query param does not match", async () => {
+    process.env.ADMIN_KEY = "test-secret";
+    const req = new Request("http://localhost/test?key=wrong");
+    const res = checkAdminAuth(req)!;
+    expect(res.status).toBe(401);
+  });
+
+  it("prefers x-admin-key header over query param", () => {
+    process.env.ADMIN_KEY = "test-secret";
+    const req = new Request("http://localhost/test?key=wrong", {
+      headers: { "x-admin-key": "test-secret" },
+    });
+    expect(checkAdminAuth(req)).toBeNull();
   });
 });

@@ -15,6 +15,7 @@ services:
       TZ: Asia/Shanghai
       UPSTREAM_URL: http://localhost:8787
       DB_PATH: /data/audit.sqlite
+      ADMIN_KEY: ${ADMIN_KEY:-}
     ports:
       - "3000:3000"
     volumes:

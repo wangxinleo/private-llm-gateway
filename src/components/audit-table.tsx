@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/i18n";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 import {
   Trash2,
   Download,
@@ -78,6 +79,7 @@ function ActionBadge({ action, label }: { action: ActionType; label: string }) {
 
 export function AuditTable() {
   const { t, locale } = useLocale();
+  const { adminKey, authedFetch } = useAdminAuth();
   const [data, setData] = useState<AuditResponse>({ rows: [], total: 0, page: 1, limit: 50 });
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
@@ -142,7 +144,7 @@ export function AuditTable() {
     async (page: number) => {
       setLoading(true);
       try {
-        const res = await fetch(buildUrl(page));
+        const res = await authedFetch(buildUrl(page));
         if (res.ok) {
           const json: AuditResponse = await res.json();
           setData(json);
@@ -151,7 +153,7 @@ export function AuditTable() {
         setLoading(false);
       }
     },
-    [buildUrl]
+    [buildUrl, authedFetch]
   );
 
   useEffect(() => { fetchData(1); }, [fetchData]);
@@ -160,7 +162,10 @@ export function AuditTable() {
     let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 
     const setupEventSource = () => {
-      const es = new EventSource("/api/admin/audit/stream");
+      const sseUrl = adminKey
+        ? `/api/admin/audit/stream?key=${encodeURIComponent(adminKey)}`
+        : "/api/admin/audit/stream";
+      const es = new EventSource(sseUrl);
       eventSourceRef.current = es;
       es.onopen = () => setSseConnected(true);
       es.onerror = () => {
@@ -203,7 +208,7 @@ export function AuditTable() {
       title: t("audit.confirmDeletion"),
       desc: t("audit.confirmDeleteDesc", { count: ids.length }),
       onConfirm: async () => {
-        await fetch("/api/admin/audit", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) });
+        await authedFetch("/api/admin/audit", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) });
         setSelectedIds(new Set());
         fetchData(data.page);
         setDeleteDialog((d) => ({ ...d, open: false }));
@@ -216,7 +221,7 @@ export function AuditTable() {
   const handleCleanByFilter = async (before: string, act: string) => {
     const filter: { before: string; action?: string } = { before };
     if (act) filter.action = act as ActionType;
-    const dryRes = await fetch("/api/admin/audit?dryRun=true", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filter }) });
+    const dryRes = await authedFetch("/api/admin/audit?dryRun=true", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filter }) });
     const dryData = await dryRes.json();
     setCleanDialog({ open: true, count: dryData.wouldDelete ?? 0, before, action: act });
   };
@@ -224,7 +229,7 @@ export function AuditTable() {
   const confirmClean = async () => {
     const filter: { before: string; action?: string } = { before: cleanDialog.before };
     if (cleanDialog.action) filter.action = cleanDialog.action as ActionType;
-    await fetch("/api/admin/audit", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filter }) });
+    await authedFetch("/api/admin/audit", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filter }) });
     setCleanDialog((d) => ({ ...d, open: false }));
     fetchData(1);
   };
