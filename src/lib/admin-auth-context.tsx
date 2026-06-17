@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 
 interface AdminAuthContextValue {
   adminKey: string | null;
@@ -16,10 +16,11 @@ const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 const STORAGE_KEY = "pp_admin_key";
 
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
-  const [adminKey, setAdminKey] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return sessionStorage.getItem(STORAGE_KEY);
-  });
+  const [adminKey, setAdminKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAdminKey(sessionStorage.getItem(STORAGE_KEY));
+  }, []);
 
   const login = useCallback((key: string) => {
     sessionStorage.setItem(STORAGE_KEY, key);
