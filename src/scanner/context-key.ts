@@ -1,5 +1,6 @@
 import { CONTEXT_KEY } from "@/config";
 import type { Finding } from "@/types";
+import { buildMaskTag } from "./mask-tag";
 
 const HIGH_RISK_KEYWORDS: ReadonlySet<string> = new Set([
   "key",
@@ -107,7 +108,7 @@ export function scanContextKey(text: string): Finding[] {
           category: "CONTEXTUAL_SECRET",
           action: "mask",
           matched: value,
-          maskTag: "[CONTEXTUAL_SECRET]",
+          maskTag: buildMaskTag("CONTEXTUAL_SECRET"),
         });
       }
     }

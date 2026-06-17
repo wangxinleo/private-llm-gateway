@@ -3,7 +3,7 @@ import { applyMasks } from "@/scanner/pii";
 import type { Finding } from "@/types";
 
 function mask(text: string, findings: Finding[]): string {
-  return applyMasks(text, findings);
+  return applyMasks(text, findings).masked;
 }
 
 describe("applyMasks — secret masking", () => {
@@ -15,10 +15,10 @@ describe("applyMasks — secret masking", () => {
         category: "PRIVATE_KEY",
         action: "mask",
         matched: text,
-        maskTag: "[PRIVATE_KEY]",
+        maskTag: "<<PRIVACY_MASK:PRIVATE_KEY>>",
       },
     ];
-    expect(mask(text, f)).toBe("[PRIVATE_KEY]");
+    expect(mask(text, f)).toBe("<<PRIVACY_MASK:PRIVATE_KEY>>");
   });
 
   it("masks Bearer token", () => {
@@ -28,10 +28,10 @@ describe("applyMasks — secret masking", () => {
         category: "BEARER_TOKEN",
         action: "mask",
         matched: "Bearer abc123token",
-        maskTag: "[BEARER_TOKEN]",
+        maskTag: "<<PRIVACY_MASK:BEARER_TOKEN>>",
       },
     ];
-    expect(mask(text, f)).toBe("Authorization: [BEARER_TOKEN]");
+    expect(mask(text, f)).toBe("Authorization: <<PRIVACY_MASK:BEARER_TOKEN>>");
   });
 
   it("masks Basic auth", () => {
@@ -41,10 +41,10 @@ describe("applyMasks — secret masking", () => {
         category: "BASIC_AUTH",
         action: "mask",
         matched: "Basic dXNlcjpwYXNz",
-        maskTag: "[BASIC_AUTH]",
+        maskTag: "<<PRIVACY_MASK:BASIC_AUTH>>",
       },
     ];
-    expect(mask(text, f)).toBe("Authorization: [BASIC_AUTH]");
+    expect(mask(text, f)).toBe("Authorization: <<PRIVACY_MASK:BASIC_AUTH>>");
   });
 
   it("masks JWT", () => {
@@ -55,10 +55,10 @@ describe("applyMasks — secret masking", () => {
         category: "JWT",
         action: "mask",
         matched: token,
-        maskTag: "[JWT]",
+        maskTag: "<<PRIVACY_MASK:JWT>>",
       },
     ];
-    expect(mask(text, f)).toBe("token=[JWT]");
+    expect(mask(text, f)).toBe("token=<<PRIVACY_MASK:JWT>>");
   });
 
   it("masks Cookie header", () => {
@@ -68,10 +68,10 @@ describe("applyMasks — secret masking", () => {
         category: "COOKIE_HEADER",
         action: "mask",
         matched: "Cookie: session=abc",
-        maskTag: "[COOKIE_HEADER]",
+        maskTag: "<<PRIVACY_MASK:COOKIE_HEADER>>",
       },
     ];
-    expect(mask(text, f)).toBe("[COOKIE_HEADER]");
+    expect(mask(text, f)).toBe("<<PRIVACY_MASK:COOKIE_HEADER>>");
   });
 
   it("masks Set-Cookie header", () => {
@@ -81,10 +81,10 @@ describe("applyMasks — secret masking", () => {
         category: "SET_COOKIE_HEADER",
         action: "mask",
         matched: "Set-Cookie: sid=xyz",
-        maskTag: "[SET_COOKIE_HEADER]",
+        maskTag: "<<PRIVACY_MASK:SET_COOKIE_HEADER>>",
       },
     ];
-    expect(mask(text, f)).toBe("[SET_COOKIE_HEADER]");
+    expect(mask(text, f)).toBe("<<PRIVACY_MASK:SET_COOKIE_HEADER>>");
   });
 
   it("masks DB URI", () => {
@@ -94,10 +94,10 @@ describe("applyMasks — secret masking", () => {
         category: "DB_URI",
         action: "mask",
         matched: "postgres://user:pass@host/db",
-        maskTag: "[DB_URI]",
+        maskTag: "<<PRIVACY_MASK:DB_URI>>",
       },
     ];
-    expect(mask(text, f)).toBe("[DB_URI]");
+    expect(mask(text, f)).toBe("<<PRIVACY_MASK:DB_URI>>");
   });
 
   it("masks AWS access key", () => {
@@ -107,10 +107,10 @@ describe("applyMasks — secret masking", () => {
         category: "AWS_ACCESS_KEY",
         action: "mask",
         matched: "AKIAIOSFODNN7EXAMPLE",
-        maskTag: "[AWS_ACCESS_KEY]",
+        maskTag: "<<PRIVACY_MASK:AWS_ACCESS_KEY>>",
       },
     ];
-    expect(mask(text, f)).toBe("[AWS_ACCESS_KEY]");
+    expect(mask(text, f)).toBe("<<PRIVACY_MASK:AWS_ACCESS_KEY>>");
   });
 
   it("masks GitHub token", () => {
@@ -120,10 +120,10 @@ describe("applyMasks — secret masking", () => {
         category: "GITHUB_TOKEN",
         action: "mask",
         matched: token,
-        maskTag: "[GITHUB_TOKEN]",
+        maskTag: "<<PRIVACY_MASK:GITHUB_TOKEN>>",
       },
     ];
-    expect(mask(token, f)).toBe("[GITHUB_TOKEN]");
+    expect(mask(token, f)).toBe("<<PRIVACY_MASK:GITHUB_TOKEN>>");
   });
 
   it("masks Slack token", () => {
@@ -133,10 +133,10 @@ describe("applyMasks — secret masking", () => {
         category: "SLACK_TOKEN",
         action: "mask",
         matched: token,
-        maskTag: "[SLACK_TOKEN]",
+        maskTag: "<<PRIVACY_MASK:SLACK_TOKEN>>",
       },
     ];
-    expect(mask(token, f)).toBe("[SLACK_TOKEN]");
+    expect(mask(token, f)).toBe("<<PRIVACY_MASK:SLACK_TOKEN>>");
   });
 
   it("masks Google API key", () => {
@@ -146,10 +146,10 @@ describe("applyMasks — secret masking", () => {
         category: "GOOGLE_API_KEY",
         action: "mask",
         matched: key,
-        maskTag: "[GOOGLE_API_KEY]",
+        maskTag: "<<PRIVACY_MASK:GOOGLE_API_KEY>>",
       },
     ];
-    expect(mask(key, f)).toBe("[GOOGLE_API_KEY]");
+    expect(mask(key, f)).toBe("<<PRIVACY_MASK:GOOGLE_API_KEY>>");
   });
 
   it("masks context key value", () => {
@@ -160,10 +160,10 @@ describe("applyMasks — secret masking", () => {
         category: "CONTEXTUAL_SECRET",
         action: "mask",
         matched: value,
-        maskTag: "[CONTEXTUAL_SECRET]",
+        maskTag: "<<PRIVACY_MASK:CONTEXTUAL_SECRET>>",
       },
     ];
-    expect(mask(text, f)).toBe(`"api_key": "[CONTEXTUAL_SECRET]"`);
+    expect(mask(text, f)).toBe(`"api_key": "<<PRIVACY_MASK:CONTEXTUAL_SECRET>>"`);
   });
 });
 
@@ -175,16 +175,16 @@ describe("applyMasks — mixed findings", () => {
         category: "BEARER_TOKEN",
         action: "mask",
         matched: "Bearer abc123token",
-        maskTag: "[BEARER_TOKEN]",
+        maskTag: "<<PRIVACY_MASK:BEARER_TOKEN>>",
       },
       {
         category: "PHONE",
         action: "mask",
         matched: "13912345678",
-        maskTag: "[PHONE]",
+        maskTag: "<<PRIVACY_MASK:PHONE>>",
       },
     ];
-    expect(mask(text, f)).toBe("[BEARER_TOKEN] phone [PHONE]");
+    expect(mask(text, f)).toBe("<<PRIVACY_MASK:BEARER_TOKEN>> phone <<PRIVACY_MASK:PHONE>>");
   });
 
   it("masks PII types correctly", () => {
@@ -193,10 +193,10 @@ describe("applyMasks — mixed findings", () => {
         category: "PHONE",
         action: "mask",
         matched: "13912345678",
-        maskTag: "[PHONE]",
+        maskTag: "<<PRIVACY_MASK:PHONE>>",
       },
     ];
-    expect(mask("call 13912345678 now", f)).toBe("call [PHONE] now");
+    expect(mask("call 13912345678 now", f)).toBe("call <<PRIVACY_MASK:PHONE>> now");
   });
 
   it("masks email", () => {
@@ -205,10 +205,10 @@ describe("applyMasks — mixed findings", () => {
         category: "EMAIL",
         action: "mask",
         matched: "user@example.com",
-        maskTag: "[EMAIL]",
+        maskTag: "<<PRIVACY_MASK:EMAIL>>",
       },
     ];
-    expect(mask("contact user@example.com", f)).toBe("contact [EMAIL]");
+    expect(mask("contact user@example.com", f)).toBe("contact <<PRIVACY_MASK:EMAIL>>");
   });
 
   it("masks ID card", () => {
@@ -218,10 +218,10 @@ describe("applyMasks — mixed findings", () => {
         category: "ID_CARD",
         action: "mask",
         matched: id,
-        maskTag: "[ID_CARD]",
+        maskTag: "<<PRIVACY_MASK:ID_CARD>>",
       },
     ];
-    expect(mask(`身份证${id}`, f)).toBe("身份证[ID_CARD]");
+    expect(mask(`身份证${id}`, f)).toBe("身份证<<PRIVACY_MASK:ID_CARD>>");
   });
 
   it("masks bank card", () => {
@@ -231,10 +231,10 @@ describe("applyMasks — mixed findings", () => {
         category: "BANK_CARD",
         action: "mask",
         matched: card,
-        maskTag: "[BANK_CARD]",
+        maskTag: "<<PRIVACY_MASK:BANK_CARD>>",
       },
     ];
-    expect(mask(`卡号${card}`, f)).toBe("卡号[BANK_CARD]");
+    expect(mask(`卡号${card}`, f)).toBe("卡号<<PRIVACY_MASK:BANK_CARD>>");
   });
 
   it("returns original text when no mask findings", () => {

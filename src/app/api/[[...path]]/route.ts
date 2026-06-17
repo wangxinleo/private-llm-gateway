@@ -5,8 +5,10 @@ import { parseMultipart, collectMultipartText, collectFilenames } from "@/scanne
 import { blockedResponse } from "@/engine/policy";
 import { forwardRequest } from "@/proxy/forwarder";
 import { createStreamingResponse } from "@/proxy/streaming";
+import { applyDisambiguation } from "@/proxy/disambiguation";
 import { logAudit } from "@/audit/logger";
 import { Logger } from "@/log";
+import { PRIVACY_DEBUG_HEADERS } from "@/config";
 
 const log = new Logger("proxy");
 
@@ -105,6 +107,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     filenames,
     findings: result.findings,
     action: result.action,
+    scanResult: result,
   });
 
   if (result.action === "block") {
@@ -113,15 +116,26 @@ async function handleRequest(request: NextRequest): Promise<Response> {
   }
 
   try {
+    const forwardBody = result.action === "mask"
+      ? applyDisambiguation({ contentType, maskedBody: result.maskedBody, scanResult: result })
+      : hasBody ? bodyText : undefined;
+
     const upstream = await forwardRequest(
       path,
       request,
-      result.action === "mask" ? result.maskedBody : hasBody ? bodyText : undefined
+      forwardBody
     );
 
     const upstreamContentType = upstream.headers.get("content-type") ?? "";
     if (upstreamContentType.includes("text/event-stream")) {
       return createStreamingResponse(upstream);
+    }
+
+    if (PRIVACY_DEBUG_HEADERS && result.maskSummary.applied) {
+      const headers = new Headers(upstream.headers);
+      headers.set("X-Privacy-Masked", "true");
+      headers.set("X-Privacy-Mask-Types", result.maskSummary.categories.join(","));
+      return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers });
     }
 
     return upstream;

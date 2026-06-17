@@ -10,7 +10,7 @@ describe("resolveAction", () => {
         action: "block",
         matched: "id_rsa",
       },
-      { category: "PHONE", action: "mask", matched: "13912345678", maskTag: "[PHONE]" },
+      { category: "PHONE", action: "mask", matched: "13912345678", maskTag: "<<PRIVACY_MASK:PHONE>>" },
     ];
     expect(resolveAction(findings)).toBe("block");
   });
@@ -21,9 +21,9 @@ describe("resolveAction", () => {
         category: "PRIVATE_KEY",
         action: "mask",
         matched: "-----BEGIN PRIVATE KEY-----...",
-        maskTag: "[PRIVATE_KEY]",
+        maskTag: "<<PRIVACY_MASK:PRIVATE_KEY>>",
       },
-      { category: "PHONE", action: "mask", matched: "13912345678", maskTag: "[PHONE]" },
+      { category: "PHONE", action: "mask", matched: "13912345678", maskTag: "<<PRIVACY_MASK:PHONE>>" },
     ];
     expect(resolveAction(findings)).toBe("mask");
   });
@@ -34,7 +34,7 @@ describe("resolveAction", () => {
         category: "BEARER_TOKEN",
         action: "mask",
         matched: "Bearer abc123",
-        maskTag: "[BEARER_TOKEN]",
+        maskTag: "<<PRIVACY_MASK:BEARER_TOKEN>>",
       },
     ];
     expect(resolveAction(findings)).toBe("mask");
@@ -42,8 +42,8 @@ describe("resolveAction", () => {
 
   it("returns 'mask' when only mask findings exist", () => {
     const findings: Finding[] = [
-      { category: "PHONE", action: "mask", matched: "13912345678", maskTag: "[PHONE]" },
-      { category: "EMAIL", action: "mask", matched: "a@b.com", maskTag: "[EMAIL]" },
+      { category: "PHONE", action: "mask", matched: "13912345678", maskTag: "<<PRIVACY_MASK:PHONE>>" },
+      { category: "EMAIL", action: "mask", matched: "a@b.com", maskTag: "<<PRIVACY_MASK:EMAIL>>" },
     ];
     expect(resolveAction(findings)).toBe("mask");
   });
@@ -92,7 +92,7 @@ describe("blockedResponse", () => {
         action: "block",
         matched: "id_rsa",
       },
-      { category: "PHONE", action: "mask", matched: "13912345678", maskTag: "[PHONE]" },
+      { category: "PHONE", action: "mask", matched: "13912345678", maskTag: "<<PRIVACY_MASK:PHONE>>" },
     ];
     const resp = blockedResponse(findings);
     expect(resp.body.blocked_types).toEqual(["SENSITIVE_FILENAME"]);

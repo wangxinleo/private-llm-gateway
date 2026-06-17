@@ -12,10 +12,10 @@ const SECRET_CATEGORIES = [
 ];
 
 const PII_RULES = [
-  { category: "PHONE", tag: "[PHONE]", validationKey: "rules.validation.cnMobile" },
-  { category: "EMAIL", tag: "[EMAIL]", validationKey: "rules.validation.email" },
-  { category: "ID_CARD", tag: "[ID_CARD]", validationKey: "rules.validation.idCard" },
-  { category: "BANK_CARD", tag: "[BANK_CARD]", validationKey: "rules.validation.bankCard" },
+  { category: "PHONE", tag: "<<PRIVACY_MASK:PHONE>>", validationKey: "rules.validation.cnMobile" },
+  { category: "EMAIL", tag: "<<PRIVACY_MASK:EMAIL>>", validationKey: "rules.validation.email" },
+  { category: "ID_CARD", tag: "<<PRIVACY_MASK:ID_CARD>>", validationKey: "rules.validation.idCard" },
+  { category: "BANK_CARD", tag: "<<PRIVACY_MASK:BANK_CARD>>", validationKey: "rules.validation.bankCard" },
 ];
 
 const BLOCKED_EXTENSIONS = [".env", ".pem", ".key", ".p12", ".pfx", ".npmrc", ".pypirc"];
@@ -88,7 +88,7 @@ export default function RulesPage() {
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">{t("rules.action")}:</span>
             <ActionBadge action="mask" label={t("action.mask")} />
-            <span className="font-mono text-xs text-muted-foreground">→ [CONTEXTUAL_SECRET]</span>
+            <span className="font-mono text-xs text-muted-foreground">→ &lt;&lt;PRIVACY_MASK:CONTEXTUAL_SECRET&gt;&gt;</span>
           </div>
         </CardContent>
       </Card>

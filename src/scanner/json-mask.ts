@@ -58,16 +58,22 @@ export function maskJsonBody(body: string, scan: ScanFn): ScanResult {
   const masked = scanValue(parsed, scan, findings);
 
   if (findings.some((f) => isBlockCategory(f.category))) {
-    return { findings, maskedBody: body, action: "block" };
+    return { findings, maskedBody: body, action: "block", maskSummary: { applied: false, categories: [], replacementCount: 0 } };
   }
 
   if (findings.length > 0) {
+    const maskFindings = findings.filter((f) => f.action === "mask");
     return {
       findings,
       maskedBody: JSON.stringify(masked),
       action: "mask",
+      maskSummary: {
+        applied: maskFindings.length > 0,
+        categories: [...new Set(maskFindings.map((f) => f.category))],
+        replacementCount: maskFindings.length,
+      },
     };
   }
 
-  return { findings: [], maskedBody: JSON.stringify(masked), action: "allow" };
+  return { findings: [], maskedBody: JSON.stringify(masked), action: "allow", maskSummary: { applied: false, categories: [], replacementCount: 0 } };
 }

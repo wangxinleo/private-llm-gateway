@@ -45,7 +45,7 @@ describe("maskJsonBody", () => {
     // Must be parseable as valid JSON
     const parsed = JSON.parse(result.maskedBody);
     expect(parsed.model).toBe("gpt-4");
-    expect(parsed.messages[0].content).toContain("[PHONE]");
+    expect(parsed.messages[0].content).toContain("<<PRIVACY_MASK:PHONE>>");
     expect(parsed.messages[0].content).not.toContain("13912345678");
   });
 
@@ -65,7 +65,7 @@ describe("maskJsonBody", () => {
     expect(parsed.timestamp).toBe(1648601234567890);
     expect(parsed.max_tokens).toBe(4096);
     // No mask tags in the body
-    expect(result.maskedBody).not.toContain("[BANK_CARD]");
+    expect(result.maskedBody).not.toContain("<<PRIVACY_MASK:BANK_CARD>>");
   });
 
   it("S3: masks PII in deeply nested JSON string values", () => {
@@ -86,8 +86,8 @@ describe("maskJsonBody", () => {
     expect(result.action).toBe("mask");
 
     const parsed = JSON.parse(result.maskedBody);
-    expect(parsed.data.users[0].profile.contact).toContain("[EMAIL]");
-    expect(parsed.data.users[0].profile.notes[0]).toContain("[PHONE]");
+    expect(parsed.data.users[0].profile.contact).toContain("<<PRIVACY_MASK:EMAIL>>");
+    expect(parsed.data.users[0].profile.notes[0]).toContain("<<PRIVACY_MASK:PHONE>>");
     expect(parsed.data.users[0].profile.notes[1]).toBe("safe text");
   });
 
@@ -105,7 +105,7 @@ describe("maskJsonBody", () => {
     expect(result.action).toBe("mask");
 
     const parsed = JSON.parse(result.maskedBody);
-    expect(parsed.messages[0].content).toContain("[BEARER_TOKEN]");
+    expect(parsed.messages[0].content).toContain("<<PRIVACY_MASK:BEARER_TOKEN>>");
     expect(parsed.messages[0].content).not.toContain("abc123def456ghi789");
   });
 
@@ -146,7 +146,7 @@ describe("maskJsonBody", () => {
 
     const result = maskJsonBody(body, scan);
     const parsed = JSON.parse(result.maskedBody);
-    expect(parsed[0].text).toContain("[PHONE]");
+    expect(parsed[0].text).toContain("<<PRIVACY_MASK:PHONE>>");
     expect(parsed[1].text).toBe("no pii here");
   });
 
@@ -156,7 +156,7 @@ describe("maskJsonBody", () => {
     // Should still produce a result (flat scan fallback)
     expect(result.maskedBody).toBeDefined();
     // Invalid JSON in, flat scan out — should contain mask if PII found
-    expect(result.maskedBody).toContain("[PHONE]");
+    expect(result.maskedBody).toContain("<<PRIVACY_MASK:PHONE>>");
   });
 
   it("S9: does not corrupt JSON with valid PII in string value vs number value", () => {
@@ -168,7 +168,7 @@ describe("maskJsonBody", () => {
 
     const result = maskJsonBody(body, scan);
     const parsed = JSON.parse(result.maskedBody);
-    expect(parsed.message).toContain("[PHONE]");
+    expect(parsed.message).toContain("<<PRIVACY_MASK:PHONE>>");
     // JSON number value should NOT be matched by digit-based regex
     expect(parsed.phone_number).toBe(13912345678);
   });
@@ -185,7 +185,7 @@ describe("maskJsonBody", () => {
     const result = maskJsonBody(body, scan);
 
     const parsed = JSON.parse(result.maskedBody);
-    expect(parsed.config.email).toContain("[EMAIL]");
+    expect(parsed.config.email).toContain("<<PRIVACY_MASK:EMAIL>>");
     expect(parsed.config.timeout).toBe(30);
     expect(parsed.config.retries).toBe(5);
   });

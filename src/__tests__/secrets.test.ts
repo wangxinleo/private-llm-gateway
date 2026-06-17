@@ -9,7 +9,7 @@ describe("scanSecrets — mask rules", () => {
     expect(f).toHaveLength(1);
     expect(f[0].category).toBe("PRIVATE_KEY");
     expect(f[0].action).toBe("mask");
-    expect(f[0].maskTag).toBe("[PRIVATE_KEY]");
+    expect(f[0].maskTag).toBe("<<PRIVACY_MASK:PRIVATE_KEY>>");
     expect(f[0].matched).toContain("-----BEGIN RSA PRIVATE KEY-----");
     expect(f[0].matched).toContain("-----END RSA PRIVATE KEY-----");
   });
@@ -40,7 +40,7 @@ describe("scanSecrets — mask rules", () => {
       expect.objectContaining({
         category: "BEARER_TOKEN",
         action: "mask",
-        maskTag: "[BEARER_TOKEN]",
+        maskTag: "<<PRIVACY_MASK:BEARER_TOKEN>>",
       })
     );
   });
@@ -49,7 +49,7 @@ describe("scanSecrets — mask rules", () => {
     const f = scanSecrets("Authorization: Basic dXNlcjpwYXNz");
     expect(f[0].category).toBe("BASIC_AUTH");
     expect(f[0].action).toBe("mask");
-    expect(f[0].maskTag).toBe("[BASIC_AUTH]");
+    expect(f[0].maskTag).toBe("<<PRIVACY_MASK:BASIC_AUTH>>");
     expect(f[0].matched).toBe("Basic dXNlcjpwYXNz");
   });
 
@@ -58,7 +58,7 @@ describe("scanSecrets — mask rules", () => {
       "token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc123def"
     );
     expect(f).toContainEqual(
-      expect.objectContaining({ category: "JWT", maskTag: "[JWT]" })
+      expect.objectContaining({ category: "JWT", maskTag: "<<PRIVACY_MASK:JWT>>" })
     );
   });
 
@@ -66,21 +66,21 @@ describe("scanSecrets — mask rules", () => {
     const f = scanSecrets("Cookie: session=abc123");
     expect(f[0].category).toBe("COOKIE_HEADER");
     expect(f[0].action).toBe("mask");
-    expect(f[0].maskTag).toBe("[COOKIE_HEADER]");
+    expect(f[0].maskTag).toBe("<<PRIVACY_MASK:COOKIE_HEADER>>");
     expect(f[0].matched).toBe("Cookie: session=abc123");
   });
 
   it("detects Set-Cookie header", () => {
     const f = scanSecrets("Set-Cookie: sid=xyz");
     expect(f[0].category).toBe("SET_COOKIE_HEADER");
-    expect(f[0].maskTag).toBe("[SET_COOKIE_HEADER]");
+    expect(f[0].maskTag).toBe("<<PRIVACY_MASK:SET_COOKIE_HEADER>>");
     expect(f[0].matched).toBe("Set-Cookie: sid=xyz");
   });
 
   it("detects PostgreSQL URI", () => {
     const f = scanSecrets("postgres://user:pass@db.example.com:5432/mydb");
     expect(f[0].category).toBe("DB_URI");
-    expect(f[0].maskTag).toBe("[DB_URI]");
+    expect(f[0].maskTag).toBe("<<PRIVACY_MASK:DB_URI>>");
   });
 
   it("detects MySQL URI", () => {
@@ -103,7 +103,7 @@ describe("scanSecrets — mask rules", () => {
   it("detects AWS access key", () => {
     const f = scanSecrets("aws_access_key_id = AKIAIOSFODNN7EXAMPLE");
     expect(f[0].category).toBe("AWS_ACCESS_KEY");
-    expect(f[0].maskTag).toBe("[AWS_ACCESS_KEY]");
+    expect(f[0].maskTag).toBe("<<PRIVACY_MASK:AWS_ACCESS_KEY>>");
     expect(f[0].matched).toBe("AKIAIOSFODNN7EXAMPLE");
   });
 
@@ -115,7 +115,7 @@ describe("scanSecrets — mask rules", () => {
   it("detects GitHub PAT", () => {
     const f = scanSecrets("ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij");
     expect(f[0].category).toBe("GITHUB_TOKEN");
-    expect(f[0].maskTag).toBe("[GITHUB_TOKEN]");
+    expect(f[0].maskTag).toBe("<<PRIVACY_MASK:GITHUB_TOKEN>>");
   });
 
   it("detects GitHub fine-grained PAT", () => {
@@ -128,7 +128,7 @@ describe("scanSecrets — mask rules", () => {
   it("detects Slack bot token (xoxb)", () => {
     const f = scanSecrets("xoxb-1234567890-abcdefghijk");
     expect(f[0].category).toBe("SLACK_TOKEN");
-    expect(f[0].maskTag).toBe("[SLACK_TOKEN]");
+    expect(f[0].maskTag).toBe("<<PRIVACY_MASK:SLACK_TOKEN>>");
   });
 
   it("detects Slack user token (xoxp)", () => {
@@ -139,7 +139,7 @@ describe("scanSecrets — mask rules", () => {
   it("detects Google API key", () => {
     const f = scanSecrets("AIzaSyA1234567890abcdefghijklmnopqrstuvwx");
     expect(f[0].category).toBe("GOOGLE_API_KEY");
-    expect(f[0].maskTag).toBe("[GOOGLE_API_KEY]");
+    expect(f[0].maskTag).toBe("<<PRIVACY_MASK:GOOGLE_API_KEY>>");
   });
 
   it("returns empty for clean text", () => {

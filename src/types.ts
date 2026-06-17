@@ -32,6 +32,13 @@ export interface ScanResult {
   findings: Finding[];
   maskedBody: string;
   action: ActionType;
+  maskSummary: MaskSummary;
+}
+
+export interface MaskSummary {
+  applied: boolean;
+  categories: FindingCategory[];
+  replacementCount: number;
 }
 
 export interface AuditEntry {
@@ -43,6 +50,9 @@ export interface AuditEntry {
   filenames: string[];
   findings: FindingCategory[];
   action: ActionType;
+  maskApplied?: boolean;
+  maskCategories?: FindingCategory[];
+  maskCount?: number;
 }
 
 const BLOCK_CATEGORIES: ReadonlySet<FindingCategory> = new Set([

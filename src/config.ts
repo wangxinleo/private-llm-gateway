@@ -16,4 +16,9 @@ const CONTEXT_KEY = {
   MAX_SPACES: 2,
 } as const;
 
-export { UPSTREAM_URL, DB_PATH, DEBUG, SIZE_THRESHOLDS, CHUNK_SIZE, CONTEXT_KEY };
+const PRIVACY_MASK_FORMAT = (process.env.PRIVACY_MASK_FORMAT ?? "explicit") as "legacy" | "explicit";
+const PRIVACY_DISAMBIGUATION_MODE = (process.env.PRIVACY_DISAMBIGUATION_MODE ?? "auto") as "off" | "prefix" | "json-meta" | "auto";
+const PRIVACY_NOTICE_TEXT = process.env.PRIVACY_NOTICE_TEXT ?? "Tokens like <<PRIVACY_MASK:EMAIL>> were inserted by the privacy proxy and are not original source text.";
+const PRIVACY_DEBUG_HEADERS = process.env.PRIVACY_DEBUG_HEADERS === "true";
+
+export { UPSTREAM_URL, DB_PATH, DEBUG, SIZE_THRESHOLDS, CHUNK_SIZE, CONTEXT_KEY, PRIVACY_MASK_FORMAT, PRIVACY_DISAMBIGUATION_MODE, PRIVACY_NOTICE_TEXT, PRIVACY_DEBUG_HEADERS };

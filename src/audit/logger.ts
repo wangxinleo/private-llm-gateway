@@ -1,4 +1,4 @@
-import type { Finding, ActionType, AuditEntry } from "@/types";
+import type { Finding, ActionType, AuditEntry, ScanResult } from "@/types";
 import { insertAudit } from "./store";
 import { broadcastAudit } from "./sse";
 
@@ -10,6 +10,7 @@ export function logAudit(params: {
   filenames: string[];
   findings: Finding[];
   action: ActionType;
+  scanResult?: ScanResult;
 }): void {
   const entry: AuditEntry = {
     timestamp: new Date().toISOString(),
@@ -21,6 +22,13 @@ export function logAudit(params: {
     findings: params.findings.map((f) => f.category),
     action: params.action,
   };
+
+  if (params.scanResult?.maskSummary) {
+    const ms = params.scanResult.maskSummary;
+    entry.maskApplied = ms.applied;
+    entry.maskCategories = ms.categories;
+    entry.maskCount = ms.replacementCount;
+  }
 
   const id = insertAudit(entry);
 

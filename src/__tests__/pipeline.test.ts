@@ -32,48 +32,48 @@ describe("runPipeline", () => {
     const r = runPipeline(text, 100);
     expect(r.action).toBe("mask");
     expect(r.findings.some((f) => f.category === "PRIVATE_KEY")).toBe(true);
-    expect(r.maskedBody).toBe("[PRIVATE_KEY]");
+    expect(r.maskedBody).toBe("<<PRIVACY_MASK:PRIVATE_KEY>>");
   });
 
   it("masks Bearer token and forwards", () => {
     const r = runPipeline("Authorization: Bearer abc123token", 100);
     expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("[BEARER_TOKEN]");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:BEARER_TOKEN>>");
     expect(r.maskedBody).not.toContain("abc123token");
   });
 
   it("masks DB URI and forwards", () => {
     const r = runPipeline("postgres://user:pass@host/db", 100);
     expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("[DB_URI]");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:DB_URI>>");
     expect(r.maskedBody).not.toContain("user:pass@host");
   });
 
   it("masks PII but allows forward", () => {
     const r = runPipeline("手机号：13912345678", 100);
     expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("[PHONE]");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:PHONE>>");
     expect(r.maskedBody).not.toContain("13912345678");
   });
 
   it("masks email", () => {
     const r = runPipeline("contact: user@example.com", 100);
     expect(r.action).toBe("mask");
-    expect(r.maskedBody).toBe("contact: [EMAIL]");
+    expect(r.maskedBody).toBe("contact: <<PRIVACY_MASK:EMAIL>>");
   });
 
   it("masks ID card", () => {
     const r = runPipeline("身份证：330106200002020012", 100);
     expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("[ID_CARD]");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:ID_CARD>>");
   });
 
   it("masks secrets and PII together", () => {
     const text = "Bearer abc123token phone 13912345678";
     const r = runPipeline(text, 100);
     expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("[BEARER_TOKEN]");
-    expect(r.maskedBody).toContain("[PHONE]");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:BEARER_TOKEN>>");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:PHONE>>");
     expect(r.maskedBody).not.toContain("abc123token");
     expect(r.maskedBody).not.toContain("13912345678");
   });
@@ -95,7 +95,7 @@ describe("runPipeline", () => {
     expect(
       r.findings.some((f) => f.category === "CONTEXTUAL_SECRET")
     ).toBe(true);
-    expect(r.maskedBody).toContain("[CONTEXTUAL_SECRET]");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
     expect(r.maskedBody).not.toContain("aBcDeFgHiJkLmNoPqRsTuVwXyZ012");
   });
 
@@ -117,15 +117,15 @@ describe("runPipeline", () => {
       "-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----";
     const r = runPipeline(text, 1024 * 1024 + 100);
     expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("[PRIVATE_KEY]");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:PRIVATE_KEY>>");
   });
 
   it("masks multiple secrets in same text", () => {
     const text = "Bearer abc123token and postgres://user:pass@host/db";
     const r = runPipeline(text, 100);
     expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("[BEARER_TOKEN]");
-    expect(r.maskedBody).toContain("[DB_URI]");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:BEARER_TOKEN>>");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:DB_URI>>");
   });
 
   it("block only happens for filename", () => {
@@ -137,7 +137,7 @@ describe("runPipeline", () => {
   it("masks AWS key", () => {
     const r = runPipeline("key=AKIAIOSFODNN7EXAMPLE", 100);
     expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("[AWS_ACCESS_KEY]");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:AWS_ACCESS_KEY>>");
   });
 
   it("masks GitHub token", () => {
@@ -146,18 +146,18 @@ describe("runPipeline", () => {
       100
     );
     expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("[GITHUB_TOKEN]");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:GITHUB_TOKEN>>");
   });
 
   it("masks Slack token", () => {
     const r = runPipeline("xoxb-1234567890-abcdefghijk", 100);
     expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("[SLACK_TOKEN]");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:SLACK_TOKEN>>");
   });
 
   it("masks Google API key", () => {
     const r = runPipeline("AIzaSyA1234567890abcdefghijklmnopqrstuvwx", 100);
     expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("[GOOGLE_API_KEY]");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:GOOGLE_API_KEY>>");
   });
 });

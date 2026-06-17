@@ -1,4 +1,5 @@
 import type { Finding } from "@/types";
+import { buildMaskTag } from "./mask-tag";
 
 const PHONE_RE = /1[3-9]\d{9}/g;
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
@@ -24,24 +25,14 @@ function luhnCheck(num: string): boolean {
 interface PiiRule {
   category: Finding["category"];
   pattern: RegExp;
-  maskTag: string;
   validate?: (match: string) => boolean;
 }
 
 const PII_RULES: PiiRule[] = [
-  { category: "PHONE", pattern: PHONE_RE, maskTag: "[PHONE]" },
-  { category: "EMAIL", pattern: EMAIL_RE, maskTag: "[EMAIL]" },
-  {
-    category: "ID_CARD",
-    pattern: ID_CARD_RE,
-    maskTag: "[ID_CARD]",
-  },
-  {
-    category: "BANK_CARD",
-    pattern: BANK_CARD_RE,
-    maskTag: "[BANK_CARD]",
-    validate: luhnCheck,
-  },
+  { category: "PHONE", pattern: PHONE_RE },
+  { category: "EMAIL", pattern: EMAIL_RE },
+  { category: "ID_CARD", pattern: ID_CARD_RE },
+  { category: "BANK_CARD", pattern: BANK_CARD_RE, validate: luhnCheck },
 ];
 
 export function scanPii(text: string): Finding[] {
@@ -55,20 +46,35 @@ export function scanPii(text: string): Finding[] {
         category: rule.category,
         action: "mask",
         matched: m[0],
-        maskTag: rule.maskTag,
+        maskTag: buildMaskTag(rule.category),
       });
     }
   }
   return findings;
 }
 
-export function applyMasks(text: string, findings: Finding[]): string {
+export interface MaskResult {
+  masked: string;
+  replacementCount: number;
+}
+
+export function applyMasks(text: string, findings: Finding[]): MaskResult {
   let result = text;
+  let replacementCount = 0;
   const maskFindings = findings.filter((f) => f.action === "mask" && f.maskTag);
   for (const f of maskFindings) {
     if (f.maskTag) {
+      const before = result;
       result = result.replaceAll(f.matched, f.maskTag);
+      if (result !== before) {
+        const count = (before.match(new RegExp(escapeRegex(f.matched), "g")) || []).length;
+        replacementCount += count;
+      }
     }
   }
-  return result;
+  return { masked: result, replacementCount };
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

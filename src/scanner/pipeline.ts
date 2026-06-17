@@ -111,6 +111,7 @@ export function runPipeline(
       findings: fileFindings,
       maskedBody: text,
       action: "block",
+      maskSummary: { applied: false, categories: [], replacementCount: 0 },
     };
   }
 
@@ -126,10 +127,17 @@ export function runPipeline(
 
   if (hasMask) {
     log.debug("decision: MASK (脱敏后转发)");
+    const maskResult = applyMasks(text, allFindings);
+    const maskCategories = [...new Set(allFindings.filter((f) => f.action === "mask").map((f) => f.category))];
     return {
       findings: allFindings,
-      maskedBody: applyMasks(text, allFindings),
+      maskedBody: maskResult.masked,
       action: "mask",
+      maskSummary: {
+        applied: maskResult.replacementCount > 0,
+        categories: maskCategories,
+        replacementCount: maskResult.replacementCount,
+      },
     };
   }
 
@@ -138,5 +146,6 @@ export function runPipeline(
     findings: [],
     maskedBody: text,
     action: "allow",
+    maskSummary: { applied: false, categories: [], replacementCount: 0 },
   };
 }

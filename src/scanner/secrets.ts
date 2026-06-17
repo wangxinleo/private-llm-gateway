@@ -1,4 +1,5 @@
 import type { Finding } from "@/types";
+import { buildMaskTag } from "./mask-tag";
 import { Logger } from "@/log";
 
 const log = new Logger("scanner");
@@ -25,21 +26,20 @@ const GOOGLE_API_KEY_RE = /AIza[A-Za-z0-9_-]{35}/;
 interface Rule {
   category: Finding["category"];
   pattern: RegExp;
-  maskTag: string;
 }
 
 const STRONG_RULES: Rule[] = [
-  { category: "PRIVATE_KEY", pattern: PRIVATE_KEY_RE, maskTag: "[PRIVATE_KEY]" },
-  { category: "BEARER_TOKEN", pattern: BEARER_TOKEN_RE, maskTag: "[BEARER_TOKEN]" },
-  { category: "BASIC_AUTH", pattern: BASIC_AUTH_RE, maskTag: "[BASIC_AUTH]" },
-  { category: "JWT", pattern: JWT_RE, maskTag: "[JWT]" },
-  { category: "COOKIE_HEADER", pattern: COOKIE_HEADER_RE, maskTag: "[COOKIE_HEADER]" },
-  { category: "SET_COOKIE_HEADER", pattern: SET_COOKIE_HEADER_RE, maskTag: "[SET_COOKIE_HEADER]" },
-  { category: "DB_URI", pattern: DB_URI_RE, maskTag: "[DB_URI]" },
-  { category: "AWS_ACCESS_KEY", pattern: AWS_KEY_RE, maskTag: "[AWS_ACCESS_KEY]" },
-  { category: "GITHUB_TOKEN", pattern: GITHUB_TOKEN_RE, maskTag: "[GITHUB_TOKEN]" },
-  { category: "SLACK_TOKEN", pattern: SLACK_TOKEN_RE, maskTag: "[SLACK_TOKEN]" },
-  { category: "GOOGLE_API_KEY", pattern: GOOGLE_API_KEY_RE, maskTag: "[GOOGLE_API_KEY]" },
+  { category: "PRIVATE_KEY", pattern: PRIVATE_KEY_RE },
+  { category: "BEARER_TOKEN", pattern: BEARER_TOKEN_RE },
+  { category: "BASIC_AUTH", pattern: BASIC_AUTH_RE },
+  { category: "JWT", pattern: JWT_RE },
+  { category: "COOKIE_HEADER", pattern: COOKIE_HEADER_RE },
+  { category: "SET_COOKIE_HEADER", pattern: SET_COOKIE_HEADER_RE },
+  { category: "DB_URI", pattern: DB_URI_RE },
+  { category: "AWS_ACCESS_KEY", pattern: AWS_KEY_RE },
+  { category: "GITHUB_TOKEN", pattern: GITHUB_TOKEN_RE },
+  { category: "SLACK_TOKEN", pattern: SLACK_TOKEN_RE },
+  { category: "GOOGLE_API_KEY", pattern: GOOGLE_API_KEY_RE },
 ];
 
 export function scanSecrets(text: string): Finding[] {
@@ -57,7 +57,7 @@ export function scanSecrets(text: string): Finding[] {
           category: rule.category,
           action: "mask",
           matched,
-          maskTag: rule.maskTag,
+          maskTag: buildMaskTag(rule.category),
         });
       }
     }
