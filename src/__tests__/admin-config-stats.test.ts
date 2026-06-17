@@ -19,6 +19,7 @@ vi.mock("@/log", () => ({
 }));
 
 vi.mock("@/config", () => ({
+  UPSTREAM_URL: "http://localhost:8787",
   DB_PATH: "/tmp/test.sqlite",
   DEBUG: false,
   SIZE_THRESHOLDS: {
@@ -82,7 +83,13 @@ describe("admin config and stats routes", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json).toMatchObject({
-        env: { debug: false },
+        env: {
+          upstreamUrl: "http://localhost:8787",
+          dbPath: "/tmp/test.sqlite",
+          debug: false,
+          nodeEnv: "test",
+          port: "3000",
+        },
         constants: {
           sizeThresholds: { fullScan: 131072, chunkedScan: 1048576 },
           chunkSize: 65536,

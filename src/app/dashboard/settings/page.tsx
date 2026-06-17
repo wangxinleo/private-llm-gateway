@@ -3,7 +3,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocale } from "@/i18n";
-import { UPSTREAM_URL, DB_PATH, DEBUG, SIZE_THRESHOLDS, CHUNK_SIZE, CONTEXT_KEY } from "@/config";
+import { SIZE_THRESHOLDS, CHUNK_SIZE, CONTEXT_KEY } from "@/config";
 import { useEffect, useState } from "react";
 
 function formatBytes(bytes: number): string {
@@ -20,6 +20,14 @@ interface DbStats {
   dbFileSize: number;
 }
 
+interface RuntimeEnv {
+  upstreamUrl: string;
+  dbPath: string;
+  debug: boolean;
+  nodeEnv: string;
+  port: string;
+}
+
 export default function SettingsPage() {
   const { t, locale } = useLocale();
   const [dbStats, setDbStats] = useState<DbStats>({
@@ -27,6 +35,13 @@ export default function SettingsPage() {
     earliestRecord: null,
     latestRecord: null,
     dbFileSize: 0,
+  });
+  const [runtimeEnv, setRuntimeEnv] = useState<RuntimeEnv>({
+    upstreamUrl: "—",
+    dbPath: "—",
+    debug: false,
+    nodeEnv: "—",
+    port: "—",
   });
 
   useEffect(() => {
@@ -39,6 +54,15 @@ export default function SettingsPage() {
             earliestRecord: data.dbStats.earliestRecord ?? null,
             latestRecord: data.dbStats.latestRecord ?? null,
             dbFileSize: data.dbStats.dbFileSize ?? 0,
+          });
+        }
+        if (data?.env) {
+          setRuntimeEnv({
+            upstreamUrl: data.env.upstreamUrl ?? "—",
+            dbPath: data.env.dbPath ?? "—",
+            debug: data.env.debug ?? false,
+            nodeEnv: data.env.nodeEnv ?? "—",
+            port: data.env.port ?? "—",
           });
         }
       })
@@ -59,11 +83,11 @@ export default function SettingsPage() {
         <CardContent>
           <div className="space-y-2">
             {[
-              { key: "UPSTREAM_URL", value: UPSTREAM_URL },
-              { key: "DB_PATH", value: DB_PATH },
-              { key: "DEBUG", value: String(DEBUG) },
-              { key: "NODE_ENV", value: process.env.NODE_ENV ?? "development" },
-              { key: "PORT", value: process.env.PORT ?? "3000" },
+              { key: "UPSTREAM_URL", value: runtimeEnv.upstreamUrl },
+              { key: "DB_PATH", value: runtimeEnv.dbPath },
+              { key: "DEBUG", value: String(runtimeEnv.debug) },
+              { key: "NODE_ENV", value: runtimeEnv.nodeEnv },
+              { key: "PORT", value: runtimeEnv.port },
             ].map(({ key, value }) => (
               <div key={key} className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
                 <code className="font-mono text-xs text-primary">{key}</code>

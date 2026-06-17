@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDbStats } from "@/audit";
 import { checkAdminAuth } from "@/lib/admin-auth";
-import { DB_PATH, DEBUG, SIZE_THRESHOLDS, CHUNK_SIZE, CONTEXT_KEY } from "@/config";
+import { UPSTREAM_URL, DB_PATH, DEBUG, SIZE_THRESHOLDS, CHUNK_SIZE, CONTEXT_KEY } from "@/config";
 import { Logger } from "@/log";
 import { statSync } from "fs";
 
@@ -23,6 +23,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       env: {
+        upstreamUrl: UPSTREAM_URL,
+        dbPath: DB_PATH,
         debug: DEBUG,
         nodeEnv: process.env.NODE_ENV ?? "development",
         port: process.env.PORT ?? "3000",
