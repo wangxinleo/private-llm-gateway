@@ -1,19 +1,35 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { spawn, type ChildProcess } from "child_process";
+import http from "node:http";
 import { statSync, unlinkSync } from "fs";
 
 const TEST_PORT = 9876;
+const UPSTREAM_PORT = 9877;
 const TEST_DB = "./test-integration-audit.sqlite";
 const ADMIN_KEY = "test-integration-key";
-const UPSTREAM_URL = "http://httpbin.org";
+const UPSTREAM_URL = `http://localhost:${UPSTREAM_PORT}`;
 
 describe("Integration: Privacy Proxy + Dashboard", () => {
   let serverProcess: ChildProcess | null = null;
+  let upstream: http.Server | null = null;
 
   beforeAll(async () => {
     try {
       unlinkSync(TEST_DB);
     } catch {}
+
+    upstream = http.createServer((req, res) => {
+      let body = "";
+      req.on("data", (chunk) => { body += chunk; });
+      req.on("end", () => {
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("X-Received-Method", req.method ?? "");
+        res.setHeader("X-Received-Path", req.url ?? "/");
+        res.end(JSON.stringify({ method: req.method, path: req.url, body }));
+      });
+    });
+
+    await new Promise<void>((resolve) => upstream!.listen(UPSTREAM_PORT, resolve));
 
     serverProcess = spawn("npm", ["run", "dev"], {
       env: {
@@ -49,6 +65,9 @@ describe("Integration: Privacy Proxy + Dashboard", () => {
     if (serverProcess) {
       serverProcess.kill("SIGTERM");
       await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    if (upstream) {
+      await new Promise<void>((resolve) => upstream!.close(() => resolve()));
     }
     try {
       unlinkSync(TEST_DB);
