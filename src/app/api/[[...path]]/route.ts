@@ -9,6 +9,8 @@ import { applyDisambiguation } from "@/proxy/disambiguation";
 import { logAudit } from "@/audit/logger";
 import { Logger } from "@/log";
 import { PRIVACY_DEBUG_HEADERS } from "@/config";
+import { findMatchingBypassRule } from "@/bypass/store";
+import { extractRequestModel } from "@/bypass/rules";
 
 const log = new Logger("proxy");
 
@@ -72,23 +74,69 @@ async function handleRequest(request: NextRequest): Promise<Response> {
   const path = extractPath(request);
   const method = request.method;
   const contentType = request.headers.get("content-type") ?? "";
+  const multipart = isMultipart(contentType);
 
   const hasBody = method !== "GET" && method !== "HEAD";
   let bodyText = "";
   let filenames: string[] = [];
   let bodySize = 0;
 
-  if (hasBody) {
+  if (hasBody && !multipart) {
     const extracted = await extractBodyText(request);
     bodyText = extracted.text;
     filenames = extracted.filenames;
     bodySize = extracted.size;
   }
 
+  const bypassRule = !multipart
+    ? findMatchingBypassRule({
+        path,
+        model: extractRequestModel(bodyText),
+        now: new Date(),
+      })
+    : null;
+
+  if (bypassRule) {
+    logAudit({
+      path,
+      method,
+      contentType,
+      bodySize,
+      filenames,
+      findings: [],
+      action: "allow",
+    });
+
+    try {
+      const upstream = await forwardRequest(path, request, hasBody ? bodyText : undefined);
+      const upstreamContentType = upstream.headers.get("content-type") ?? "";
+      if (upstreamContentType.includes("text/event-stream")) {
+        return createStreamingResponse(upstream);
+      }
+      return upstream;
+    } catch (err) {
+      const cause = err instanceof Error && "cause" in err ? (err.cause as Error) : undefined;
+      const code = cause && "code" in cause ? (cause as { code: string }).code : undefined;
+      log.warn(`${method} ${path} | upstream error: fetch_failed${code ? ` (${code})` : ""}`);
+      log.debug(`upstream error detail: ${err instanceof Error ? err.message : String(err)}`);
+      return Response.json(
+        { error: "upstream_error" },
+        { status: 502 }
+      );
+    }
+  }
+
   log.debug(`${method} ${path} | contentType: ${contentType} | bodySize: ${bodySize}`);
 
   const scanFn = (text: string, size: number) => runPipeline(text, size, filenames);
-  const result = isJsonContentType(contentType) && !isMultipart(contentType)
+  if (hasBody && multipart) {
+    const extracted = await extractBodyText(request);
+    bodyText = extracted.text;
+    filenames = extracted.filenames;
+    bodySize = extracted.size;
+  }
+
+  const result = isJsonContentType(contentType) && !multipart
     ? maskJsonBody(bodyText, scanFn)
     : runPipeline(bodyText, bodySize, filenames);
 

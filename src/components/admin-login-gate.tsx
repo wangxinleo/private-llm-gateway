@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import { useLocale } from "@/i18n";
 import { Button } from "@/components/ui/button";
@@ -10,19 +11,35 @@ import { ShieldCheck } from "lucide-react";
 export function AdminLoginGate({ children }: { children: React.ReactNode }) {
   const { authenticated, login } = useAdminAuth();
   const { t } = useLocale();
+  const router = useRouter();
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   if (authenticated) return <>{children}</>;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const res = await fetch("/api/admin/config", { headers: { "x-admin-key": key } });
-    if (res.ok) {
-      login(key);
-    } else {
+    const nextKey = key.trim();
+
+    if (!nextKey) {
+      setError(t("auth.invalidKey"));
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/config", { headers: { "x-admin-key": nextKey } });
+      if (res.ok) {
+        login(nextKey);
+        router.refresh();
+        return;
+      }
+
       setError(res.status === 401 ? t("auth.invalidKey") : t("auth.notConfigured"));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -35,6 +52,7 @@ export function AdminLoginGate({ children }: { children: React.ReactNode }) {
           <p className="text-center text-sm text-muted-foreground">{t("auth.desc")}</p>
         </div>
         <Input
+          name="adminKey"
           type="password"
           placeholder={t("auth.placeholder")}
           value={key}
@@ -42,7 +60,7 @@ export function AdminLoginGate({ children }: { children: React.ReactNode }) {
           autoFocus
         />
         {error && <p className="text-center text-sm text-destructive">{error}</p>}
-        <Button type="submit" className="w-full" disabled={!key.trim()}>
+        <Button type="submit" className="w-full" disabled={submitting}>
           {t("auth.login")}
         </Button>
       </form>

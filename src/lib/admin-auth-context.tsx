@@ -15,11 +15,21 @@ const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 
 const STORAGE_KEY = "pp_admin_key";
 
+function readStoredAdminKey(): string | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    return sessionStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [adminKey, setAdminKey] = useState<string | null>(null);
 
   useEffect(() => {
-    setAdminKey(sessionStorage.getItem(STORAGE_KEY));
+    setAdminKey(readStoredAdminKey());
   }, []);
 
   const login = useCallback((key: string) => {
@@ -33,14 +43,16 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const authHeaders = useCallback((): Record<string, string> => {
-    return adminKey ? { "x-admin-key": adminKey } : {};
-  }, [adminKey]);
+    const currentKey = readStoredAdminKey();
+    return currentKey ? { "x-admin-key": currentKey } : {};
+  }, []);
 
   const authedFetch = useCallback((url: string, init?: RequestInit): Promise<Response> => {
     const headers = new Headers(init?.headers);
-    if (adminKey) headers.set("x-admin-key", adminKey);
+    const currentKey = readStoredAdminKey();
+    if (currentKey) headers.set("x-admin-key", currentKey);
     return fetch(url, { ...init, headers });
-  }, [adminKey]);
+  }, []);
 
   return (
     <AdminAuthContext.Provider value={{ adminKey, authenticated: !!adminKey, login, logout, authHeaders, authedFetch }}>

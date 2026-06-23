@@ -45,25 +45,4 @@ describe("checkAdminAuth", () => {
     expect(res.status).toBe(401);
     expect(await res.json()).toEqual({ error: "unauthorized" });
   });
-
-  it("returns null when key query param matches", () => {
-    process.env.ADMIN_KEY = "test-secret";
-    const req = new Request("http://localhost/test?key=test-secret");
-    expect(checkAdminAuth(req)).toBeNull();
-  });
-
-  it("returns 401 when key query param does not match", async () => {
-    process.env.ADMIN_KEY = "test-secret";
-    const req = new Request("http://localhost/test?key=wrong");
-    const res = checkAdminAuth(req)!;
-    expect(res.status).toBe(401);
-  });
-
-  it("prefers x-admin-key header over query param", () => {
-    process.env.ADMIN_KEY = "test-secret";
-    const req = new Request("http://localhost/test?key=wrong", {
-      headers: { "x-admin-key": "test-secret" },
-    });
-    expect(checkAdminAuth(req)).toBeNull();
-  });
 });

@@ -1,39 +1,143 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useLocale } from "@/i18n";
+import { useAdminAuth } from "@/lib/admin-auth-context";
 
-const SECRET_CATEGORIES = [
-  "PRIVATE_KEY", "BEARER_TOKEN", "BASIC_AUTH", "JWT",
-  "COOKIE_HEADER", "SET_COOKIE_HEADER", "DB_URI",
-  "AWS_ACCESS_KEY", "GITHUB_TOKEN", "SLACK_TOKEN", "GOOGLE_API_KEY",
-];
+interface BypassRule {
+  id: number;
+  enabled: number;
+  pathPrefix: string;
+  modelName: string;
+  startAt: string;
+  endAt: string;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+  isActive: boolean;
+}
 
-const PII_RULES = [
-  { category: "PHONE", tag: "<<PRIVACY_MASK:PHONE>>", validationKey: "rules.validation.cnMobile" },
-  { category: "EMAIL", tag: "<<PRIVACY_MASK:EMAIL>>", validationKey: "rules.validation.email" },
-  { category: "ID_CARD", tag: "<<PRIVACY_MASK:ID_CARD>>", validationKey: "rules.validation.idCard" },
-  { category: "BANK_CARD", tag: "<<PRIVACY_MASK:BANK_CARD>>", validationKey: "rules.validation.bankCard" },
-];
+interface RuleFormState {
+  enabled: boolean;
+  pathPrefix: string;
+  modelName: string;
+  startAt: string;
+  endAt: string;
+  note: string;
+}
 
-const BLOCKED_EXTENSIONS = [".env", ".pem", ".key", ".p12", ".pfx", ".npmrc", ".pypirc"];
-const BLOCKED_NAMES = ["id_rsa", "id_dsa", "authorized_keys", "known_hosts", "credentials.json", "service-account.json", "secrets.yaml", "secrets.yml", "prod.env", "config.prod"];
+const EMPTY_FORM: RuleFormState = {
+  enabled: true,
+  pathPrefix: "/v1/chat",
+  modelName: "",
+  startAt: "",
+  endAt: "",
+  note: "",
+};
 
-const HIGH_RISK_KEYWORDS_PREVIEW = [
-  "key", "api_key", "apikey", "secret", "secret_key", "client_secret",
-  "token", "access_token", "refresh_token", "authorization", "password",
-  "cookie", "x-api-key", "service_account", "clientid", "clientsecret",
-];
+function toIsoFromLocalDateTime(value: string): string {
+  return new Date(value).toISOString();
+}
 
-function ActionBadge({ action, label }: { action: "mask" | "block" | "allow"; label: string }) {
-  const variant = action === "block" ? "destructive" : action === "mask" ? "warning" : "success";
-  return <Badge variant={variant} className="font-mono text-xs">{label}</Badge>;
+function StatusBadge({ rule, t }: { rule: BypassRule; t: (key: string) => string }) {
+  if (!rule.enabled) return <Badge variant="outline" className="font-mono text-xs">{t("rules.bypassStatus.disabled")}</Badge>;
+  if (rule.isActive) return <Badge variant="success" className="font-mono text-xs">{t("rules.bypassStatus.active")}</Badge>;
+  return <Badge variant="warning" className="font-mono text-xs">{t("rules.bypassStatus.scheduled")}</Badge>;
 }
 
 export default function RulesPage() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
+  const { authedFetch } = useAdminAuth();
+  const [rules, setRules] = useState<BypassRule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState<RuleFormState>(EMPTY_FORM);
+
+  const fmt = useMemo(
+    () => (iso: string) => new Date(iso).toLocaleString(locale === "zh" ? "zh-CN" : "en-US"),
+    [locale]
+  );
+
+  async function loadRules() {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await authedFetch("/api/admin/bypass-rules");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setRules(Array.isArray(data.rows) ? data.rows : []);
+    } catch {
+      setError(t("rules.bypassLoadError"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadRules();
+  }, []);
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const res = await authedFetch("/api/admin/bypass-rules", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          enabled: form.enabled,
+          pathPrefix: form.pathPrefix,
+          modelName: form.modelName,
+          startAt: toIsoFromLocalDateTime(form.startAt),
+          endAt: toIsoFromLocalDateTime(form.endAt),
+          note: form.note,
+        }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setForm(EMPTY_FORM);
+      await loadRules();
+    } catch {
+      setError(t("rules.bypassSaveError"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleToggle(rule: BypassRule) {
+    try {
+      const res = await authedFetch(`/api/admin/bypass-rules/${rule.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled: !rule.enabled }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await loadRules();
+    } catch {
+      setError(t("rules.bypassSaveError"));
+    }
+  }
+
+  async function handleDelete(ruleId: number) {
+    try {
+      const res = await authedFetch(`/api/admin/bypass-rules/${ruleId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await loadRules();
+    } catch {
+      setError(t("rules.bypassDeleteError"));
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -44,120 +148,121 @@ export default function RulesPage() {
 
       <Card className="border-border/50">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-mono text-sm tracking-wide">
-            <Badge variant="destructive" className="font-mono text-xs">11 RULES</Badge>
-            {t("rules.credentialStrong")}
-          </CardTitle>
+          <CardTitle className="font-mono text-sm tracking-wide">{t("rules.bypassCreateTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {SECRET_CATEGORIES.map((cat) => (
-              <div key={cat} className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
-                <div className="flex items-center gap-3">
-                  <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">{cat}</code>
-                  <span className="text-sm text-muted-foreground">{t(`rules.desc.${cat}`)}</span>
-                </div>
-                <ActionBadge action="mask" label={t("action.mask")} />
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-mono text-sm tracking-wide">
-            <Badge variant="warning" className="font-mono text-xs">64 KEYWORDS</Badge>
-            {t("rules.contextKey")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">{t("rules.contextKeyDesc")}</p>
-          <div className="flex flex-wrap gap-1.5">
-            {HIGH_RISK_KEYWORDS_PREVIEW.map((kw) => (
-              <code key={kw} className="rounded border border-border/30 bg-muted/80 px-1.5 py-0.5 font-mono text-xs text-muted-foreground">{kw}</code>
-            ))}
-            <code className="rounded border border-warning/30 bg-warning/10 px-1.5 py-0.5 font-mono text-xs text-warning">{t("rules.moreKeywords")}</code>
-          </div>
-          <Separator />
-          <div className="grid grid-cols-3 gap-4 font-mono text-xs">
-            <div><span className="text-muted-foreground">{t("rules.length")}: </span><span className="text-foreground">8–200</span></div>
-            <div><span className="text-muted-foreground">{t("rules.charset")}: </span><span className="text-foreground">[A-Za-z0-9._=-]</span></div>
-            <div><span className="text-muted-foreground">{t("rules.maxSpaces")}: </span><span className="text-foreground">2</span></div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">{t("rules.action")}:</span>
-            <ActionBadge action="mask" label={t("action.mask")} />
-            <span className="font-mono text-xs text-muted-foreground">→ &lt;&lt;PRIVACY_MASK:CONTEXTUAL_SECRET&gt;&gt;</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-mono text-sm tracking-wide">
-            <Badge variant="warning" className="font-mono text-xs">4 RULES</Badge>
-            {t("rules.piiMasking")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {PII_RULES.map((rule) => (
-              <div key={rule.category} className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
-                <div className="flex items-center gap-3">
-                  <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{rule.category}</code>
-                  <span className="font-mono text-xs text-muted-foreground">→ {rule.tag}</span>
-                </div>
-                <span className="text-sm text-muted-foreground">{t(rule.validationKey)}</span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">{t("rules.action")}:</span>
-            <ActionBadge action="mask" label={t("action.mask")} />
-            <span className="text-sm text-muted-foreground">{t("rules.replacedForwarded")}</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-mono text-sm tracking-wide">
-            <Badge variant="destructive" className="font-mono text-xs">BLOCK</Badge>
-            {t("rules.filename")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("rules.blockedExtensions")}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {BLOCKED_EXTENSIONS.map((ext) => (<code key={ext} className="rounded border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 font-mono text-xs text-destructive">{ext}</code>))}
+          <form className="space-y-4" onSubmit={handleCreate}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-2 text-sm">
+                <span className="text-muted-foreground">{t("rules.bypassPathPrefix")}</span>
+                <Input
+                  value={form.pathPrefix}
+                  onChange={(e) => setForm((prev) => ({ ...prev, pathPrefix: e.target.value }))}
+                  placeholder="/v1/chat"
+                />
+              </label>
+              <label className="space-y-2 text-sm">
+                <span className="text-muted-foreground">{t("rules.bypassModel")}</span>
+                <Input
+                  value={form.modelName}
+                  onChange={(e) => setForm((prev) => ({ ...prev, modelName: e.target.value }))}
+                  placeholder="gpt-4o-mini"
+                />
+              </label>
+              <label className="space-y-2 text-sm">
+                <span className="text-muted-foreground">{t("rules.bypassStartAt")}</span>
+                <Input
+                  type="datetime-local"
+                  value={form.startAt}
+                  onChange={(e) => setForm((prev) => ({ ...prev, startAt: e.target.value }))}
+                />
+              </label>
+              <label className="space-y-2 text-sm">
+                <span className="text-muted-foreground">{t("rules.bypassEndAt")}</span>
+                <Input
+                  type="datetime-local"
+                  value={form.endAt}
+                  onChange={(e) => setForm((prev) => ({ ...prev, endAt: e.target.value }))}
+                />
+              </label>
             </div>
-          </div>
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("rules.blockedFilenames")}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {BLOCKED_NAMES.map((name) => (<code key={name} className="rounded border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 font-mono text-xs text-destructive">{name}</code>))}
+
+            <label className="space-y-2 text-sm">
+              <span className="text-muted-foreground">{t("rules.bypassNote")}</span>
+              <Input
+                value={form.note}
+                onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
+                placeholder={t("rules.bypassNotePlaceholder")}
+              />
+            </label>
+
+            <label className="flex items-center gap-3 text-sm">
+              <Checkbox
+                checked={form.enabled}
+                onCheckedChange={(checked) => setForm((prev) => ({ ...prev, enabled: checked === true }))}
+              />
+              <span className="text-muted-foreground">{t("rules.bypassEnabled")}</span>
+            </label>
+
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+            <div className="flex items-center gap-3">
+              <Button type="submit" disabled={submitting || !form.pathPrefix.trim() || !form.modelName.trim() || !form.startAt || !form.endAt}>
+                {submitting ? t("rules.bypassSubmitting") : t("rules.bypassCreateAction")}
+              </Button>
+              <p className="text-xs text-muted-foreground">{t("rules.bypassHint")}</p>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">{t("rules.action")}:</span>
-            <ActionBadge action="block" label={t("action.block")} />
-            <span className="text-sm text-muted-foreground">{t("rules.requestRejected")}</span>
-          </div>
+          </form>
         </CardContent>
       </Card>
 
       <Card className="border-border/50">
         <CardHeader>
-          <CardTitle className="font-mono text-sm tracking-wide">{t("rules.actionPolicy")}</CardTitle>
+          <CardTitle className="font-mono text-sm tracking-wide">{t("rules.bypassListTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center gap-3"><ActionBadge action="block" label={t("action.block")} /><span className="text-muted-foreground">{t("rules.policy.block")}</span></div>
-            <div className="flex items-center gap-3"><ActionBadge action="mask" label={t("action.mask")} /><span className="text-muted-foreground">{t("rules.policy.mask")}</span></div>
-            <div className="flex items-center gap-3"><ActionBadge action="allow" label={t("action.allow")} /><span className="text-muted-foreground">{t("rules.policy.allow")}</span></div>
-          </div>
+          {loading ? (
+            <p className="text-sm text-muted-foreground">{t("audit.loading")}</p>
+          ) : rules.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("rules.bypassEmpty")}</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("rules.bypassColStatus")}</TableHead>
+                  <TableHead>{t("rules.bypassColPath")}</TableHead>
+                  <TableHead>{t("rules.bypassColModel")}</TableHead>
+                  <TableHead>{t("rules.bypassColWindow")}</TableHead>
+                  <TableHead>{t("rules.bypassColNote")}</TableHead>
+                  <TableHead>{t("rules.bypassColActions")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rules.map((rule) => (
+                  <TableRow key={rule.id}>
+                    <TableCell><StatusBadge rule={rule} t={t} /></TableCell>
+                    <TableCell><code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{rule.pathPrefix}</code></TableCell>
+                    <TableCell><code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{rule.modelName}</code></TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      <div>{fmt(rule.startAt)}</div>
+                      <div>{fmt(rule.endAt)}</div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{rule.note || "—"}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleToggle(rule)}>
+                          {rule.enabled ? t("rules.bypassDisableAction") : t("rules.bypassEnableAction")}
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleDelete(rule.id)}>
+                          {t("audit.delete")}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
