@@ -19,7 +19,15 @@ export function getDb(): Database.Database {
         filenames TEXT NOT NULL DEFAULT '[]',
         findings TEXT NOT NULL DEFAULT '[]',
         action TEXT NOT NULL
-      )
+      );
+
+      CREATE TABLE IF NOT EXISTS system_config (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('number', 'string', 'json_array')),
+        description TEXT,
+        updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+      );
     `);
   }
   return db;
@@ -170,4 +178,43 @@ export function getDbStats(): { totalRecords: number; earliestRecord: string | n
   const earliest = (db.prepare("SELECT MIN(timestamp) as t FROM audit_log").get() as { t: string | null }).t;
   const latest = (db.prepare("SELECT MAX(timestamp) as t FROM audit_log").get() as { t: string | null }).t;
   return { totalRecords: total, earliestRecord: earliest, latestRecord: latest };
+}
+
+// System config functions
+export interface SystemConfigRow {
+  key: string;
+  value: string;
+  type: 'number' | 'string' | 'json_array';
+  description: string | null;
+  updatedAt: string;
+}
+
+export function getConfig(key: string): SystemConfigRow | null {
+  const db = getDb();
+  const row = db.prepare("SELECT * FROM system_config WHERE key = ?").get(key) as SystemConfigRow | undefined;
+  return row ?? null;
+}
+
+export function getAllConfigs(): SystemConfigRow[] {
+  const db = getDb();
+  return db.prepare("SELECT * FROM system_config ORDER BY key").all() as SystemConfigRow[];
+}
+
+export function setConfig(key: string, value: string, type: 'number' | 'string' | 'json_array', description?: string): void {
+  const db = getDb();
+  const stmt = db.prepare(`
+    INSERT INTO system_config (key, value, type, description, updatedAt)
+    VALUES (?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(key) DO UPDATE SET
+      value = excluded.value,
+      type = excluded.type,
+      description = excluded.description,
+      updatedAt = datetime('now')
+  `);
+  stmt.run(key, value, type, description ?? null);
+}
+
+export function deleteConfig(key: string): void {
+  const db = getDb();
+  db.prepare("DELETE FROM system_config WHERE key = ?").run(key);
 }

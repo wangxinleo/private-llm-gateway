@@ -4,7 +4,7 @@ import { scanSecrets } from "./secrets";
 import { scanContextKey } from "./context-key";
 import { scanPii, applyMasks } from "./pii";
 import { scanFilename } from "./filename";
-import { SIZE_THRESHOLDS, CHUNK_SIZE } from "@/config";
+import { SIZE_THRESHOLDS, CONFIG_STATE } from "@/config";
 import { Logger } from "@/log";
 
 const log = new Logger("pipeline");
@@ -46,8 +46,8 @@ function scanTextChunked(text: string): Finding[] {
   const allFindings: Finding[] = [];
   const seen = new Set<string>();
 
-  for (let offset = 0; offset < text.length; offset += CHUNK_SIZE) {
-    const end = Math.min(offset + CHUNK_SIZE, text.length);
+  for (let offset = 0; offset < text.length; offset += CONFIG_STATE.CHUNK_SIZE) {
+    const end = Math.min(offset + CONFIG_STATE.CHUNK_SIZE, text.length);
     const chunk = text.slice(offset, end);
 
     if (allFindings.some((f) => isBlockCategory(f.category))) {

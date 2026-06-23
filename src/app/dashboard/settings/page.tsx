@@ -2,16 +2,35 @@
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useLocale } from "@/i18n";
-import { SIZE_THRESHOLDS, CHUNK_SIZE, CONTEXT_KEY } from "@/config";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+function parseBytes(input: string): number | null {
+  const trimmed = input.trim();
+  const match = trimmed.match(/^(\d+(?:\.\d+)?)\s*(B|KB|MB|GB)?$/i);
+  if (!match) return null;
+
+  const value = parseFloat(match[1]);
+  const unit = (match[2] || 'B').toUpperCase();
+
+  switch (unit) {
+    case 'B': return value;
+    case 'KB': return value * 1024;
+    case 'MB': return value * 1024 * 1024;
+    case 'GB': return value * 1024 * 1024 * 1024;
+    default: return null;
+  }
 }
 
 interface DbStats {
@@ -27,6 +46,12 @@ interface RuntimeEnv {
   debug: boolean;
   nodeEnv: string;
   port: string;
+}
+
+interface EditableConfig {
+  value: any;
+  type: "number" | "string" | "json_array";
+  description: string;
 }
 
 export default function SettingsPage() {
@@ -45,33 +70,143 @@ export default function SettingsPage() {
     nodeEnv: "—",
     port: "—",
   });
+  const [editableConfigs, setEditableConfigs] = useState<Record<string, EditableConfig>>({});
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Path prefix state
+  const [newPathPrefix, setNewPathPrefix] = useState("");
+  const [pathPrefixes, setPathPrefixes] = useState<string[]>([]);
+
+  // Editable number config state
+  const [editingConfig, setEditingConfig] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
 
   useEffect(() => {
-    authedFetch("/api/admin/config")
-      .then((res) => res.ok ? res.json() : null)
-      .then((data) => {
-        if (data?.dbStats) {
-          setDbStats({
-            totalRecords: data.dbStats.totalRecords ?? 0,
-            earliestRecord: data.dbStats.earliestRecord ?? null,
-            latestRecord: data.dbStats.latestRecord ?? null,
-            dbFileSize: data.dbStats.dbFileSize ?? 0,
-          });
-        }
-        if (data?.env) {
-          setRuntimeEnv({
-            upstreamUrl: data.env.upstreamUrl ?? "—",
-            dbPath: data.env.dbPath ?? "—",
-            debug: data.env.debug ?? false,
-            nodeEnv: data.env.nodeEnv ?? "—",
-            port: data.env.port ?? "—",
-          });
-        }
-      })
-      .catch(() => {});
+    loadConfig();
   }, [authedFetch]);
 
+  async function loadConfig() {
+    setLoading(true);
+    try {
+      const res = await authedFetch("/api/admin/config");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      if (data.dbStats) setDbStats(data.dbStats);
+      if (data.env) setRuntimeEnv(data.env);
+      if (data.editableConfigs) {
+        setEditableConfigs(data.editableConfigs);
+        setPathPrefixes(data.editableConfigs.path_prefix_options?.value ?? []);
+      }
+    } catch (err) {
+      console.error("Failed to load config:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function updateConfig(key: string, value: any) {
+    setUpdating(key);
+    setMessage(null);
+    try {
+      const res = await authedFetch("/api/admin/config", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ key, value }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error ?? "Unknown error");
+      }
+
+      setMessage({ type: "success", text: t("settings.configUpdateSuccess") });
+      await loadConfig();
+    } catch (err) {
+      setMessage({ type: "error", text: t("settings.configUpdateFailed") });
+      console.error("Failed to update config:", err);
+    } finally {
+      setUpdating(null);
+      setTimeout(() => setMessage(null), 3000);
+    }
+  }
+
+  async function addPathPrefix() {
+    const trimmed = newPathPrefix.trim();
+    if (!trimmed) return;
+    if (!trimmed.startsWith("/")) {
+      setMessage({ type: "error", text: t("settings.pathPrefixInvalid") });
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+
+    const newList = [...pathPrefixes, trimmed];
+    await updateConfig("path_prefix_options", newList);
+    setNewPathPrefix("");
+  }
+
+  async function removePathPrefix(index: number) {
+    const newList = pathPrefixes.filter((_, i) => i !== index);
+    await updateConfig("path_prefix_options", newList);
+  }
+
+  function startEditConfig(key: string, currentValue: number) {
+    setEditingConfig(key);
+    // For size configs, show formatted value with unit (e.g., "128 KB")
+    if (key.includes('size') || key.includes('threshold')) {
+      setEditValue(formatBytes(currentValue));
+    } else {
+      setEditValue(String(currentValue));
+    }
+  }
+
+  async function saveEditConfig(key: string) {
+    let numValue: number;
+
+    // For size configs, parse unit-aware input (e.g., "128 KB", "1 MB")
+    if (key.includes('size') || key.includes('threshold')) {
+      const parsed = parseBytes(editValue);
+      if (parsed === null || parsed < 0) {
+        setMessage({ type: "error", text: t("settings.configUpdateFailed") });
+        setEditingConfig(null);
+        setTimeout(() => setMessage(null), 3000);
+        return;
+      }
+      numValue = parsed;
+    } else {
+      numValue = Number(editValue);
+      if (isNaN(numValue) || numValue < 0) {
+        setMessage({ type: "error", text: t("settings.configUpdateFailed") });
+        setEditingConfig(null);
+        setTimeout(() => setMessage(null), 3000);
+        return;
+      }
+    }
+
+    await updateConfig(key, numValue);
+    setEditingConfig(null);
+  }
+
+  function cancelEdit() {
+    setEditingConfig(null);
+    setEditValue("");
+  }
+
   const fmt = (iso: string | null) => iso ? new Date(iso).toLocaleString(locale === "zh" ? "zh-CN" : "en-US") : "—";
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="font-mono text-xl font-bold tracking-tight">{t("settings.title")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t("settings.desc")}</p>
+        </div>
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -80,6 +215,55 @@ export default function SettingsPage() {
         <p className="mt-1 text-sm text-muted-foreground">{t("settings.desc")}</p>
       </div>
 
+      {message && (
+        <div className={`fixed top-4 right-4 z-50 rounded-md border px-4 py-2 text-sm shadow-lg ${message.type === "success" ? "border-green-500 bg-green-50 text-green-800" : "border-red-500 bg-red-50 text-red-800"}`}>
+          {message.text}
+        </div>
+      )}
+
+      {/* Path Prefix Configuration */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="font-mono text-sm tracking-wide">{t("settings.pathPrefixConfig")}</CardTitle>
+          <p className="text-xs text-muted-foreground">{t("settings.pathPrefixDesc")}</p>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {pathPrefixes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("settings.pathPrefixEmpty")}</p>
+            ) : (
+              pathPrefixes.map((prefix, index) => (
+                <div key={index} className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
+                  <code className="font-mono text-sm">{prefix}</code>
+                  <button
+                    onClick={() => removePathPrefix(index)}
+                    disabled={updating === "path_prefix_options"}
+                    className="text-muted-foreground hover:text-destructive disabled:opacity-50"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))
+            )}
+            <div className="flex gap-2">
+              <Input
+                value={newPathPrefix}
+                onChange={(e) => setNewPathPrefix(e.target.value)}
+                placeholder={t("settings.pathPrefixPlaceholder")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") addPathPrefix();
+                }}
+                disabled={updating === "path_prefix_options"}
+              />
+              <Button onClick={addPathPrefix} disabled={updating === "path_prefix_options" || !newPathPrefix.trim()}>
+                {t("settings.addPathPrefix")}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Environment Variables (Read-only) */}
       <Card className="border-border/50">
         <CardHeader><CardTitle className="font-mono text-sm tracking-wide">{t("settings.envVars")}</CardTitle></CardHeader>
         <CardContent>
@@ -100,42 +284,107 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Scanner Thresholds (Editable) */}
       <Card className="border-border/50">
         <CardHeader><CardTitle className="font-mono text-sm tracking-wide">{t("settings.scannerThresholds")}</CardTitle></CardHeader>
         <CardContent>
           <div className="space-y-2">
             {[
-              { key: "FULL_SCAN", value: formatBytes(SIZE_THRESHOLDS.FULL_SCAN), desc: t("settings.fullScanDesc") },
-              { key: "CHUNKED_SCAN", value: formatBytes(SIZE_THRESHOLDS.CHUNKED_SCAN), desc: t("settings.chunkedScanDesc") },
-              { key: "CHUNK_SIZE", value: formatBytes(CHUNK_SIZE), desc: t("settings.chunkSizeDesc") },
-            ].map(({ key, value, desc }) => (
-              <div key={key} className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
-                <div><code className="font-mono text-xs text-primary">{key}</code><span className="ml-2 text-xs text-muted-foreground">{desc}</span></div>
-                <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs">{value}</code>
-              </div>
-            ))}
+              { key: "size_threshold_full_scan", label: "FULL_SCAN", desc: t("settings.fullScanDesc") },
+              { key: "size_threshold_chunked_scan", label: "CHUNKED_SCAN", desc: t("settings.chunkedScanDesc") },
+              { key: "chunk_size", label: "CHUNK_SIZE", desc: t("settings.chunkSizeDesc") },
+            ].map(({ key, label, desc }) => {
+              const config = editableConfigs[key];
+              if (!config) return null;
+              const isEditing = editingConfig === key;
+              const value = config.value as number;
+
+              return (
+                <div key={key} className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
+                  <div>
+                    <code className="font-mono text-xs text-primary">{label}</code>
+                    <span className="ml-2 text-xs text-muted-foreground">{desc}</span>
+                  </div>
+                  {isEditing ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="text"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEditConfig(key);
+                          if (e.key === "Escape") cancelEdit();
+                        }}
+                        onBlur={() => saveEditConfig(key)}
+                        className="h-7 w-40 text-xs"
+                        autoFocus
+                        placeholder="e.g., 128 KB, 1 MB"
+                      />
+                    </div>
+                  ) : (
+                    <code
+                      className="cursor-pointer rounded bg-muted px-2 py-0.5 font-mono text-xs hover:bg-muted/70"
+                      onClick={() => startEditConfig(key, value)}
+                    >
+                      {formatBytes(value)}
+                    </code>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
 
+      {/* Context Key Configuration (Editable) */}
       <Card className="border-border/50">
         <CardHeader><CardTitle className="font-mono text-sm tracking-wide">{t("settings.contextKeyConfig")}</CardTitle></CardHeader>
         <CardContent>
           <div className="space-y-2">
             {[
-              { key: "MIN_LENGTH", value: String(CONTEXT_KEY.MIN_LENGTH) },
-              { key: "MAX_LENGTH", value: String(CONTEXT_KEY.MAX_LENGTH) },
-              { key: "MAX_SPACES", value: String(CONTEXT_KEY.MAX_SPACES) },
-            ].map(({ key, value }) => (
-              <div key={key} className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
-                <code className="font-mono text-xs text-primary">CONTEXT_KEY.{key}</code>
-                <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs">{value}</code>
-              </div>
-            ))}
+              { key: "context_key_min_length", label: "MIN_LENGTH" },
+              { key: "context_key_max_length", label: "MAX_LENGTH" },
+              { key: "context_key_max_spaces", label: "MAX_SPACES" },
+            ].map(({ key, label }) => {
+              const config = editableConfigs[key];
+              if (!config) return null;
+              const isEditing = editingConfig === key;
+              const value = config.value as number;
+
+              return (
+                <div key={key} className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
+                  <code className="font-mono text-xs text-primary">CONTEXT_KEY.{label}</code>
+                  {isEditing ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEditConfig(key);
+                          if (e.key === "Escape") cancelEdit();
+                        }}
+                        onBlur={() => saveEditConfig(key)}
+                        className="h-7 w-32 text-xs"
+                        autoFocus
+                      />
+                    </div>
+                  ) : (
+                    <code
+                      className="cursor-pointer rounded bg-muted px-2 py-0.5 font-mono text-xs hover:bg-muted/70"
+                      onClick={() => startEditConfig(key, value)}
+                    >
+                      {value}
+                    </code>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
 
+      {/* Database Statistics (Read-only) */}
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-mono text-sm tracking-wide">

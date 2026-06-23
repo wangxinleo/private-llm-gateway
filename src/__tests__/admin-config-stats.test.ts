@@ -7,6 +7,13 @@ import { statSync } from "fs";
 vi.mock("@/audit", () => ({
   getDbStats: vi.fn(),
   getAuditStats: vi.fn(),
+  getAllConfigs: vi.fn(() => []),
+  setConfig: vi.fn(),
+}));
+
+vi.mock("@/config-loader", () => ({
+  initializeConfigs: vi.fn(),
+  refreshConfig: vi.fn(),
 }));
 
 vi.mock("@/log", () => ({
@@ -26,12 +33,15 @@ vi.mock("@/config", () => ({
     FULL_SCAN: 131072,
     CHUNKED_SCAN: 1048576,
   },
-  CHUNK_SIZE: 65536,
+  CONFIG_STATE: {
+    CHUNK_SIZE: 65536,
+  },
   CONTEXT_KEY: {
     MIN_LENGTH: 8,
     MAX_LENGTH: 200,
     MAX_SPACES: 2,
   },
+  PATH_PREFIX_OPTIONS: ["/api/v1/messages", "/api/v1/responses", "/api/v1beta"],
 }));
 
 vi.mock("fs", () => ({
@@ -89,6 +99,15 @@ describe("admin config and stats routes", () => {
           debug: false,
           nodeEnv: "test",
           port: "3000",
+        },
+        editableConfigs: {
+          path_prefix_options: { value: ["/api/v1/messages", "/api/v1/responses", "/api/v1beta"], type: "json_array" },
+          size_threshold_full_scan: { value: 131072, type: "number" },
+          size_threshold_chunked_scan: { value: 1048576, type: "number" },
+          chunk_size: { value: 65536, type: "number" },
+          context_key_min_length: { value: 8, type: "number" },
+          context_key_max_length: { value: 200, type: "number" },
+          context_key_max_spaces: { value: 2, type: "number" },
         },
         constants: {
           sizeThresholds: { fullScan: 131072, chunkedScan: 1048576 },

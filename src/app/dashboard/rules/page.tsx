@@ -27,23 +27,17 @@ interface RuleFormState {
   enabled: boolean;
   pathPrefix: string;
   modelName: string;
-  startAt: string;
-  endAt: string;
+  duration: number; // hours
   note: string;
 }
 
 const EMPTY_FORM: RuleFormState = {
   enabled: true,
-  pathPrefix: "/v1/chat",
+  pathPrefix: "/api/v1/messages",
   modelName: "",
-  startAt: "",
-  endAt: "",
+  duration: 4,
   note: "",
 };
-
-function toIsoFromLocalDateTime(value: string): string {
-  return new Date(value).toISOString();
-}
 
 function StatusBadge({ rule, t }: { rule: BypassRule; t: (key: string) => string }) {
   if (!rule.enabled) return <Badge variant="outline" className="font-mono text-xs">{t("rules.bypassStatus.disabled")}</Badge>;
@@ -59,6 +53,7 @@ export default function RulesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState<RuleFormState>(EMPTY_FORM);
+  const [pathPrefixOptions, setPathPrefixOptions] = useState<string[]>([]);
 
   const fmt = useMemo(
     () => (iso: string) => new Date(iso).toLocaleString(locale === "zh" ? "zh-CN" : "en-US"),
@@ -80,8 +75,27 @@ export default function RulesPage() {
     }
   }
 
+  async function loadPathPrefixOptions() {
+    try {
+      const res = await authedFetch("/api/admin/config");
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.editableConfigs?.path_prefix_options?.value) {
+        const options = data.editableConfigs.path_prefix_options.value;
+        setPathPrefixOptions(options);
+        // Set first option as default if form is still empty
+        if (options.length > 0 && !form.pathPrefix) {
+          setForm((prev) => ({ ...prev, pathPrefix: options[0] }));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load path prefix options:", err);
+    }
+  }
+
   useEffect(() => {
     loadRules();
+    loadPathPrefixOptions();
   }, []);
 
   async function handleCreate(e: React.FormEvent) {
@@ -90,6 +104,10 @@ export default function RulesPage() {
     setError("");
 
     try {
+      const now = new Date();
+      const startAt = now.toISOString();
+      const endAt = new Date(now.getTime() + form.duration * 3600000).toISOString();
+
       const res = await authedFetch("/api/admin/bypass-rules", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -97,8 +115,8 @@ export default function RulesPage() {
           enabled: form.enabled,
           pathPrefix: form.pathPrefix,
           modelName: form.modelName,
-          startAt: toIsoFromLocalDateTime(form.startAt),
-          endAt: toIsoFromLocalDateTime(form.endAt),
+          startAt,
+          endAt,
           note: form.note,
         }),
       });
@@ -155,11 +173,19 @@ export default function RulesPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <label className="space-y-2 text-sm">
                 <span className="text-muted-foreground">{t("rules.bypassPathPrefix")}</span>
-                <Input
+                <select
                   value={form.pathPrefix}
                   onChange={(e) => setForm((prev) => ({ ...prev, pathPrefix: e.target.value }))}
-                  placeholder="/v1/chat"
-                />
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  {pathPrefixOptions.length === 0 ? (
+                    <option value="">No options configured</option>
+                  ) : (
+                    pathPrefixOptions.map((prefix) => (
+                      <option key={prefix} value={prefix}>{prefix}</option>
+                    ))
+                  )}
+                </select>
               </label>
               <label className="space-y-2 text-sm">
                 <span className="text-muted-foreground">{t("rules.bypassModel")}</span>
@@ -170,20 +196,16 @@ export default function RulesPage() {
                 />
               </label>
               <label className="space-y-2 text-sm">
-                <span className="text-muted-foreground">{t("rules.bypassStartAt")}</span>
-                <Input
-                  type="datetime-local"
-                  value={form.startAt}
-                  onChange={(e) => setForm((prev) => ({ ...prev, startAt: e.target.value }))}
-                />
-              </label>
-              <label className="space-y-2 text-sm">
-                <span className="text-muted-foreground">{t("rules.bypassEndAt")}</span>
-                <Input
-                  type="datetime-local"
-                  value={form.endAt}
-                  onChange={(e) => setForm((prev) => ({ ...prev, endAt: e.target.value }))}
-                />
+                <span className="text-muted-foreground">{t("rules.bypassDuration")}</span>
+                <select
+                  value={form.duration}
+                  onChange={(e) => setForm((prev) => ({ ...prev, duration: Number(e.target.value) }))}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value={4}>{t("rules.bypassDuration4h")}</option>
+                  <option value={8}>{t("rules.bypassDuration8h")}</option>
+                  <option value={24}>{t("rules.bypassDuration1d")}</option>
+                </select>
               </label>
             </div>
 
@@ -207,7 +229,7 @@ export default function RulesPage() {
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
             <div className="flex items-center gap-3">
-              <Button type="submit" disabled={submitting || !form.pathPrefix.trim() || !form.modelName.trim() || !form.startAt || !form.endAt}>
+              <Button type="submit" disabled={submitting || !form.pathPrefix.trim() || !form.modelName.trim()}>
                 {submitting ? t("rules.bypassSubmitting") : t("rules.bypassCreateAction")}
               </Button>
               <p className="text-xs text-muted-foreground">{t("rules.bypassHint")}</p>

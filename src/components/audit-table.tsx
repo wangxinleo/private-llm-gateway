@@ -151,6 +151,7 @@ export function AuditTable() {
   const [finding, setFinding] = useState("");
   const [query, setQuery] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRangePreset>("today");
+  const [pathPrefixOptions, setPathPrefixOptions] = useState<string[]>([]);
   const [sseConnected, setSseConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const filtersRef = useRef({ action, method, finding, query, timeRange, page: data.page });
@@ -174,9 +175,7 @@ export function AuditTable() {
 
   const PATH_OPTIONS = [
     { value: "", label: t("audit.filter.allPaths") },
-    { value: "/api/v1/messages", label: "/api/v1/messages" },
-    { value: "/api/v1/responses", label: "/api/v1/responses" },
-    { value: "/api/v1beta", label: "/api/v1beta" },
+    ...pathPrefixOptions.map((prefix) => ({ value: prefix, label: prefix })),
   ];
 
   const TIME_RANGE_OPTIONS: { value: TimeRangePreset; label: string }[] = [
@@ -220,6 +219,23 @@ export function AuditTable() {
     },
     [buildUrl, authedFetch]
   );
+
+  const loadPathPrefixOptions = useCallback(async () => {
+    try {
+      const res = await authedFetch("/api/admin/config");
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.editableConfigs?.path_prefix_options?.value) {
+        setPathPrefixOptions(data.editableConfigs.path_prefix_options.value);
+      }
+    } catch (err) {
+      console.error("Failed to load path prefix options:", err);
+    }
+  }, [authedFetch]);
+
+  useEffect(() => {
+    loadPathPrefixOptions();
+  }, [loadPathPrefixOptions]);
 
   useEffect(() => { fetchData(1); }, [fetchData]);
 
