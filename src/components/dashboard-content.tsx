@@ -50,15 +50,21 @@ export function DashboardContent() {
   useEffect(() => {
     async function load() {
       try {
-        const [statsRes, auditRes] = await Promise.all([
+        const [statsRes, blockRes, maskRes] = await Promise.all([
           authedFetch("/api/admin/stats"),
           authedFetch("/api/admin/audit?limit=10&action=block"),
+          authedFetch("/api/admin/audit?limit=10&action=mask"),
         ]);
         if (statsRes.ok) setStats(await statsRes.json());
-        if (auditRes.ok) {
-          const data = await auditRes.json();
-          setRecentBlocked(data.rows ?? []);
-        }
+
+        // Merge block and mask records
+        const blockRows = blockRes.ok ? (await blockRes.json()).rows ?? [] : [];
+        const maskRows = maskRes.ok ? (await maskRes.json()).rows ?? [] : [];
+        const combined = [...blockRows, ...maskRows];
+
+        // Sort by id descending (newest first) and take top 10
+        combined.sort((a, b) => b.id - a.id);
+        setRecentBlocked(combined.slice(0, 10));
       } catch { /* DB may not exist yet */ }
     }
     load();

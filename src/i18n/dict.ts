@@ -4,7 +4,7 @@ const zh: Record<string, string> = {
   // Sidebar
   "nav.overview": "总览",
   "nav.audit": "审计日志",
-  "nav.rules": "扫描规则",
+  "nav.rules": "临时放行规则",
   "nav.settings": "系统配置",
   "nav.version": "v0.1.0 — 内部",
 
@@ -184,7 +184,7 @@ const en: Record<string, string> = {
   // Sidebar
   "nav.overview": "Overview",
   "nav.audit": "Audit Log",
-  "nav.rules": "Scan Rules",
+  "nav.rules": "Bypass Rules",
   "nav.settings": "Settings",
   "nav.version": "v0.1.0 — internal",
 
