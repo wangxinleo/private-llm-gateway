@@ -41,7 +41,7 @@ vi.mock("@/config", () => ({
     MAX_LENGTH: 200,
     MAX_SPACES: 2,
   },
-  PATH_PREFIX_OPTIONS: ["/api/v1/messages", "/api/v1/responses", "/api/v1beta"],
+  PATH_PREFIX_OPTIONS: ["/v1/messages", "/v1/responses", "/v1beta"],
 }));
 
 vi.mock("fs", () => ({
@@ -101,7 +101,7 @@ describe("admin config and stats routes", () => {
           port: "3000",
         },
         editableConfigs: {
-          path_prefix_options: { value: ["/api/v1/messages", "/api/v1/responses", "/api/v1beta"], type: "json_array" },
+          path_prefix_options: { value: ["/v1/messages", "/v1/responses", "/v1beta"], type: "json_array" },
           size_threshold_full_scan: { value: 131072, type: "number" },
           size_threshold_chunked_scan: { value: 1048576, type: "number" },
           chunk_size: { value: 65536, type: "number" },

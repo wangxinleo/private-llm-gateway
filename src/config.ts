@@ -10,7 +10,7 @@ export const DEFAULT_CONFIG_VALUES = {
   CONTEXT_KEY_MIN_LENGTH: 8,
   CONTEXT_KEY_MAX_LENGTH: 200,
   CONTEXT_KEY_MAX_SPACES: 2,
-  PATH_PREFIX_OPTIONS: ["/api/v1/messages", "/api/v1/responses", "/api/v1beta"],
+  PATH_PREFIX_OPTIONS: ["/v1/messages", "/v1/responses", "/v1beta"],
 };
 
 // Hot-reloadable config state (wrapped in objects to allow mutation)
