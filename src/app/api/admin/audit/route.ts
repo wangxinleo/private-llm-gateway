@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryAudit, deleteAuditByIds, deleteAuditByFilter, countAuditByFilter } from "@/audit";
 import type { DeleteFilter } from "@/audit";
+import { checkRevealAuth } from "@/app/api/admin/reveal-auth/auth";
 import { checkAdminAuth } from "@/lib/admin-auth";
 import { Logger } from "@/log";
 
@@ -9,6 +10,7 @@ const log = new Logger("admin");
 export async function GET(request: NextRequest) {
   const authError = checkAdminAuth(request);
   if (authError) return authError;
+  const isRevealed = checkRevealAuth(request);
 
   try {
     const { searchParams } = request.nextUrl;
@@ -34,6 +36,7 @@ export async function GET(request: NextRequest) {
       bodySize: r.body_size,
       filenames: JSON.parse(r.filenames),
       findings: JSON.parse(r.findings),
+      matchedValues: isRevealed ? JSON.parse(r.matched_values) : undefined,
       action: r.action,
     }));
 

@@ -49,6 +49,7 @@ export interface AuditEntry {
   bodySize: number;
   filenames: string[];
   findings: FindingCategory[];
+  matchedValues?: Record<string, string[]>;
   action: ActionType;
   maskApplied?: boolean;
   maskCategories?: FindingCategory[];

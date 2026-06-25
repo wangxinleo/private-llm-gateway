@@ -18,6 +18,7 @@ export function getDb(): Database.Database {
         body_size INTEGER NOT NULL,
         filenames TEXT NOT NULL DEFAULT '[]',
         findings TEXT NOT NULL DEFAULT '[]',
+        matched_values TEXT NOT NULL DEFAULT '{}',
         action TEXT NOT NULL
       );
 
@@ -29,13 +30,17 @@ export function getDb(): Database.Database {
         updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `);
+    const columns = db.prepare("PRAGMA table_info(audit_log)").all() as { name: string }[];
+    if (!columns.some((column) => column.name === "matched_values")) {
+      db.exec("ALTER TABLE audit_log ADD COLUMN matched_values TEXT NOT NULL DEFAULT '{}'");
+    }
   }
   return db;
 }
 
 const INSERT_SQL = `
-  INSERT INTO audit_log (timestamp, path, method, content_type, body_size, filenames, findings, action)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO audit_log (timestamp, path, method, content_type, body_size, filenames, findings, matched_values, action)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `;
 
 export function insertAudit(entry: AuditEntry): number {
@@ -48,6 +53,7 @@ export function insertAudit(entry: AuditEntry): number {
     entry.bodySize,
     JSON.stringify(entry.filenames),
     JSON.stringify(entry.findings),
+    JSON.stringify(entry.matchedValues ?? {}),
     entry.action
   );
   return Number(result.lastInsertRowid);
@@ -62,6 +68,7 @@ export interface AuditRow {
   body_size: number;
   filenames: string;
   findings: string;
+  matched_values: string;
   action: string;
 }
 

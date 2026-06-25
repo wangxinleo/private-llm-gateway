@@ -2,12 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { GET, DELETE } from "@/app/api/admin/audit/route";
 import { NextRequest } from "next/server";
 import { queryAudit, deleteAuditByIds, deleteAuditByFilter, countAuditByFilter } from "@/audit";
+import { checkRevealAuth } from "@/app/api/admin/reveal-auth/auth";
 
 vi.mock("@/audit", () => ({
   queryAudit: vi.fn(),
   deleteAuditByIds: vi.fn(),
   deleteAuditByFilter: vi.fn(),
   countAuditByFilter: vi.fn(),
+}));
+
+vi.mock("@/app/api/admin/reveal-auth/auth", () => ({
+  checkRevealAuth: vi.fn(() => false),
 }));
 
 vi.mock("@/log", () => ({
@@ -23,6 +28,7 @@ const mockQueryAudit = vi.mocked(queryAudit);
 const mockDeleteByIds = vi.mocked(deleteAuditByIds);
 const mockDeleteByFilter = vi.mocked(deleteAuditByFilter);
 const mockCountByFilter = vi.mocked(countAuditByFilter);
+const mockCheckRevealAuth = vi.mocked(checkRevealAuth);
 
 const sampleRow = {
   id: 1,
@@ -33,6 +39,7 @@ const sampleRow = {
   body_size: 100,
   filenames: '["file.txt"]',
   findings: '["JWT"]',
+  matched_values: '{"JWT":["eyJhbGciOiJIUzI1NiJ9.payload.sig"]}',
   action: "block",
 };
 
@@ -70,6 +77,7 @@ describe("admin audit routes", () => {
     originalKey = process.env.ADMIN_KEY;
     process.env.ADMIN_KEY = "test-key";
     vi.clearAllMocks();
+    mockCheckRevealAuth.mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -113,6 +121,26 @@ describe("admin audit routes", () => {
         filenames: ["file.txt"],
         findings: ["JWT"],
         action: "block",
+      });
+    });
+
+    it("omits matchedValues when reveal auth is not active", async () => {
+      mockQueryAudit.mockReturnValue({ rows: [sampleRow], total: 1 });
+      mockCheckRevealAuth.mockReturnValue(false);
+      const req = makeRequest("GET", "/api/admin/audit", { adminKey: "test-key" });
+      const res = await GET(req);
+      const json = await res.json();
+      expect(json.rows[0]).not.toHaveProperty("matchedValues");
+    });
+
+    it("returns matchedValues when reveal auth is active", async () => {
+      mockQueryAudit.mockReturnValue({ rows: [sampleRow], total: 1 });
+      mockCheckRevealAuth.mockReturnValue(true);
+      const req = makeRequest("GET", "/api/admin/audit", { adminKey: "test-key" });
+      const res = await GET(req);
+      const json = await res.json();
+      expect(json.rows[0]).toMatchObject({
+        matchedValues: { JWT: ["eyJhbGciOiJIUzI1NiJ9.payload.sig"] },
       });
     });
 

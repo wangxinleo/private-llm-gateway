@@ -12,6 +12,13 @@ export function logAudit(params: {
   action: ActionType;
   scanResult?: ScanResult;
 }): void {
+  const matchedValues: Record<string, string[]> = {};
+  for (const finding of params.findings) {
+    const values = matchedValues[finding.category] ?? [];
+    values.push(finding.matched);
+    matchedValues[finding.category] = values;
+  }
+
   const entry: AuditEntry = {
     timestamp: new Date().toISOString(),
     path: params.path,
@@ -20,6 +27,7 @@ export function logAudit(params: {
     bodySize: params.bodySize,
     filenames: params.filenames,
     findings: params.findings.map((f) => f.category),
+    matchedValues,
     action: params.action,
   };
 
@@ -41,6 +49,7 @@ export function logAudit(params: {
     bodySize: entry.bodySize,
     filenames: entry.filenames,
     findings: entry.findings,
+    matchedValues: entry.matchedValues,
     action: entry.action,
   });
 }

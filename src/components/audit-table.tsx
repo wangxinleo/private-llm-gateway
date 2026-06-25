@@ -31,6 +31,9 @@ import {
   X,
   AlertTriangle,
   Clock,
+  Eye,
+  EyeOff,
+  Lock,
 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 
@@ -47,6 +50,7 @@ interface AuditRow {
   bodySize: number;
   filenames: string[];
   findings: FindingCategory[];
+  matchedValues?: Record<string, string[]>;
   action: ActionType;
 }
 
@@ -74,6 +78,13 @@ function formatBytes(bytes: number): string {
 function ActionBadge({ action, label }: { action: ActionType; label: string }) {
   const variant = action === "block" ? "destructive" : action === "mask" ? "warning" : "success";
   return <Badge variant={variant} className="font-mono text-xs">{label}</Badge>;
+}
+
+function formatCountdown(ms: number): string {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 function startOfDay(date: Date): Date {
@@ -145,6 +156,11 @@ export function AuditTable() {
     before: string;
     action: string;
   }>({ open: false, count: null, before: "", action: "allow" });
+  const [revealAuthed, setRevealAuthed] = useState(false);
+  const [revealExpiry, setRevealExpiry] = useState<number | null>(null);
+  const [revealLoading, setRevealLoading] = useState(false);
+  const [revealDialog, setRevealDialog] = useState<{ open: boolean; password: string }>({ open: false, password: "" });
+  const revealTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [action, setAction] = useState("");
   const [method, setMethod] = useState("");
@@ -272,6 +288,39 @@ export function AuditTable() {
       eventSourceRef.current?.close();
     };
   }, []);
+
+  const handleRevealAuth = useCallback(async () => {
+    if (!adminKey) return;
+    setRevealLoading(true);
+    try {
+      const res = await authedFetch("/api/admin/reveal-auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+        body: JSON.stringify({ password: revealDialog.password }),
+      });
+      if (res.ok) {
+        const expiresAt = Date.now() + 30 * 60 * 1000;
+        setRevealAuthed(true);
+        setRevealExpiry(expiresAt);
+        setRevealDialog({ open: false, password: "" });
+        fetchData(data.page);
+      }
+    } finally {
+      setRevealLoading(false);
+    }
+  }, [adminKey, revealDialog.password, authedFetch, fetchData, data.page]);
+
+  useEffect(() => {
+    if (!revealAuthed || !revealExpiry) return;
+    revealTimerRef.current = setInterval(() => {
+      if (Date.now() >= revealExpiry) {
+        setRevealAuthed(false);
+        setRevealExpiry(null);
+        if (revealTimerRef.current) clearInterval(revealTimerRef.current);
+      }
+    }, 1000);
+    return () => { if (revealTimerRef.current) clearInterval(revealTimerRef.current); };
+  }, [revealAuthed, revealExpiry]);
 
   const toggleExpand = (id: number) => {
     setExpandedIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -408,6 +457,15 @@ export function AuditTable() {
           <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleExportCsv}>
             <Download className="mr-1 h-3 w-3" />{t("audit.exportCsv")}
           </Button>
+          {revealAuthed && revealExpiry ? (
+            <Button variant="outline" size="sm" className="h-7 text-xs text-warning" onClick={() => { setRevealAuthed(false); setRevealExpiry(null); fetchData(data.page); }}>
+              <EyeOff className="mr-1 h-3 w-3" />{t("audit.revealValuesActive")} [{formatCountdown(revealExpiry - Date.now())}]
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setRevealDialog({ open: true, password: "" })}>
+              <Eye className="mr-1 h-3 w-3" />{t("audit.revealValues")}
+            </Button>
+          )}
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => fetchData(data.page)}>
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
           </Button>
@@ -479,19 +537,44 @@ export function AuditTable() {
                              <div><span className="text-muted-foreground">{t("audit.bodySizeLabel")}: </span><span className="font-mono text-sm">{formatBytes(row.bodySize)}</span></div>
                              <div><span className="text-muted-foreground">{t("audit.timeLabel")}: </span><span className="font-mono text-sm">{formatTime(row.timestamp)}</span></div>
                           </div>
-                          {row.findings.length > 0 && (
-                            <div className="mt-3">
-                              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">{t("audit.findingsLabel")}</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {row.findings.map((f) => (<Badge key={f} variant={f === "SENSITIVE_FILENAME" ? "destructive" : ["PHONE", "EMAIL", "ID_CARD", "BANK_CARD"].includes(f) ? "warning" : "outline"} className="font-mono text-xs">{f}</Badge>))}
-                              </div>
-                            </div>
-                          )}
-                          {row.filenames.length > 0 && (
-                            <div className="mt-3">
-                              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">{t("audit.filenamesLabel")}</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {row.filenames.map((f) => (<code key={f} className="rounded border border-border/30 bg-muted px-1.5 py-0.5 font-mono text-xs">{f}</code>))}
+                           {row.findings.length > 0 && (
+                             <div className="mt-3">
+                               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">{t("audit.findingsLabel")}</p>
+                               <div className="flex flex-wrap gap-1.5">
+                                 {row.findings.map((f) => (<Badge key={f} variant={f === "SENSITIVE_FILENAME" ? "destructive" : ["PHONE", "EMAIL", "ID_CARD", "BANK_CARD"].includes(f) ? "warning" : "outline"} className="font-mono text-xs">{f}</Badge>))}
+                               </div>
+                             </div>
+                           )}
+                           {revealAuthed && row.matchedValues && Object.keys(row.matchedValues).length > 0 && (
+                             <div className="mt-3">
+                               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">{t("audit.matchedValuesLabel")}</p>
+                               <div className="space-y-1.5">
+                                 {Object.entries(row.matchedValues).map(([category, values]) => (
+                                   <div key={category} className="flex items-start gap-2">
+                                     <Badge variant="outline" className="font-mono text-xs shrink-0">{category}</Badge>
+                                     <div className="flex flex-wrap gap-1">
+                                       {values.map((v, i) => (
+                                         <code key={i} className="rounded border border-destructive/30 bg-destructive/5 px-1.5 py-0.5 font-mono text-xs text-destructive break-all">
+                                           {v.slice(0, 100)}{v.length > 100 ? "…" : ""}
+                                         </code>
+                                       ))}
+                                     </div>
+                                   </div>
+                                 ))}
+                               </div>
+                             </div>
+                           )}
+                           {!revealAuthed && row.findings.length > 0 && (
+                             <div className="mt-3">
+                               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">{t("audit.matchedValuesLabel")}</p>
+                               <p className="text-xs text-muted-foreground italic">{t("audit.revealRequired")}</p>
+                             </div>
+                           )}
+                           {row.filenames.length > 0 && (
+                             <div className="mt-3">
+                               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">{t("audit.filenamesLabel")}</p>
+                               <div className="flex flex-wrap gap-1.5">
+                                 {row.filenames.map((f) => (<code key={f} className="rounded border border-border/30 bg-muted px-1.5 py-0.5 font-mono text-xs">{f}</code>))}
                               </div>
                             </div>
                           )}
@@ -548,6 +631,27 @@ export function AuditTable() {
             <Button variant="outline" size="sm" onClick={() => setCleanDialog((d) => ({ ...d, open: false }))}>{t("audit.cancel")}</Button>
             <Button variant="destructive" size="sm" onClick={confirmClean} disabled={!cleanDialog.count}>
               {t("audit.delete")}{(cleanDialog.count ?? 0) > 0 ? ` (${cleanDialog.count})` : ""}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={revealDialog.open} onOpenChange={(open) => setRevealDialog((d) => ({ ...d, open }))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Lock className="h-5 w-5 text-warning" />{t("audit.revealPasswordTitle")}</DialogTitle>
+            <DialogDescription>{t("audit.revealPasswordDesc")}</DialogDescription>
+          </DialogHeader>
+          <input
+            type="password"
+            value={revealDialog.password}
+            onChange={(e) => setRevealDialog((d) => ({ ...d, password: e.target.value }))}
+            placeholder={t("audit.revealPasswordPlaceholder")}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setRevealDialog({ open: false, password: "" })}>{t("audit.cancel")}</Button>
+            <Button variant="outline" size="sm" onClick={handleRevealAuth} disabled={revealLoading || !revealDialog.password.trim()}>
+              {t("audit.revealConfirm")}
             </Button>
           </div>
         </DialogContent>

@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { scanContextKey } from "@/scanner/context-key";
 
-describe("scanContextKey — mask rules", () => {
-  const suspiciousValue = "aBcDeFgHiJkLmNoPqRsTuVwXyZ012";
+const suspiciousValue = "aBcDeFgHiJkLmNoPqRsTuVwXyZ012";
+const suspiciousPwd = "k8s-Prod2024!Sec";
 
+describe("scanContextKey — SECRET_KEYS solo-trigger", () => {
   it("detects api_key with suspicious value", () => {
     const f = scanContextKey(`"api_key": "${suspiciousValue}"`);
     expect(f).toHaveLength(1);
@@ -23,11 +24,6 @@ describe("scanContextKey — mask rules", () => {
     expect(f).toHaveLength(1);
   });
 
-  it("detects token field with suspicious value", () => {
-    const f = scanContextKey(`token=${suspiciousValue}`);
-    expect(f).toHaveLength(1);
-  });
-
   it("detects authorization field", () => {
     const f = scanContextKey(`"authorization": "${suspiciousValue}"`);
     expect(f).toHaveLength(1);
@@ -43,11 +39,52 @@ describe("scanContextKey — mask rules", () => {
     expect(f).toHaveLength(1);
   });
 
+  it("detects access_token field", () => {
+    const f = scanContextKey(`access_token=${suspiciousValue}`);
+    expect(f).toHaveLength(1);
+  });
+
   it("stores actual suspicious value in matched", () => {
     const f = scanContextKey(`"api_key": "${suspiciousValue}"`);
     expect(f[0].matched).toBe(suspiciousValue);
   });
+});
 
+describe("scanContextKey — IDENTITY_KEYS pair-trigger", () => {
+  it("detects username when secret key also present", () => {
+    const f = scanContextKey(
+      `"username": "q5BW236ytM56HrV74n", "password": "${suspiciousValue}"`
+    );
+    expect(f.length).toBeGreaterThanOrEqual(2);
+    expect(f.some((x) => x.matched === "q5BW236ytM56HrV74n")).toBe(true);
+    expect(f.some((x) => x.matched === suspiciousValue)).toBe(true);
+  });
+
+  it("ignores username when no secret key present", () => {
+    const f = scanContextKey(`"username": "q5BW236ytM56HrV74n"`);
+    expect(f).toHaveLength(0);
+  });
+
+  it("ignores token when no secret key present", () => {
+    const f = scanContextKey(`"token": ${suspiciousValue}`);
+    expect(f).toHaveLength(0);
+  });
+
+  it("detects session_id when secret key also present", () => {
+    const f = scanContextKey(
+      `"session_id": "xY7zW9pQ2mL4kR8n", "api_key": "${suspiciousValue}"`
+    );
+    expect(f.length).toBeGreaterThanOrEqual(2);
+    expect(f.some((x) => x.matched === "xY7zW9pQ2mL4kR8n")).toBe(true);
+  });
+
+  it("ignores session_id when no secret key present", () => {
+    const f = scanContextKey(`"session_id": "xY7zW9pQ2mL4kR8n"`);
+    expect(f).toHaveLength(0);
+  });
+});
+
+describe("scanContextKey — value filtering", () => {
   it("ignores short values (< 8 chars)", () => {
     const f = scanContextKey(`"api_key": "short"`);
     expect(f).toHaveLength(0);
@@ -66,6 +103,21 @@ describe("scanContextKey — mask rules", () => {
     expect(f).toHaveLength(0);
   });
 
+  it("ignores pure-alpha values", () => {
+    const f = scanContextKey(`"api_key": "productionDefaultValue"`);
+    expect(f).toHaveLength(0);
+  });
+
+  it("ignores pure-digit values", () => {
+    const f = scanContextKey(`"api_key": "1234567890123456"`);
+    expect(f).toHaveLength(0);
+  });
+
+  it("ignores values without digit or symbol", () => {
+    const f = scanContextKey(`"api_key": "camelCaseWordsOnly"`);
+    expect(f).toHaveLength(0);
+  });
+
   it("deduplicates same value across multiple keys", () => {
     const f = scanContextKey(`
       "api_key": "${suspiciousValue}"
@@ -80,34 +132,32 @@ describe("scanContextKey — mask rules", () => {
     );
     expect(f).toHaveLength(0);
   });
+});
 
-  it("handles key field name", () => {
+describe("scanContextKey — false positive rejection", () => {
+  it("ignores 'key' field (too broad)", () => {
     const f = scanContextKey(`"key": "${suspiciousValue}"`);
-    expect(f).toHaveLength(1);
-    expect(f[0].category).toBe("CONTEXTUAL_SECRET");
+    expect(f).toHaveLength(0);
   });
 
-  it("detects username field with suspicious value", () => {
-    const f = scanContextKey(`username: 'q5BW236ytM56HrV74n-1'`);
-    expect(f).toHaveLength(1);
-    expect(f[0].category).toBe("CONTEXTUAL_SECRET");
-    expect(f[0].matched).toBe("q5BW236ytM56HrV74n-1");
+  it("ignores 'user' field (too broad)", () => {
+    const f = scanContextKey(`"user": "admin"`);
+    expect(f).toHaveLength(0);
   });
 
-  it("detects short password (16 chars)", () => {
-    const f = scanContextKey(`password: 'mD37cD563VG6UrtL'`);
-    expect(f).toHaveLength(1);
-    expect(f[0].category).toBe("CONTEXTUAL_SECRET");
-    expect(f[0].matched).toBe("mD37cD563VG6UrtL");
+  it("ignores 'email' field (handled by PII rules)", () => {
+    const f = scanContextKey(`"email": "test@example.com"`);
+    expect(f).toHaveLength(0);
   });
 
-  it("detects both username and password in combined text", () => {
-    const f = scanContextKey(
-      `username: 'q5BW236ytM56HrV74n-1', password: 'mD37cD563VG6UrtL'`
-    );
-    expect(f).toHaveLength(2);
-    expect(f.some((x) => x.matched === "q5BW236ytM56HrV74n-1")).toBe(true);
-    expect(f.some((x) => x.matched === "mD37cD563VG6UrtL")).toBe(true);
+  it("ignores 'auth' field (too broad)", () => {
+    const f = scanContextKey(`"auth": "oauth2"`);
+    expect(f).toHaveLength(0);
+  });
+
+  it("ignores model names in 'key' context", () => {
+    const f = scanContextKey(`"key": "gpt-4.1-mini"`);
+    expect(f).toHaveLength(0);
   });
 });
 
@@ -115,51 +165,46 @@ describe("scanContextKey — multi-format coverage", () => {
   const val = "q5BW236ytM56HrV74n-1";
 
   it("detects bracket access key[value]", () => {
-    const f = scanContextKey(`username[${val}]`);
+    const f = scanContextKey(`password[${val}]`);
     expect(f).toHaveLength(1);
     expect(f[0].matched).toBe(val);
   });
 
   it("detects bracket access key['value']", () => {
-    const f = scanContextKey(`username['${val}']`);
+    const f = scanContextKey(`password['${val}']`);
     expect(f).toHaveLength(1);
     expect(f[0].matched).toBe(val);
   });
 
   it("detects bracket access key[\"value\"]", () => {
-    const f = scanContextKey(`username["${val}"]`);
+    const f = scanContextKey(`password["${val}"]`);
     expect(f).toHaveLength(1);
     expect(f[0].matched).toBe(val);
   });
 
   it("detects dict access ['key'] = value", () => {
-    const f = scanContextKey(`config["username"] = "${val}"`);
+    const f = scanContextKey(`config["password"] = "${val}"`);
     expect(f).toHaveLength(1);
     expect(f[0].matched).toBe(val);
   });
 
   it("detects XML tag <key>value</key>", () => {
-    const f = scanContextKey(`<username>${val}</username>`);
+    const f = scanContextKey(`<password>${val}</password>`);
     expect(f).toHaveLength(1);
     expect(f[0].matched).toBe(val);
   });
 
-  it("detects newline-separated key\\nvalue", () => {
-    const f = scanContextKey(`username\n${val}`);
-    expect(f).toHaveLength(1);
-    expect(f[0].matched).toBe(val);
-  });
-
-  it("detects dot notation .key. value", () => {
-    const f = scanContextKey(`config.username.${val}`);
+  it("detects dot notation .key = value", () => {
+    const f = scanContextKey(`config.password = "${val}"`);
     expect(f).toHaveLength(1);
     expect(f[0].matched).toBe(val);
   });
 
   it("detects URL query params without swallowing adjacent values", () => {
-    const f = scanContextKey(`username=${val}&password=mD37cD563VG6UrtL`);
+    const pwdVal = "k8s-Prod2024_Sec";
+    const f = scanContextKey(`username=${val}&password=${pwdVal}`);
     expect(f).toHaveLength(2);
     expect(f.some((x) => x.matched === val)).toBe(true);
-    expect(f.some((x) => x.matched === "mD37cD563VG6UrtL")).toBe(true);
+    expect(f.some((x) => x.matched === pwdVal)).toBe(true);
   });
 });

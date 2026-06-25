@@ -73,6 +73,14 @@ const zh: Record<string, string> = {
   "audit.cancel": "取消",
   "audit.confirmCleanup": "确认清理",
   "audit.confirmCleanupDesc": "将删除 {date} 之前动作类型为「{action}」的记录，预估 {count} 条",
+  "audit.revealValues": "揭示原始值",
+  "audit.revealValuesActive": "原始值可见",
+  "audit.matchedValuesLabel": "匹配原始值",
+  "audit.revealRequired": "点击工具栏「揭示原始值」按钮并输入管理员密码后可见",
+  "audit.revealPasswordTitle": "揭示原始值",
+  "audit.revealPasswordDesc": "输入管理员密码以查看被拦截/脱敏的原始值，有效期 30 分钟",
+  "audit.revealPasswordPlaceholder": "输入管理员密码",
+  "audit.revealConfirm": "确认揭示",
 
   // Rules page
   "rules.title": "临时放行规则",
@@ -253,6 +261,14 @@ const en: Record<string, string> = {
   "audit.cancel": "Cancel",
   "audit.confirmCleanup": "Confirm Cleanup",
   "audit.confirmCleanupDesc": "Records before {date} with action \"{action}\" will be deleted. Estimated count: {count}",
+  "audit.revealValues": "Reveal Values",
+  "audit.revealValuesActive": "Values Visible",
+  "audit.matchedValuesLabel": "Matched Values",
+  "audit.revealRequired": "Click \"Reveal Values\" in toolbar and enter admin password to view",
+  "audit.revealPasswordTitle": "Reveal Matched Values",
+  "audit.revealPasswordDesc": "Enter admin password to view intercepted/masked original values. Valid for 30 minutes.",
+  "audit.revealPasswordPlaceholder": "Enter admin password",
+  "audit.revealConfirm": "Confirm Reveal",
 
   // Rules page
   "rules.title": "Timed Bypass Rules",
