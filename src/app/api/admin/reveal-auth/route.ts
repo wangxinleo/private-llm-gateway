@@ -2,7 +2,17 @@ import { randomBytes } from "node:crypto";
 
 import { NextResponse } from "next/server";
 import { checkAdminAuth } from "@/lib/admin-auth";
-import { REVEAL_MAX_AGE, cleanupExpiredTokens, getRevealExpiry, revealTokens } from "./auth";
+import { REVEAL_MAX_AGE, cleanupExpiredTokens, getRevealExpiry, revealTokens, checkRevealAuth, getCookie } from "./auth";
+
+export async function GET(request: Request) {
+  const authError = checkAdminAuth(request);
+  if (authError) return authError;
+  const active = checkRevealAuth(request);
+  if (!active) return NextResponse.json({ active: false });
+  const token = getCookie(request, "reveal_token");
+  const expiresAt = token ? revealTokens.get(token) : undefined;
+  return NextResponse.json({ active: true, expiresAt });
+}
 
 export async function POST(request: Request) {
   const authError = checkAdminAuth(request);

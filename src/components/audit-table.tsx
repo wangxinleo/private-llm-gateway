@@ -254,6 +254,19 @@ export function AuditTable() {
     loadPathPrefixOptions();
   }, [loadPathPrefixOptions]);
 
+  useEffect(() => {
+    if (!adminKey) return;
+    authedFetch("/api/admin/reveal-auth").then((res) => {
+      if (!res.ok) return;
+      res.json().then((data: { active: boolean; expiresAt?: number }) => {
+        if (data.active && data.expiresAt && data.expiresAt > Date.now()) {
+          setRevealAuthed(true);
+          setRevealExpiry(data.expiresAt);
+        }
+      });
+    }).catch(() => {});
+  }, [adminKey, authedFetch]);
+
   useEffect(() => { fetchData(1); }, [fetchData]);
 
   useEffect(() => {

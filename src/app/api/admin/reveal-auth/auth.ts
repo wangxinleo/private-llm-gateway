@@ -13,7 +13,7 @@ export function cleanupExpiredTokens(now: number): void {
   }
 }
 
-function getCookie(request: Request, name: string): string | null {
+export function getCookie(request: Request, name: string): string | null {
   const cookie = request.headers.get("cookie");
   if (!cookie) return null;
   const prefix = `${name}=`;
