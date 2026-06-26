@@ -153,6 +153,34 @@ export function updateBypassRule(
   return mapRuleRow(row);
 }
 
+export function reactivateBypassRule(id: number): BypassRuleRecord | null {
+  ensureBypassRulesTable();
+  const current = getDb()
+    .prepare("SELECT * FROM bypass_rules WHERE id = ?")
+    .get(id) as BypassRuleRow | undefined;
+  if (!current) return null;
+
+  const durationMs = Date.parse(current.end_at) - Date.parse(current.start_at);
+  if (Number.isNaN(durationMs) || durationMs <= 0) return null;
+
+  const now = new Date();
+  const startAt = now.toISOString();
+  const endAt = new Date(now.getTime() + durationMs).toISOString();
+
+  getDb()
+    .prepare(
+      `UPDATE bypass_rules
+       SET enabled = 1, start_at = ?, end_at = ?, updated_at = ?
+       WHERE id = ?`
+    )
+    .run(startAt, endAt, now.toISOString(), id);
+
+  const row = getDb()
+    .prepare("SELECT * FROM bypass_rules WHERE id = ?")
+    .get(id) as BypassRuleRow;
+  return mapRuleRow(row);
+}
+
 export function deleteBypassRule(id: number): boolean {
   ensureBypassRulesTable();
   const result = getDb().prepare("DELETE FROM bypass_rules WHERE id = ?").run(id);

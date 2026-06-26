@@ -157,6 +157,20 @@ export default function RulesPage() {
     }
   }
 
+  async function handleReactivate(rule: BypassRule) {
+    try {
+      const res = await authedFetch(`/api/admin/bypass-rules/${rule.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reactivate: true }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await loadRules();
+    } catch {
+      setError(t("rules.bypassReactivateError"));
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -272,9 +286,15 @@ export default function RulesPage() {
                     <TableCell className="text-sm text-muted-foreground">{rule.note || "—"}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleToggle(rule)}>
-                          {rule.enabled ? t("rules.bypassDisableAction") : t("rules.bypassEnableAction")}
-                        </Button>
+                        {rule.enabled && !rule.isActive && new Date(rule.endAt).getTime() < Date.now() ? (
+                          <Button variant="outline" size="sm" onClick={() => handleReactivate(rule)}>
+                            {t("rules.bypassReactivateAction")}
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" onClick={() => handleToggle(rule)}>
+                            {rule.enabled ? t("rules.bypassDisableAction") : t("rules.bypassEnableAction")}
+                          </Button>
+                        )}
                         <Button variant="destructive" size="sm" onClick={() => handleDelete(rule.id)}>
                           {t("audit.delete")}
                         </Button>

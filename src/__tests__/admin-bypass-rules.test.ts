@@ -6,6 +6,7 @@ import {
   listBypassRules,
   createBypassRule,
   updateBypassRule,
+  reactivateBypassRule,
   deleteBypassRule,
 } from "@/bypass/store";
 
@@ -13,6 +14,7 @@ vi.mock("@/bypass/store", () => ({
   listBypassRules: vi.fn(),
   createBypassRule: vi.fn(),
   updateBypassRule: vi.fn(),
+  reactivateBypassRule: vi.fn(),
   deleteBypassRule: vi.fn(),
 }));
 
@@ -28,6 +30,7 @@ vi.mock("@/log", () => ({
 const mockListBypassRules = vi.mocked(listBypassRules);
 const mockCreateBypassRule = vi.mocked(createBypassRule);
 const mockUpdateBypassRule = vi.mocked(updateBypassRule);
+const mockReactivateBypassRule = vi.mocked(reactivateBypassRule);
 const mockDeleteBypassRule = vi.mocked(deleteBypassRule);
 
 function makeRequest(
@@ -76,6 +79,7 @@ describe("admin bypass rules routes", () => {
         note: "maintenance",
         createdAt: "2026-06-22T01:00:00.000Z",
         updatedAt: "2026-06-22T01:00:00.000Z",
+        isActive: true,
       },
     ]);
 

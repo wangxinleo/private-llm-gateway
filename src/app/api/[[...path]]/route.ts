@@ -88,7 +88,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     bodySize = extracted.size;
   }
 
-  const model = !multipart && bodyText ? extractRequestModel(bodyText) : undefined;
+  const model = !multipart && bodyText ? extractRequestModel(bodyText) ?? undefined : undefined;
 
   const bypassRule = !multipart
     ? findMatchingBypassRule({

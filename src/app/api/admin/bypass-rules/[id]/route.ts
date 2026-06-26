@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAdminAuth } from "@/lib/admin-auth";
-import { deleteBypassRule, updateBypassRule } from "@/bypass/store";
+import { deleteBypassRule, reactivateBypassRule, updateBypassRule } from "@/bypass/store";
 import { Logger } from "@/log";
 
 const log = new Logger("admin");
@@ -27,6 +27,13 @@ export async function PATCH(
     if (!id) return NextResponse.json({ error: "invalid_id" }, { status: 400 });
 
     const body = await request.json();
+
+    if (body.reactivate === true) {
+      const reactivated = reactivateBypassRule(id);
+      if (!reactivated) return NextResponse.json({ error: "not_found" }, { status: 404 });
+      return NextResponse.json(reactivated);
+    }
+
     if (
       (body.startAt !== undefined && !isValidIso(body.startAt)) ||
       (body.endAt !== undefined && !isValidIso(body.endAt))
