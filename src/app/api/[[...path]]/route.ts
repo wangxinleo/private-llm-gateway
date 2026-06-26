@@ -88,10 +88,12 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     bodySize = extracted.size;
   }
 
+  const model = !multipart && bodyText ? extractRequestModel(bodyText) : undefined;
+
   const bypassRule = !multipart
     ? findMatchingBypassRule({
         path,
-        model: extractRequestModel(bodyText),
+        model: model ?? null,
         now: new Date(),
       })
     : null;
@@ -102,6 +104,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
       method,
       contentType,
       bodySize,
+      model,
       filenames,
       findings: [],
       action: "allow",
@@ -152,6 +155,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     method,
     contentType,
     bodySize,
+    model,
     filenames,
     findings: result.findings,
     action: result.action,

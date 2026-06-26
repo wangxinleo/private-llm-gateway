@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
       method: r.method,
       contentType: r.content_type,
       bodySize: r.body_size,
+      model: r.model || undefined,
       filenames: JSON.parse(r.filenames),
       findings: JSON.parse(r.findings),
       matchedValues: isRevealed ? JSON.parse(r.matched_values) : undefined,

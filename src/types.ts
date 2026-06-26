@@ -47,6 +47,7 @@ export interface AuditEntry {
   method: string;
   contentType: string;
   bodySize: number;
+  model?: string;
   filenames: string[];
   findings: FindingCategory[];
   matchedValues?: Record<string, string[]>;

@@ -48,6 +48,7 @@ interface AuditRow {
   method: string;
   contentType: string;
   bodySize: number;
+  model?: string;
   filenames: string[];
   findings: FindingCategory[];
   matchedValues?: Record<string, string[]>;
@@ -365,8 +366,8 @@ export function AuditTable() {
   };
 
   const handleExportCsv = () => {
-    const header = "Time,Method,Path,Content-Type,Size,Findings,Action";
-    const rows = data.rows.map((r) => [r.timestamp, r.method, `"${r.path}"`, r.contentType, r.bodySize, r.findings.join(";"), r.action].join(","));
+    const header = "Time,Method,Path,Content-Type,Size,Model,Findings,Action";
+    const rows = data.rows.map((r) => [r.timestamp, r.method, `"${r.path}"`, r.contentType, r.bodySize, `"${r.model || ""}"`, r.findings.join(";"), r.action].join(","));
     const csv = [header, ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -484,16 +485,17 @@ export function AuditTable() {
               <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.path")}</TableHead>
               <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.type")}</TableHead>
               <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.size")}</TableHead>
+              <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.model")}</TableHead>
               <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.findings")}</TableHead>
               <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.action")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading && data.rows.length === 0 && (
-              <TableRow><TableCell colSpan={9} className="h-40 text-center text-sm text-muted-foreground">{t("audit.loading")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="h-40 text-center text-sm text-muted-foreground">{t("audit.loading")}</TableCell></TableRow>
             )}
             {!loading && data.rows.length === 0 && (
-              <TableRow><TableCell colSpan={9} className="h-40 text-center text-sm text-muted-foreground">{t("audit.noRecords")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="h-40 text-center text-sm text-muted-foreground">{t("audit.noRecords")}</TableCell></TableRow>
             )}
             {data.rows.map((row) => {
               const expanded = expandedIds.has(row.id);
@@ -509,6 +511,7 @@ export function AuditTable() {
                     <TableCell onClick={clickRow} className="cursor-pointer max-w-[280px] truncate text-sm">{row.path}</TableCell>
                     <TableCell onClick={clickRow} className="cursor-pointer text-xs text-muted-foreground"><span className="max-w-[120px] truncate inline-block align-bottom">{row.contentType}</span></TableCell>
                     <TableCell onClick={clickRow} className="cursor-pointer font-mono text-xs tabular-nums text-muted-foreground">{formatBytes(row.bodySize)}</TableCell>
+                    <TableCell onClick={clickRow} className="cursor-pointer max-w-[140px] truncate text-sm font-mono">{row.model || "—"}</TableCell>
                     <TableCell onClick={clickRow}>
                       <div className="flex flex-wrap gap-1">
                         {row.findings.slice(0, 2).map((f) => (<Badge key={f} variant="outline" className="font-mono text-xs">{f}</Badge>))}
@@ -519,7 +522,7 @@ export function AuditTable() {
                   </TableRow>
                   {expanded && (
                     <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={9} className="p-0">
+                      <TableCell colSpan={10} className="p-0">
                         <div className="border-b border-border/50 bg-card/80 px-4 py-3">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
@@ -532,11 +535,12 @@ export function AuditTable() {
                             </Button>
                           </div>
                           <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                            <div><span className="text-muted-foreground">{t("audit.pathLabel")}: </span><code className="font-mono text-sm">{row.path}</code></div>
-                             <div><span className="text-muted-foreground">{t("audit.contentTypeLabel")}: </span><code className="font-mono text-sm">{row.contentType}</code></div>
-                             <div><span className="text-muted-foreground">{t("audit.bodySizeLabel")}: </span><span className="font-mono text-sm">{formatBytes(row.bodySize)}</span></div>
-                             <div><span className="text-muted-foreground">{t("audit.timeLabel")}: </span><span className="font-mono text-sm">{formatTime(row.timestamp)}</span></div>
-                          </div>
+                             <div><span className="text-muted-foreground">{t("audit.pathLabel")}: </span><code className="font-mono text-sm">{row.path}</code></div>
+                              <div><span className="text-muted-foreground">{t("audit.contentTypeLabel")}: </span><code className="font-mono text-sm">{row.contentType}</code></div>
+                              <div><span className="text-muted-foreground">{t("audit.bodySizeLabel")}: </span><span className="font-mono text-sm">{formatBytes(row.bodySize)}</span></div>
+                              <div><span className="text-muted-foreground">{t("audit.modelLabel")}: </span><code className="font-mono text-sm">{row.model || "—"}</code></div>
+                              <div><span className="text-muted-foreground">{t("audit.timeLabel")}: </span><span className="font-mono text-sm">{formatTime(row.timestamp)}</span></div>
+                           </div>
                            {row.findings.length > 0 && (
                              <div className="mt-3">
                                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">{t("audit.findingsLabel")}</p>

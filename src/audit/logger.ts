@@ -7,6 +7,7 @@ export function logAudit(params: {
   method: string;
   contentType: string;
   bodySize: number;
+  model?: string;
   filenames: string[];
   findings: Finding[];
   action: ActionType;
@@ -25,6 +26,7 @@ export function logAudit(params: {
     method: params.method,
     contentType: params.contentType,
     bodySize: params.bodySize,
+    model: params.model,
     filenames: params.filenames,
     findings: params.findings.map((f) => f.category),
     matchedValues,
@@ -47,6 +49,7 @@ export function logAudit(params: {
     method: entry.method,
     contentType: entry.contentType,
     bodySize: entry.bodySize,
+    model: entry.model,
     filenames: entry.filenames,
     findings: entry.findings,
     matchedValues: entry.matchedValues,
