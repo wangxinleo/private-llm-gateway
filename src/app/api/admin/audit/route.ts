@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
       findings: JSON.parse(r.findings),
       matchedValues: isRevealed ? JSON.parse(r.matched_values) : undefined,
       action: r.action,
+      bypassApplied: r.bypass_applied === 1,
     }));
 
     return NextResponse.json({

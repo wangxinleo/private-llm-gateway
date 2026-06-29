@@ -99,16 +99,39 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     : null;
 
   if (bypassRule) {
-    logAudit({
-      path,
-      method,
-      contentType,
-      bodySize,
-      model,
-      filenames,
-      findings: [],
-      action: "allow",
-    });
+    if (hasBody && !multipart) {
+      const scanFn = (text: string, size: number) => runPipeline(text, size, filenames);
+      const bypassResult = isJsonContentType(contentType)
+        ? maskJsonBody(bodyText, scanFn)
+        : runPipeline(bodyText, bodySize, filenames);
+      const bypassHitCategories = bypassResult.findings.map(f => f.category).join(", ");
+      const bypassDuration = (performance.now() - startTime).toFixed(2);
+      log.info(`${method} ${path} | action: allow (bypass) | hits: ${bypassHitCategories || "none"} | ${bypassDuration}ms`);
+
+      logAudit({
+        path,
+        method,
+        contentType,
+        bodySize,
+        model,
+        filenames,
+        findings: bypassResult.findings,
+        action: "allow",
+        bypassApplied: true,
+      });
+    } else {
+      logAudit({
+        path,
+        method,
+        contentType,
+        bodySize,
+        model,
+        filenames,
+        findings: [],
+        action: "allow",
+        bypassApplied: true,
+      });
+    }
 
     try {
       const upstream = await forwardRequest(path, request, hasBody ? bodyText : undefined);

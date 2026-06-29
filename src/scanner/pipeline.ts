@@ -141,9 +141,9 @@ export function runPipeline(
     };
   }
 
-  log.debug("decision: ALLOW (放行，未命中任何规则)");
+  log.debug("decision: ALLOW (放行，未命中任何强制规则)");
   return {
-    findings: [],
+    findings: allFindings,
     maskedBody: text,
     action: "allow",
     maskSummary: { applied: false, categories: [], replacementCount: 0 },

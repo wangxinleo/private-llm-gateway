@@ -55,6 +55,7 @@ export interface AuditEntry {
   maskApplied?: boolean;
   maskCategories?: FindingCategory[];
   maskCount?: number;
+  bypassApplied?: boolean;
 }
 
 const BLOCK_CATEGORIES: ReadonlySet<FindingCategory> = new Set([

@@ -83,6 +83,7 @@ const zh: Record<string, string> = {
   "audit.revealPasswordDesc": "输入管理员密码以查看被拦截/脱敏的原始值，有效期 30 分钟",
   "audit.revealPasswordPlaceholder": "输入管理员密码",
   "audit.revealConfirm": "确认揭示",
+  "audit.bypassAllowed": "放行(跳过拦截)",
 
   // Rules page
   "rules.title": "临时放行规则",
@@ -275,6 +276,7 @@ const en: Record<string, string> = {
   "audit.revealPasswordDesc": "Enter admin password to view intercepted/masked original values. Valid for 30 minutes.",
   "audit.revealPasswordPlaceholder": "Enter admin password",
   "audit.revealConfirm": "Confirm Reveal",
+  "audit.bypassAllowed": "Bypass",
 
   // Rules page
   "rules.title": "Timed Bypass Rules",

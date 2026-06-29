@@ -53,6 +53,7 @@ interface AuditRow {
   findings: FindingCategory[];
   matchedValues?: Record<string, string[]>;
   action: ActionType;
+  bypassApplied?: boolean;
 }
 
 interface AuditResponse {
@@ -379,8 +380,8 @@ export function AuditTable() {
   };
 
   const handleExportCsv = () => {
-    const header = "Time,Method,Path,Content-Type,Size,Model,Findings,Action";
-    const rows = data.rows.map((r) => [r.timestamp, r.method, `"${r.path}"`, r.contentType, r.bodySize, `"${r.model || ""}"`, r.findings.join(";"), r.action].join(","));
+    const header = "Time,Method,Path,Content-Type,Size,Model,Findings,Action,Bypass";
+    const rows = data.rows.map((r) => [r.timestamp, r.method, `"${r.path}"`, r.contentType, r.bodySize, `"${r.model || ""}"`, r.findings.join(";"), r.action, r.bypassApplied ? "yes" : "no"].join(","));
     const csv = [header, ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -516,7 +517,7 @@ export function AuditTable() {
               const clickRow = (e: React.MouseEvent) => { e.stopPropagation(); toggleExpand(row.id); };
               return (
                 <Fragment key={row.id}>
-                  <TableRow data-state={selected ? "selected" : undefined} className={cn(row.action === "block" && "bg-destructive/5", row.action === "mask" && "bg-warning/5")}>
+                  <TableRow data-state={selected ? "selected" : undefined} className={cn(row.action === "block" && "bg-destructive/5", row.action === "mask" && "bg-warning/5", row.bypassApplied && row.findings.length > 0 && "bg-warning/5")}>
                     <TableCell onClick={(e) => e.stopPropagation()}><Checkbox checked={selected} onCheckedChange={() => toggleSelect(row.id)} /></TableCell>
                     <TableCell><button onClick={clickRow} className="text-muted-foreground hover:text-foreground">{expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}</button></TableCell>
                     <TableCell onClick={clickRow} className="cursor-pointer font-mono text-xs tabular-nums text-muted-foreground">{formatTime(row.timestamp)}</TableCell>
@@ -531,7 +532,12 @@ export function AuditTable() {
                         {row.findings.length > 2 && (<Badge variant="outline" className="font-mono text-xs text-muted-foreground">+{row.findings.length - 2}</Badge>)}
                       </div>
                     </TableCell>
-                    <TableCell onClick={clickRow}><ActionBadge action={row.action} label={t(`action.${row.action}`)} /></TableCell>
+                    <TableCell onClick={clickRow}>
+                      <div className="flex items-center gap-1">
+                        <ActionBadge action={row.action} label={t(`action.${row.action}`)} />
+                        {row.bypassApplied && <Badge variant="outline" className="font-mono text-xs text-warning border-warning/50">{t("audit.bypassAllowed")}</Badge>}
+                      </div>
+                    </TableCell>
                   </TableRow>
                   {expanded && (
                     <TableRow className="hover:bg-transparent">
@@ -542,6 +548,7 @@ export function AuditTable() {
                               <code className="font-mono text-sm text-muted-foreground">#{row.id}</code>
                               <Badge variant="outline" className="font-mono text-xs">{row.method}</Badge>
                               <ActionBadge action={row.action} label={t(`action.${row.action}`)} />
+                              {row.bypassApplied && <Badge variant="outline" className="font-mono text-xs text-warning border-warning/50">{t("audit.bypassAllowed")}</Badge>}
                             </div>
                             <Button variant="destructive" size="sm" className="h-6 text-xs" onClick={() => handleDeleteSingle(row.id)}>
                               <Trash2 className="mr-1 h-3 w-3" />{t("audit.delete")}

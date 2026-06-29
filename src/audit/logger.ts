@@ -12,6 +12,7 @@ export function logAudit(params: {
   findings: Finding[];
   action: ActionType;
   scanResult?: ScanResult;
+  bypassApplied?: boolean;
 }): void {
   const matchedValues: Record<string, string[]> = {};
   for (const finding of params.findings) {
@@ -33,6 +34,10 @@ export function logAudit(params: {
     action: params.action,
   };
 
+  if (params.bypassApplied) {
+    entry.bypassApplied = true;
+  }
+
   if (params.scanResult?.maskSummary) {
     const ms = params.scanResult.maskSummary;
     entry.maskApplied = ms.applied;
@@ -52,7 +57,7 @@ export function logAudit(params: {
     model: entry.model,
     filenames: entry.filenames,
     findings: entry.findings,
-    matchedValues: entry.matchedValues,
     action: entry.action,
+    bypassApplied: entry.bypassApplied,
   });
 }

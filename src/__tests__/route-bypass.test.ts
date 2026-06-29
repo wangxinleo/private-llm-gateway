@@ -41,7 +41,7 @@ describe("route bypass", () => {
     );
   });
 
-  it("skips scanner and forwards original body when active bypass rule matches", async () => {
+  it("records findings while forwarding original body when active bypass rule matches", async () => {
     mockFindMatchingBypassRule.mockReturnValue({
       id: 7,
       enabled: 1,
@@ -78,7 +78,10 @@ describe("route bypass", () => {
       expect.objectContaining({
         path: "/v1/chat/completions",
         action: "allow",
-        findings: [],
+        bypassApplied: true,
+        findings: expect.arrayContaining([
+          expect.objectContaining({ category: "BEARER_TOKEN" }),
+        ]),
       })
     );
   });

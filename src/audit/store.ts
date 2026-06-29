@@ -38,13 +38,16 @@ export function getDb(): Database.Database {
     if (!columns.some((column) => column.name === "model")) {
       db.exec("ALTER TABLE audit_log ADD COLUMN model TEXT NOT NULL DEFAULT ''");
     }
+    if (!columns.some((column) => column.name === "bypass_applied")) {
+      db.exec("ALTER TABLE audit_log ADD COLUMN bypass_applied INTEGER NOT NULL DEFAULT 0");
+    }
   }
   return db;
 }
 
 const INSERT_SQL = `
-  INSERT INTO audit_log (timestamp, path, method, content_type, body_size, model, filenames, findings, matched_values, action)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO audit_log (timestamp, path, method, content_type, body_size, model, filenames, findings, matched_values, action, bypass_applied)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `;
 
 export function insertAudit(entry: AuditEntry): number {
@@ -59,7 +62,8 @@ export function insertAudit(entry: AuditEntry): number {
     JSON.stringify(entry.filenames),
     JSON.stringify(entry.findings),
     JSON.stringify(entry.matchedValues ?? {}),
-    entry.action
+    entry.action,
+    entry.bypassApplied ? 1 : 0
   );
   return Number(result.lastInsertRowid);
 }
@@ -76,6 +80,7 @@ export interface AuditRow {
   findings: string;
   matched_values: string;
   action: string;
+  bypass_applied: number;
 }
 
 export interface QueryParams {

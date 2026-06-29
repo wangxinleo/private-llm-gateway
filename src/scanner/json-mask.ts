@@ -75,5 +75,5 @@ export function maskJsonBody(body: string, scan: ScanFn): ScanResult {
     };
   }
 
-  return { findings: [], maskedBody: JSON.stringify(masked), action: "allow", maskSummary: { applied: false, categories: [], replacementCount: 0 } };
+  return { findings, maskedBody: JSON.stringify(masked), action: "allow", maskSummary: { applied: false, categories: [], replacementCount: 0 } };
 }
