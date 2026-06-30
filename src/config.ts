@@ -34,7 +34,15 @@ export const PATH_PREFIX_OPTIONS: string[] = [...DEFAULT_CONFIG_VALUES.PATH_PREF
 
 const PRIVACY_MASK_FORMAT = (process.env.PRIVACY_MASK_FORMAT ?? "explicit") as "legacy" | "explicit";
 const PRIVACY_DISAMBIGUATION_MODE = (process.env.PRIVACY_DISAMBIGUATION_MODE ?? "auto") as "off" | "prefix" | "json-meta" | "auto";
-const PRIVACY_NOTICE_TEXT = process.env.PRIVACY_NOTICE_TEXT ?? "Tokens like <<PRIVACY_MASK:EMAIL>> were inserted by the privacy proxy and are not original source text.";
+const PRIVACY_NOTICE_TEXT = process.env.PRIVACY_NOTICE_TEXT ??
+  `Tokens like <<PRIVACY_MASK:EMAIL>> were inserted by the privacy proxy and are not original source text.\n` +
+  `When file content contains <<PRIVACY_MASK:xxx>> tokens:\n` +
+  `- These tokens replaced hidden original content and may represent one or multiple original lines.\n` +
+  `- Do not modify masked tokens or the original content they represent.\n` +
+  `- Do not rely on line numbers after a masked token; line numbers may no longer match the original file.\n` +
+  `- Only perform automatic edits when you can anchor the change to exact, unmasked surrounding text that is visible in the current file.\n` +
+  `- Do not rewrite entire files that contain masked tokens.\n` +
+  `- If a required change touches a masked region, depends on exact line numbers after a masked region, or cannot be anchored to visible unmasked text, output a "Manual Modification Guide" with the file path, approximate location, intended change, and reason.`;
 const PRIVACY_DEBUG_HEADERS = process.env.PRIVACY_DEBUG_HEADERS === "true";
 
 export { UPSTREAM_URL, DB_PATH, DEBUG, PRIVACY_MASK_FORMAT, PRIVACY_DISAMBIGUATION_MODE, PRIVACY_NOTICE_TEXT, PRIVACY_DEBUG_HEADERS };
