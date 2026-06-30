@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocale } from "@/i18n";
 import { useAdminAuth } from "@/lib/admin-auth-context";
+import { JsonEditor } from "@/components/json-editor";
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 
@@ -83,6 +84,10 @@ export default function SettingsPage() {
   const [editingConfig, setEditingConfig] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
 
+  // Scanner exclusions state
+  const [exclDraft, setExclDraft] = useState("");
+  const [exclEditing, setExclEditing] = useState(false);
+
   useEffect(() => {
     loadConfig();
   }, [authedFetch]);
@@ -99,6 +104,7 @@ export default function SettingsPage() {
       if (data.editableConfigs) {
         setEditableConfigs(data.editableConfigs);
         setPathPrefixes(data.editableConfigs.path_prefix_options?.value ?? []);
+        setExclDraft(JSON.stringify(data.editableConfigs.scanner_exclusions?.value ?? [], null, 2));
       }
     } catch (err) {
       console.error("Failed to load config:", err);
@@ -119,7 +125,9 @@ export default function SettingsPage() {
 
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error ?? "Unknown error");
+        setMessage({ type: "error", text: error.error ?? t("settings.configUpdateFailed") });
+        setTimeout(() => setMessage(null), 3000);
+        return;
       }
 
       setMessage({ type: "success", text: t("settings.configUpdateSuccess") });
@@ -150,6 +158,22 @@ export default function SettingsPage() {
   async function removePathPrefix(index: number) {
     const newList = pathPrefixes.filter((_, i) => i !== index);
     await updateConfig("path_prefix_options", newList);
+  }
+
+  async function saveExclusionsDraft() {
+    try {
+      const parsed = JSON.parse(exclDraft);
+      if (!Array.isArray(parsed)) throw new Error("not an array");
+      await updateConfig("scanner_exclusions", parsed);
+      setExclEditing(false);
+    } catch {
+      setMessage({ type: "error", text: t("settings.configUpdateFailed") });
+      setTimeout(() => setMessage(null), 3000);
+    }
+  }
+
+  function cancelExclEdit() {
+    setExclEditing(false);
   }
 
   function startEditConfig(key: string, currentValue: number) {
@@ -381,6 +405,57 @@ export default function SettingsPage() {
               );
             })}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Scanner Exclusion Rules */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="font-mono text-sm tracking-wide">{t("settings.scannerExclusions")}</CardTitle>
+          <p className="text-xs text-muted-foreground">{t("settings.scannerExclusionsDesc")}</p>
+        </CardHeader>
+        <CardContent>
+          {exclEditing ? (
+            <div className="space-y-3">
+              <JsonEditor
+                value={exclDraft}
+                onChange={setExclDraft}
+                minHeight={240}
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <Button
+                  onClick={saveExclusionsDraft}
+                  disabled={updating === "scanner_exclusions"}
+                >
+                  {t("settings.exclusionSave")}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={cancelExclEdit}
+                  disabled={updating === "scanner_exclusions"}
+                >
+                  {t("settings.exclusionCancel")}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <JsonEditor
+                value={exclDraft}
+                onChange={() => {}}
+                readOnly
+                placeholder={t("settings.exclusionEmpty")}
+                minHeight={60}
+              />
+              <Button
+                variant="outline"
+                onClick={() => setExclEditing(true)}
+              >
+                {t("settings.exclusionEdit")}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -1,5 +1,5 @@
 import { getConfig, setConfig, getAllConfigs } from "@/audit";
-import { SIZE_THRESHOLDS, CONFIG_STATE, CONTEXT_KEY, PATH_PREFIX_OPTIONS, DEFAULT_CONFIG_VALUES } from "@/config";
+import { SIZE_THRESHOLDS, CONFIG_STATE, CONTEXT_KEY, PATH_PREFIX_OPTIONS, SCANNER_EXCLUSIONS, DEFAULT_EXCLUSION_RULES, DEFAULT_CONFIG_VALUES } from "@/config";
 
 let configsInitialized = false;
 
@@ -31,6 +31,9 @@ export function initializeConfigs() {
     CONTEXT_KEY.MAX_SPACES = loadOrInit("context_key_max_spaces", DEFAULT_CONFIG_VALUES.CONTEXT_KEY_MAX_SPACES, "number", "Context key maximum spaces");
     PATH_PREFIX_OPTIONS.length = 0;
     PATH_PREFIX_OPTIONS.push(...loadOrInit("path_prefix_options", DEFAULT_CONFIG_VALUES.PATH_PREFIX_OPTIONS, "json_array", "Path prefix options for bypass rules"));
+
+    SCANNER_EXCLUSIONS.length = 0;
+    SCANNER_EXCLUSIONS.push(...loadOrInit("scanner_exclusions", DEFAULT_CONFIG_VALUES.SCANNER_EXCLUSIONS, "json_array", "Scanner exclusion rules (false positive suppression)"));
   } catch (err) {
     console.error("Failed to initialize configs from database:", err);
     // Fall back to defaults on error
@@ -64,6 +67,10 @@ export function refreshConfig(key: string) {
       break;
     case "context_key_max_spaces":
       CONTEXT_KEY.MAX_SPACES = parseInt(config.value, 10);
+      break;
+    case "scanner_exclusions":
+      SCANNER_EXCLUSIONS.length = 0;
+      SCANNER_EXCLUSIONS.push(...JSON.parse(config.value));
       break;
   }
 }

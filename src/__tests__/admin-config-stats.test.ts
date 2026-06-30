@@ -42,6 +42,7 @@ vi.mock("@/config", () => ({
     MAX_SPACES: 2,
   },
   PATH_PREFIX_OPTIONS: ["/v1/messages", "/v1/responses", "/v1beta"],
+  SCANNER_EXCLUSIONS: [],
 }));
 
 vi.mock("fs", () => ({
@@ -108,6 +109,7 @@ describe("admin config and stats routes", () => {
           context_key_min_length: { value: 8, type: "number" },
           context_key_max_length: { value: 200, type: "number" },
           context_key_max_spaces: { value: 2, type: "number" },
+          scanner_exclusions: { value: [], type: "json_array" },
         },
         constants: {
           sizeThresholds: { fullScan: 131072, chunkedScan: 1048576 },

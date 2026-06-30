@@ -4,6 +4,7 @@ import { scanSecrets } from "./secrets";
 import { scanContextKey } from "./context-key";
 import { scanPii, applyMasks } from "./pii";
 import { scanFilename } from "./filename";
+import { applyExclusions } from "./exclusions";
 import { SIZE_THRESHOLDS, CONFIG_STATE } from "@/config";
 import { Logger } from "@/log";
 
@@ -116,7 +117,7 @@ export function runPipeline(
   }
 
   const textFindings = scanText(text, tier);
-  const allFindings = [...fileFindings, ...textFindings];
+  const allFindings = [...fileFindings, ...applyExclusions(textFindings)];
 
   log.debug(`scan complete | total findings: ${allFindings.length}`);
   for (const f of allFindings) {

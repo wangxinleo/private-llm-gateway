@@ -1,6 +1,14 @@
+import type { FindingCategory } from "@/types";
+
 const UPSTREAM_URL = process.env.UPSTREAM_URL ?? "http://localhost:8787";
 const DB_PATH = process.env.DB_PATH ?? "audit.sqlite";
 const DEBUG = process.env.DEBUG === "true" || process.env.NODE_ENV !== "production";
+
+export interface ExclusionRule {
+  category: FindingCategory;
+  mode: "exact" | "regex";
+  value: string;
+}
 
 // Default values for hot-reloadable configs
 export const DEFAULT_CONFIG_VALUES = {
@@ -11,6 +19,11 @@ export const DEFAULT_CONFIG_VALUES = {
   CONTEXT_KEY_MAX_LENGTH: 200,
   CONTEXT_KEY_MAX_SPACES: 2,
   PATH_PREFIX_OPTIONS: ["/v1/messages", "/v1/responses", "/v1beta"],
+  SCANNER_EXCLUSIONS: [
+    { category: "EMAIL", mode: "exact", value: "n@router.post" },
+    { category: "BASIC_AUTH", mode: "regex", value: "^[Bb]asic\\s+(info|searches|details?|basic)$" },
+    { category: "BEARER_TOKEN", mode: "exact", value: "Bearer token" },
+  ] as ExclusionRule[],
 };
 
 // Hot-reloadable config state (wrapped in objects to allow mutation)
@@ -31,6 +44,9 @@ export const CONTEXT_KEY = {
 };
 
 export const PATH_PREFIX_OPTIONS: string[] = [...DEFAULT_CONFIG_VALUES.PATH_PREFIX_OPTIONS];
+
+export const SCANNER_EXCLUSIONS: ExclusionRule[] = [];
+export const DEFAULT_EXCLUSION_RULES: ExclusionRule[] = [...DEFAULT_CONFIG_VALUES.SCANNER_EXCLUSIONS];
 
 const PRIVACY_MASK_FORMAT = (process.env.PRIVACY_MASK_FORMAT ?? "explicit") as "legacy" | "explicit";
 const PRIVACY_DISAMBIGUATION_MODE = (process.env.PRIVACY_DISAMBIGUATION_MODE ?? "auto") as "off" | "prefix" | "json-meta" | "auto";

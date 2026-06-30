@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDbStats, getAllConfigs, setConfig } from "@/audit";
 import { checkAdminAuth } from "@/lib/admin-auth";
-import { UPSTREAM_URL, DB_PATH, DEBUG, SIZE_THRESHOLDS, CONFIG_STATE, CONTEXT_KEY, PATH_PREFIX_OPTIONS } from "@/config";
+import { UPSTREAM_URL, DB_PATH, DEBUG, SIZE_THRESHOLDS, CONFIG_STATE, CONTEXT_KEY, PATH_PREFIX_OPTIONS, SCANNER_EXCLUSIONS } from "@/config";
 import { initializeConfigs, refreshConfig } from "@/config-loader";
 import { Logger } from "@/log";
 import { statSync } from "fs";
@@ -41,6 +41,7 @@ export async function GET(request: Request) {
         context_key_min_length: { value: CONTEXT_KEY.MIN_LENGTH, type: "number", description: "Context key minimum length" },
         context_key_max_length: { value: CONTEXT_KEY.MAX_LENGTH, type: "number", description: "Context key maximum length" },
         context_key_max_spaces: { value: CONTEXT_KEY.MAX_SPACES, type: "number", description: "Context key maximum spaces" },
+        scanner_exclusions: { value: SCANNER_EXCLUSIONS, type: "json_array", description: "Scanner exclusion rules (false positive suppression)" },
       },
       constants: {
         sizeThresholds: {
@@ -88,6 +89,7 @@ export async function PUT(request: Request) {
       "context_key_min_length",
       "context_key_max_length",
       "context_key_max_spaces",
+      "scanner_exclusions",
     ];
 
     if (!editableKeys.includes(key)) {
@@ -104,6 +106,25 @@ export async function PUT(request: Request) {
       }
       if (!value.every(v => typeof v === 'string' && v.startsWith('/'))) {
         return NextResponse.json({ error: "path prefixes must be strings starting with /" }, { status: 400 });
+      }
+      type = "json_array";
+      valueStr = JSON.stringify(value);
+    } else if (key === "scanner_exclusions") {
+      if (!Array.isArray(value)) {
+        return NextResponse.json({ error: "scanner_exclusions must be an array" }, { status: 400 });
+      }
+      for (const rule of value) {
+        if (!rule || typeof rule !== "object" ||
+            typeof rule.category !== "string" ||
+            (rule.mode !== "exact" && rule.mode !== "regex") ||
+            typeof rule.value !== "string") {
+          return NextResponse.json({ error: "each exclusion rule must have { category, mode: 'exact'|'regex', value }" }, { status: 400 });
+        }
+        if (rule.mode === "regex") {
+          try { new RegExp(rule.value); } catch {
+            return NextResponse.json({ error: `invalid regex: ${rule.value}` }, { status: 400 });
+          }
+        }
       }
       type = "json_array";
       valueStr = JSON.stringify(value);
