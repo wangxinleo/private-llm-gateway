@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
       matchedValues: isRevealed ? JSON.parse(r.matched_values) : undefined,
       action: r.action,
       bypassApplied: r.bypass_applied === 1,
+      duration: r.duration != null ? r.duration : undefined,
     }));
 
     return NextResponse.json({

@@ -105,8 +105,8 @@ async function handleRequest(request: NextRequest): Promise<Response> {
         ? maskJsonBody(bodyText, scanFn)
         : runPipeline(bodyText, bodySize, filenames);
       const bypassHitCategories = bypassResult.findings.map(f => f.category).join(", ");
-      const bypassDuration = (performance.now() - startTime).toFixed(2);
-      log.info(`${method} ${path} | action: allow (bypass) | hits: ${bypassHitCategories || "none"} | ${bypassDuration}ms`);
+      const bypassDurationMs = performance.now() - startTime;
+      log.info(`${method} ${path} | action: allow (bypass) | hits: ${bypassHitCategories || "none"} | ${bypassDurationMs.toFixed(2)}ms`);
 
       logAudit({
         path,
@@ -118,8 +118,10 @@ async function handleRequest(request: NextRequest): Promise<Response> {
         findings: bypassResult.findings,
         action: "allow",
         bypassApplied: true,
+        duration: bypassDurationMs,
       });
     } else {
+      const durationMs = performance.now() - startTime;
       logAudit({
         path,
         method,
@@ -130,6 +132,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
         findings: [],
         action: "allow",
         bypassApplied: true,
+        duration: durationMs,
       });
     }
 
@@ -167,10 +170,10 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     : runPipeline(bodyText, bodySize, filenames);
 
   const hitCategories = result.findings.map(f => f.category).join(", ");
-  const duration = (performance.now() - startTime).toFixed(2);
+  const durationMs = performance.now() - startTime;
 
   if (result.action !== "allow") {
-    log.info(`${method} ${path} | action: ${result.action} | hits: ${hitCategories || "none"} | ${duration}ms`);
+    log.info(`${method} ${path} | action: ${result.action} | hits: ${hitCategories || "none"} | ${durationMs.toFixed(2)}ms`);
   }
 
   logAudit({
@@ -183,6 +186,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     findings: result.findings,
     action: result.action,
     scanResult: result,
+    duration: durationMs,
   });
 
   if (result.action === "block") {

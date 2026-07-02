@@ -38,6 +38,9 @@ const SECRET_KEYS: ReadonlySet<string> = new Set([
   "clientsecret",
   "client_key",
   "consumer_key",
+  "tunnel_token",
+  "cf_token",
+  "cloudflare_token",
 ]);
 
 // Pair-trigger: masked only when a SECRET_KEYS hit exists in the same text

@@ -10,6 +10,9 @@ export type FindingCategory =
   | "GITHUB_TOKEN"
   | "SLACK_TOKEN"
   | "GOOGLE_API_KEY"
+  | "BASE64_TOKEN"
+  | "STRIPE_KEY"
+  | "SENDGRID_KEY"
   | "CONTEXTUAL_SECRET"
   | "SENSITIVE_FILENAME"
   | "PHONE"
@@ -56,6 +59,7 @@ export interface AuditEntry {
   maskCategories?: FindingCategory[];
   maskCount?: number;
   bypassApplied?: boolean;
+  duration?: number;
 }
 
 const BLOCK_CATEGORIES: ReadonlySet<FindingCategory> = new Set([

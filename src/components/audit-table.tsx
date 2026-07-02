@@ -54,6 +54,7 @@ interface AuditRow {
   matchedValues?: Record<string, string[]>;
   action: ActionType;
   bypassApplied?: boolean;
+  duration?: number;
 }
 
 interface AuditResponse {
@@ -67,6 +68,7 @@ const FINDING_CATEGORIES: FindingCategory[] = [
   "PRIVATE_KEY", "BEARER_TOKEN", "BASIC_AUTH", "JWT",
   "COOKIE_HEADER", "SET_COOKIE_HEADER", "DB_URI",
   "AWS_ACCESS_KEY", "GITHUB_TOKEN", "SLACK_TOKEN", "GOOGLE_API_KEY",
+  "BASE64_TOKEN", "STRIPE_KEY", "SENDGRID_KEY",
   "CONTEXTUAL_SECRET", "SENSITIVE_FILENAME",
   "PHONE", "EMAIL", "ID_CARD", "BANK_CARD",
 ];
@@ -75,6 +77,10 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDuration(ms: number): string {
+  return `${ms.toFixed(2)}ms`;
 }
 
 function ActionBadge({ action, label }: { action: ActionType; label: string }) {
@@ -380,8 +386,8 @@ export function AuditTable() {
   };
 
   const handleExportCsv = () => {
-    const header = "Time,Method,Path,Content-Type,Size,Model,Findings,Action,Bypass";
-    const rows = data.rows.map((r) => [r.timestamp, r.method, `"${r.path}"`, r.contentType, r.bodySize, `"${r.model || ""}"`, r.findings.join(";"), r.action, r.bypassApplied ? "yes" : "no"].join(","));
+    const header = "Time,Method,Path,Content-Type,Size,Model,Findings,Action,Bypass,Duration";
+    const rows = data.rows.map((r) => [r.timestamp, r.method, `"${r.path}"`, r.contentType, r.bodySize, `"${r.model || ""}"`, r.findings.join(";"), r.action, r.bypassApplied ? "yes" : "no", r.duration != null ? r.duration.toFixed(2) : ""].join(","));
     const csv = [header, ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -501,15 +507,16 @@ export function AuditTable() {
               <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.size")}</TableHead>
               <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.model")}</TableHead>
               <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.findings")}</TableHead>
+              <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.duration")}</TableHead>
               <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.action")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading && data.rows.length === 0 && (
-              <TableRow><TableCell colSpan={10} className="h-40 text-center text-sm text-muted-foreground">{t("audit.loading")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="h-40 text-center text-sm text-muted-foreground">{t("audit.loading")}</TableCell></TableRow>
             )}
             {!loading && data.rows.length === 0 && (
-              <TableRow><TableCell colSpan={10} className="h-40 text-center text-sm text-muted-foreground">{t("audit.noRecords")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="h-40 text-center text-sm text-muted-foreground">{t("audit.noRecords")}</TableCell></TableRow>
             )}
             {data.rows.map((row) => {
               const expanded = expandedIds.has(row.id);
@@ -532,6 +539,7 @@ export function AuditTable() {
                         {row.findings.length > 2 && (<Badge variant="outline" className="font-mono text-xs text-muted-foreground">+{row.findings.length - 2}</Badge>)}
                       </div>
                     </TableCell>
+                    <TableCell onClick={clickRow} className="cursor-pointer font-mono text-xs tabular-nums text-muted-foreground">{row.duration != null ? formatDuration(row.duration) : "—"}</TableCell>
                     <TableCell onClick={clickRow}>
                       <div className="flex items-center gap-1">
                         <ActionBadge action={row.action} label={t(`action.${row.action}`)} />
@@ -541,7 +549,7 @@ export function AuditTable() {
                   </TableRow>
                   {expanded && (
                     <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={10} className="p-0">
+                      <TableCell colSpan={11} className="p-0">
                         <div className="border-b border-border/50 bg-card/80 px-4 py-3">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
@@ -560,6 +568,7 @@ export function AuditTable() {
                               <div><span className="text-muted-foreground">{t("audit.bodySizeLabel")}: </span><span className="font-mono text-sm">{formatBytes(row.bodySize)}</span></div>
                               <div><span className="text-muted-foreground">{t("audit.modelLabel")}: </span><code className="font-mono text-sm">{row.model || "—"}</code></div>
                               <div><span className="text-muted-foreground">{t("audit.timeLabel")}: </span><span className="font-mono text-sm">{formatTime(row.timestamp)}</span></div>
+                              <div><span className="text-muted-foreground">{t("audit.durationLabel")}: </span><span className="font-mono text-sm">{row.duration != null ? formatDuration(row.duration) : "—"}</span></div>
                            </div>
                            {row.findings.length > 0 && (
                              <div className="mt-3">

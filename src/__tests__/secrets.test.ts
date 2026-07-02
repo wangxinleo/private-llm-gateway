@@ -172,4 +172,84 @@ describe("scanSecrets — mask rules", () => {
       expect(finding.action).toBe("mask");
     }
   });
+
+  it("detects single-segment base64 opaque token (Cloudflare tunnel token)", () => {
+    const cfToken = "eyJhIjoiZjU0Y2YxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1NiIsImIiOiJhYmMxMjNkZWY0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNCJ9";
+    const f = scanSecrets(`command: tunnel --no-autoupdate --protocol http2 run --token ${cfToken}`);
+    expect(f).toContainEqual(
+      expect.objectContaining({ category: "BASE64_TOKEN", action: "mask", maskTag: "<<PRIVACY_MASK:BASE64_TOKEN>>" })
+    );
+  });
+
+  it("does not false-match first segment of 3-part JWT as BASE64_TOKEN", () => {
+    const jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+    const f = scanSecrets(jwt);
+    expect(f).toContainEqual(expect.objectContaining({ category: "JWT" }));
+    expect(f.every(x => x.category !== "BASE64_TOKEN")).toBe(true);
+  });
+
+  it("detects Stripe live secret key", () => {
+    const prefix = "sk_" + "live_";
+    const f = scanSecrets(prefix + "FAKE51Hj8V2e2vZ9x7abcdef123456");
+    expect(f).toContainEqual(
+      expect.objectContaining({ category: "STRIPE_KEY", action: "mask", maskTag: "<<PRIVACY_MASK:STRIPE_KEY>>" })
+    );
+  });
+
+  it("detects Stripe test secret key", () => {
+    const prefix = "sk_" + "test_";
+    const f = scanSecrets(prefix + "FAKE51Hj8V2e2vZ9x7abcdef123456");
+    expect(f).toContainEqual(
+      expect.objectContaining({ category: "STRIPE_KEY" })
+    );
+  });
+
+  it("does SendGrid API key", () => {
+    const f = scanSecrets("SG.ABCDEFGHIJKLMNOPQR.baCdefGhIjKlMnOpQrStUvWxYz0123456789abcdefGhIjKlMnOpQrStUvWxYz0");
+    expect(f).toContainEqual(
+      expect.objectContaining({ category: "SENDGRID_KEY", action: "mask", maskTag: "<<PRIVACY_MASK:SENDGRID_KEY>>" })
+    );
+  });
+
+  it("ignores short eyJ strings (< 40 chars)", () => {
+    const f = scanSecrets("eyJhIjoic2ltcGxlc3RyaW5n");
+    expect(f.every(x => x.category !== "BASE64_TOKEN")).toBe(true);
+  });
+
+  it("detects multiple Stripe keys in same text", () => {
+    const p = "sk_" + "live_";
+    const f = scanSecrets("key1=" + p + "FAKE51Hj8V2e2vZ9x7abcdef123456 key2=" + p + "FAKE9kLmNoPqRsTuVwXyzABCDEF123");
+    expect(f.filter(x => x.category === "STRIPE_KEY")).toHaveLength(2);
+    expect(f.every(x => x.action === "mask")).toBe(true);
+  });
+
+  it("detects base64 token after a JWT in same text", () => {
+    const fakeToken = "eyJhIjoiZjU0Y2YxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1NiIsImIiOiJhYmMxMjNkZWY0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNCJ9";
+    const text = `jwt=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.sig token=${fakeToken}`;
+    const f = scanSecrets(text);
+    expect(f.some(x => x.category === "JWT")).toBe(true);
+    expect(f.some(x => x.category === "BASE64_TOKEN" && x.matched === fakeToken)).toBe(true);
+  });
+
+  it("keeps standalone base64 token even when identical string appears inside a JWT", () => {
+    const payload = "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ";
+    const jwt = `eyJhbGciOiJIUzI1NiJ9.${payload}.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c`;
+    const text = `${jwt} standalone=${payload}`;
+    const f = scanSecrets(text);
+    expect(f.some(x => x.category === "JWT")).toBe(true);
+    expect(f.filter(x => x.category === "BASE64_TOKEN")).toHaveLength(1);
+  });
+
+  it("detects multiple private keys in same text", () => {
+    const text = `-----BEGIN RSA PRIVATE KEY-----
+abc
+-----END RSA PRIVATE KEY-----
+
+-----BEGIN EC PRIVATE KEY-----
+def
+-----END EC PRIVATE KEY-----`;
+    const f = scanSecrets(text);
+    expect(f.filter(x => x.category === "PRIVATE_KEY")).toHaveLength(2);
+    expect(f.every(x => x.action === "mask")).toBe(true);
+  });
 });

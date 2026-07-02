@@ -32,18 +32,20 @@ describe("logAudit", () => {
         {
           category: "BEARER_TOKEN",
           action: "mask",
-          matched: "Bearer secret-token",
+          matched: "Bearer test-secret-123",
           maskTag: "<<PRIVACY_MASK:BEARER_TOKEN>>",
         },
       ],
       action: "allow",
       bypassApplied: true,
+      duration: 12.34,
     });
 
     expect(mockInsertAudit).toHaveBeenCalledWith(
       expect.objectContaining({
-        matchedValues: { BEARER_TOKEN: ["Bearer secret-token"] },
+        matchedValues: { BEARER_TOKEN: ["Bearer test-secret-123"] },
         bypassApplied: true,
+        duration: 12.34,
       })
     );
 
@@ -54,9 +56,10 @@ describe("logAudit", () => {
         findings: ["BEARER_TOKEN"],
         action: "allow",
         bypassApplied: true,
+        duration: 12.34,
       })
     );
     expect(event).not.toHaveProperty("matchedValues");
-    expect(JSON.stringify(event)).not.toContain("Bearer secret-token");
+    expect(JSON.stringify(event)).not.toContain("Bearer test-secret-123");
   });
 });

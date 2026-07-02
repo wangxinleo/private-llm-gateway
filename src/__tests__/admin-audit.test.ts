@@ -43,6 +43,7 @@ const sampleRow = {
   matched_values: '{"JWT":["eyJhbGciOiJIUzI1NiJ9.payload.sig"]}',
   action: "block",
   bypass_applied: 0,
+  duration: 5.23,
 };
 
 function makeRequest(
@@ -125,6 +126,7 @@ describe("admin audit routes", () => {
         findings: ["JWT"],
         action: "block",
         bypassApplied: false,
+        duration: 5.23,
       });
     });
 

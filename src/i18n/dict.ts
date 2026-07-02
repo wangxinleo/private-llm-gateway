@@ -53,6 +53,7 @@ const zh: Record<string, string> = {
   "audit.col.size": "大小",
   "audit.col.model": "模型",
   "audit.col.findings": "命中",
+  "audit.col.duration": "耗时",
   "audit.col.action": "动作",
   "audit.loading": "加载中…",
   "audit.noRecords": "未找到审计记录",
@@ -67,6 +68,7 @@ const zh: Record<string, string> = {
   "audit.bodySizeLabel": "请求体大小",
   "audit.modelLabel": "模型",
   "audit.timeLabel": "时间",
+  "audit.durationLabel": "耗时",
   "audit.findingsLabel": "命中详情",
   "audit.filenamesLabel": "文件名",
   "audit.delete": "删除",
@@ -155,6 +157,9 @@ const zh: Record<string, string> = {
   "rules.desc.GITHUB_TOKEN": "ghp_/github_pat_ 前缀",
   "rules.desc.SLACK_TOKEN": "xoxb-/xoxp- 前缀",
   "rules.desc.GOOGLE_API_KEY": "AIza 前缀",
+  "rules.desc.BASE64_TOKEN": "单段 base64 opaque token (eyJ…)",
+  "rules.desc.STRIPE_KEY": "sk_live_/sk_test_ 前缀",
+  "rules.desc.SENDGRID_KEY": "SG. 前缀",
 
   // Settings page
   "settings.title": "系统配置",
@@ -252,6 +257,7 @@ const en: Record<string, string> = {
   "audit.col.size": "Size",
   "audit.col.model": "Model",
   "audit.col.findings": "Findings",
+  "audit.col.duration": "Duration",
   "audit.col.action": "Action",
   "audit.loading": "Loading...",
   "audit.noRecords": "No audit records found",
@@ -266,6 +272,7 @@ const en: Record<string, string> = {
   "audit.bodySizeLabel": "Body Size",
   "audit.modelLabel": "Model",
   "audit.timeLabel": "Time",
+  "audit.durationLabel": "Duration",
   "audit.findingsLabel": "Findings",
   "audit.filenamesLabel": "Filenames",
   "audit.delete": "Delete",
@@ -353,6 +360,9 @@ const en: Record<string, string> = {
   "rules.desc.GITHUB_TOKEN": "ghp_/github_pat_ prefix",
   "rules.desc.SLACK_TOKEN": "xoxb-/xoxp- prefix",
   "rules.desc.GOOGLE_API_KEY": "AIza prefix",
+  "rules.desc.BASE64_TOKEN": "Single-segment base64 opaque token (eyJ…)",
+  "rules.desc.STRIPE_KEY": "sk_live_/sk_test_ prefix",
+  "rules.desc.SENDGRID_KEY": "SG. prefix",
 
   // Settings page
   "settings.title": "Settings",

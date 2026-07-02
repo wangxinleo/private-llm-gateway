@@ -20,7 +20,8 @@ export function getDb(): Database.Database {
         filenames TEXT NOT NULL DEFAULT '[]',
         findings TEXT NOT NULL DEFAULT '[]',
         matched_values TEXT NOT NULL DEFAULT '{}',
-        action TEXT NOT NULL
+        action TEXT NOT NULL,
+        duration REAL
       );
 
       CREATE TABLE IF NOT EXISTS system_config (
@@ -41,13 +42,16 @@ export function getDb(): Database.Database {
     if (!columns.some((column) => column.name === "bypass_applied")) {
       db.exec("ALTER TABLE audit_log ADD COLUMN bypass_applied INTEGER NOT NULL DEFAULT 0");
     }
+    if (!columns.some((column) => column.name === "duration")) {
+      db.exec("ALTER TABLE audit_log ADD COLUMN duration REAL");
+    }
   }
   return db;
 }
 
 const INSERT_SQL = `
-  INSERT INTO audit_log (timestamp, path, method, content_type, body_size, model, filenames, findings, matched_values, action, bypass_applied)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO audit_log (timestamp, path, method, content_type, body_size, model, filenames, findings, matched_values, action, bypass_applied, duration)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `;
 
 export function insertAudit(entry: AuditEntry): number {
@@ -63,7 +67,8 @@ export function insertAudit(entry: AuditEntry): number {
     JSON.stringify(entry.findings),
     JSON.stringify(entry.matchedValues ?? {}),
     entry.action,
-    entry.bypassApplied ? 1 : 0
+    entry.bypassApplied ? 1 : 0,
+    entry.duration ?? null
   );
   return Number(result.lastInsertRowid);
 }
@@ -81,6 +86,7 @@ export interface AuditRow {
   matched_values: string;
   action: string;
   bypass_applied: number;
+  duration: number | null;
 }
 
 export interface QueryParams {

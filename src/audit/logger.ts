@@ -13,6 +13,7 @@ export function logAudit(params: {
   action: ActionType;
   scanResult?: ScanResult;
   bypassApplied?: boolean;
+  duration?: number;
 }): void {
   const matchedValues: Record<string, string[]> = {};
   for (const finding of params.findings) {
@@ -38,6 +39,10 @@ export function logAudit(params: {
     entry.bypassApplied = true;
   }
 
+  if (params.duration !== undefined) {
+    entry.duration = params.duration;
+  }
+
   if (params.scanResult?.maskSummary) {
     const ms = params.scanResult.maskSummary;
     entry.maskApplied = ms.applied;
@@ -59,5 +64,6 @@ export function logAudit(params: {
     findings: entry.findings,
     action: entry.action,
     bypassApplied: entry.bypassApplied,
+    duration: entry.duration,
   });
 }
