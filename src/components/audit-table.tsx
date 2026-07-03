@@ -68,6 +68,32 @@ interface AuditResponse {
   limit: number;
 }
 
+interface SseEvent {
+  event: string;
+  data: string;
+}
+
+function parseSseEvent(rawEvent: string): SseEvent | null {
+  const data: string[] = [];
+  let event = "message";
+
+  for (const rawLine of rawEvent.split("\n")) {
+    const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
+    if (!line || line.startsWith(":")) continue;
+
+    const separator = line.indexOf(":");
+    const field = separator === -1 ? line : line.slice(0, separator);
+    const rawValue = separator === -1 ? "" : line.slice(separator + 1);
+    const value = rawValue.startsWith(" ") ? rawValue.slice(1) : rawValue;
+
+    if (field === "event") event = value;
+    if (field === "data") data.push(value);
+  }
+
+  if (data.length === 0) return null;
+  return { event, data: data.join("\n") };
+}
+
 const FINDING_CATEGORIES: FindingCategory[] = [
   "PRIVATE_KEY", "BEARER_TOKEN", "BASIC_AUTH", "JWT",
   "COOKIE_HEADER", "SET_COOKIE_HEADER", "DB_URI",
@@ -183,7 +209,8 @@ export function AuditTable() {
   const [timeRange, setTimeRange] = useState<TimeRangePreset>("today");
   const [pathPrefixOptions, setPathPrefixOptions] = useState<string[]>([]);
   const [sseConnected, setSseConnected] = useState(false);
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
+  const fetchDataRef = useRef<(page: number) => Promise<void>>(async () => {});
   const filtersRef = useRef({ action, method, finding, query, timeRange, page: data.page });
   filtersRef.current = { action, method, finding, query, timeRange, page: data.page };
 
@@ -249,6 +276,7 @@ export function AuditTable() {
     },
     [buildUrl, authedFetch]
   );
+  fetchDataRef.current = fetchData;
 
   const loadPathPrefixOptions = useCallback(async () => {
     try {
@@ -285,38 +313,77 @@ export function AuditTable() {
   useEffect(() => { fetchData(1); }, [fetchData]);
 
   useEffect(() => {
-    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+    if (!adminKey) return;
 
-    const setupEventSource = () => {
-      const sseUrl = adminKey
-        ? `/api/admin/audit/stream?key=${encodeURIComponent(adminKey)}`
-        : "/api/admin/audit/stream";
-      const es = new EventSource(sseUrl);
-      eventSourceRef.current = es;
-      es.onopen = () => setSseConnected(true);
-      es.onerror = () => {
-        setSseConnected(false);
-        es.close();
-        reconnectTimer = setTimeout(setupEventSource, 5000);
-      };
-      es.addEventListener("audit", (e: MessageEvent) => {
-        try {
-          const row: AuditRow = JSON.parse(e.data);
-          const f = filtersRef.current;
-          const hasFilters = f.action || f.method || f.finding || f.query || f.timeRange !== "today";
-          if (f.page !== 1 || hasFilters) return;
-          setData((prev) => ({ ...prev, rows: [row, ...prev.rows].slice(0, prev.limit), total: prev.total + 1 }));
-        } catch { /* ignore */ }
-      });
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+    let closed = false;
+
+    const handleAuditEvent = (dataText: string) => {
+      try {
+        const row: AuditRow = JSON.parse(dataText);
+        const f = filtersRef.current;
+        const hasFilters = f.action || f.method || f.finding || f.query || f.timeRange !== "today";
+        if (f.page !== 1 || hasFilters) {
+          void fetchDataRef.current(f.page);
+          return;
+        }
+        setData((prev) => ({ ...prev, rows: [row, ...prev.rows].slice(0, prev.limit), total: prev.total + 1 }));
+      } catch { /* ignore malformed stream events */ }
     };
 
-    setupEventSource();
+    const connectStream = async () => {
+      if (closed) return;
+
+      const abortController = new AbortController();
+      streamAbortRef.current = abortController;
+
+      try {
+        const res = await authedFetch("/api/admin/audit/stream", { signal: abortController.signal });
+        if (closed || abortController.signal.aborted) return;
+        if (!res.ok || !res.body) {
+          setSseConnected(false);
+          return;
+        }
+
+        setSseConnected(true);
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (!closed && !abortController.signal.aborted) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          let boundary = buffer.indexOf("\n\n");
+          while (boundary !== -1) {
+            const parsed = parseSseEvent(buffer.slice(0, boundary));
+            buffer = buffer.slice(boundary + 2);
+            if (parsed?.event === "audit") handleAuditEvent(parsed.data);
+            boundary = buffer.indexOf("\n\n");
+          }
+        }
+      } catch {
+        if (closed || abortController.signal.aborted) return;
+      } finally {
+        if (streamAbortRef.current === abortController) {
+          streamAbortRef.current = null;
+          setSseConnected(false);
+        }
+        if (!closed) reconnectTimer = setTimeout(connectStream, 5000);
+      }
+    };
+
+    void connectStream();
 
     return () => {
+      closed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      eventSourceRef.current?.close();
+      streamAbortRef.current?.abort();
+      streamAbortRef.current = null;
+      setSseConnected(false);
     };
-  }, []);
+  }, [adminKey, authedFetch]);
 
   const handleRevealAuth = useCallback(async () => {
     if (!adminKey) return;
