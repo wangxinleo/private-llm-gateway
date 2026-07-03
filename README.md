@@ -220,7 +220,7 @@ v1 不做语义层面的人名或地址识别。
 
 ## 日志与审计
 
-只记录元数据。
+审计库会记录每次命中的原始匹配值（按类别分组），用于私人部署中的泄露统计和真实暴露追踪。系统不会把完整提示词或原始文件内容写入审计库；实时 SSE 和应用日志也不会发送原始匹配值。管理后台通过 reveal-auth 加载真实值后，界面仍以带 `**` 的部分掩码显示，复制按钮复制真实未掩码值。请保护好宿主机 `./data/audit.sqlite`。
 
 ### 日志模式
 
@@ -237,7 +237,7 @@ v1 不做语义层面的人名或地址识别。
 - 包括请求预览、扫描层级、命中详情等
 - 用于故障排查和开发调试
 
-建议记录字段：
+审计字段：
 
 - 时间戳
 - 请求路径
@@ -246,14 +246,14 @@ v1 不做语义层面的人名或地址识别。
 - 请求体大小
 - 文件名
 - 命中类别
+- 原始匹配值（仅 SQLite 审计库；后台显示时部分掩码）
 - 执行动作
 - 处理耗时
 
-不要记录：
+日志/SSE 不要输出：
 
 - 原始提示词文本
-- 密钥值
-- 脱敏前的原始值
+- 完整密钥值
 - 原始文件内容
 
 ## 当前实现拆分
@@ -277,68 +277,48 @@ v1 不做语义层面的人名或地址识别。
 - GitHub Actions 会在 `master` 分支发布镜像到 GitHub Container Registry (`ghcr.io/<owner>/<repo>:latest`)，并在 `v*` Git tag 上发布版本镜像。
 - `better-sqlite3` 是原生模块，builder 和 runner 使用同一个 Alpine 基础镜像以保持 ABI 一致。
 - 容器以 `node` 非 root 用户运行。
-- 审计数据库固定写入 `/data/audit.sqlite`，通过宿主机目录映射 `./data` 持久化（bind mount）。
+- 容器内审计数据库默认写入 `/data/audit.sqlite`，通过宿主机目录映射 `./data` 持久化（bind mount）。
 - 健康检查访问代理根路径 `/`，只验证代理进程存活，不依赖上游服务。
 
 ### 运行时配置
 
-所有配置通过环境变量注入，参考 `.env.template` 创建 `.env` 文件。
+所有应用配置通过环境变量注入。`docker-compose.yaml` 直接写入最小启动配置，不再通过 `.env` 或项目专用前缀变量二次映射；需要部署时直接编辑 Compose 文件中的明文值。`.env.template` 仅作为 `npm run dev` / `npm start` 直接运行时的参考。
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `NODE_ENV` | `production` | Node 运行环境 |
-| `PORT` | `3000` | 容器内 Next.js 监听端口 |
+| `PORT` | `3000` | Next.js 监听端口 |
 | `HOSTNAME` | `0.0.0.0` | 容器内绑定的网络接口 |
-| `TZ` | `Asia/Shanghai` | 容器时区，影响日志时间戳 |
-| `DEBUG` | `false` | 调试模式。`true` 显示详细日志,`false` 仅显示关键信息 |
-| `HOST_PORT` | `3000` | 映射到宿主机的端口（仅用于 Docker Compose） |
-| `UPSTREAM_URL` | `http://upstream-service:8787` | 上游服务的 base URL（被代理的目标服务地址） |
-| `DB_PATH` | `/data/audit.sqlite` | SQLite 审计库路径 |
+| `UPSTREAM_URL` | `http://host.docker.internal:8787`（Compose）/ `http://localhost:8787`（直接运行） | 上游服务 base URL；按实际上游地址直接修改 |
+| `DB_PATH` | `/data/audit.sqlite`（Compose）/ `audit.sqlite`（直接运行） | SQLite 审计库路径 |
+| `DEBUG` | `false` | 调试模式。建议只在本地直接运行时开启 |
 | `ADMIN_KEY` | _(空)_ | 管理后台访问密钥。必须设置才能访问 `/dashboard`。建议使用 `openssl rand -base64 32` 生成 |
-
-生产环境配置：
-
-```bash
-# 从模板创建配置文件
-cp .env.template .env
-# 编辑 .env 填入生产配置
-```
 
 **必须设置 ADMIN_KEY 才能访问管理后台**：
 
 ```bash
-# 生成强随机密钥
 openssl rand -base64 32
-# 将生成的密钥填入 .env 文件的 ADMIN_KEY 变量
-```
-
-如果上游服务是同一个 Compose 项目里的服务，保持：
-
-```env
-UPSTREAM_URL=http://upstream-service:8787
+# 将生成的密钥填入 docker-compose.yaml 的 ADMIN_KEY，或直接运行时填入 .env
 ```
 
 如果上游服务跑在宿主机上，Docker Desktop 可使用：
 
-```env
-UPSTREAM_URL=http://host.docker.internal:8787
+```yaml
+UPSTREAM_URL: http://host.docker.internal:8787
 ```
 
-Linux 服务器上更推荐把上游服务和 `privacy-proxy` 放进同一个 Docker network，并使用服务名访问。
+如果上游服务是同一个 Docker network 里的真实服务，改成该服务名：
+
+```yaml
+UPSTREAM_URL: http://your-upstream-service:8787
+```
 
 ### 生产启动
 
-使用仓库源码在服务器本地构建：
+镜像由 GitHub/cloud 构建并发布；Compose 只拉取镜像运行，不在服务器本地 `build`。
 
 ```bash
-docker compose up -d --build privacy-proxy
-```
-
-或直接拉取 GitHub Container Registry 中的镜像：
-
-```bash
-# 替换为你的仓库地址
-docker pull ghcr.io/<your-username>/<your-repo>:latest
+docker compose up -d privacy-proxy
 ```
 
 查看状态和日志：
@@ -357,9 +337,7 @@ docker compose down
 审计数据存储在宿主机 `./data/audit.sqlite`。如需清空审计数据：
 
 ```bash
-# 停止服务
 docker compose down
-# 删除审计数据库
 rm -rf ./data/audit.sqlite
 # 或清空整个数据目录
 rm -rf ./data
@@ -367,10 +345,10 @@ rm -rf ./data
 
 ### 本地容器烟测
 
-项目提供 `mock-upstream.mjs` 模拟上游服务。使用 `mock` profile 可以在没有真实上游的情况下验证容器链路：
+Compose 不再提供内置模拟上游服务。请先启动真实上游服务，并把 `docker-compose.yaml` 中的 `UPSTREAM_URL` 改成容器可访问的地址，然后运行：
 
 ```bash
-docker compose --profile mock up -d --build
+docker compose up -d privacy-proxy
 ```
 
 允许并转发普通请求：
@@ -395,12 +373,6 @@ curl -s http://localhost:3000/api/v1/chat/completions \
 curl -s -w "\n%{http_code}\n" http://localhost:3000/api/v1/upload \
   -H "Content-Type: multipart/form-data; boundary=----TestBoundary123" \
   --data-binary $'------TestBoundary123\r\nContent-Disposition: form-data; name="file"; filename="id_rsa"\r\nContent-Type: application/octet-stream\r\n\r\nfake\r\n------TestBoundary123--\r\n'
-```
-
-烟测完成后：
-
-```bash
-docker compose --profile mock down
 ```
 
 ## v1 已确认的问题结论

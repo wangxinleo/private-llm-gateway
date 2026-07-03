@@ -7,6 +7,22 @@ import { Logger } from "@/log";
 
 const log = new Logger("admin");
 
+interface AdminAuditResponseRow {
+  id: number;
+  timestamp: string;
+  path: string;
+  method: string;
+  contentType: string;
+  bodySize: number;
+  model?: string;
+  filenames: string[];
+  findings: string[];
+  matchedValues?: Record<string, string[]>;
+  action: string;
+  bypassApplied: boolean;
+  duration?: number;
+}
+
 export async function GET(request: NextRequest) {
   const authError = checkAdminAuth(request);
   if (authError) return authError;
@@ -27,21 +43,28 @@ export async function GET(request: NextRequest) {
 
     const { rows, total } = queryAudit(params);
 
-    const mappedRows = rows.map((r) => ({
-      id: r.id,
-      timestamp: r.timestamp,
-      path: r.path,
-      method: r.method,
-      contentType: r.content_type,
-      bodySize: r.body_size,
-      model: r.model || undefined,
-      filenames: JSON.parse(r.filenames),
-      findings: JSON.parse(r.findings),
-      matchedValues: isRevealed ? JSON.parse(r.matched_values) : undefined,
-      action: r.action,
-      bypassApplied: r.bypass_applied === 1,
-      duration: r.duration != null ? r.duration : undefined,
-    }));
+    const mappedRows = rows.map((r) => {
+      const row: AdminAuditResponseRow = {
+        id: r.id,
+        timestamp: r.timestamp,
+        path: r.path,
+        method: r.method,
+        contentType: r.content_type,
+        bodySize: r.body_size,
+        model: r.model || undefined,
+        filenames: JSON.parse(r.filenames) as string[],
+        findings: JSON.parse(r.findings) as string[],
+        action: r.action,
+        bypassApplied: r.bypass_applied === 1,
+        duration: r.duration != null ? r.duration : undefined,
+      };
+
+      if (isRevealed) {
+        row.matchedValues = JSON.parse(r.matched_values) as Record<string, string[]>;
+      }
+
+      return row;
+    });
 
     return NextResponse.json({
       rows: mappedRows,

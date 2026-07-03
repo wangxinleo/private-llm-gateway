@@ -20,7 +20,7 @@ describe("logAudit", () => {
     mockInsertAudit.mockReturnValue(42);
   });
 
-  it("persists matched values but omits them from live audit broadcasts", () => {
+  it("persists raw matched values while omitting them from live broadcasts", () => {
     logAudit({
       path: "/v1/chat/completions",
       method: "POST",
@@ -32,7 +32,7 @@ describe("logAudit", () => {
         {
           category: "BEARER_TOKEN",
           action: "mask",
-          matched: "Bearer test-secret-123",
+          matched: "Bearer sample-token-for-test",
           maskTag: "<<PRIVACY_MASK:BEARER_TOKEN>>",
         },
       ],
@@ -41,9 +41,10 @@ describe("logAudit", () => {
       duration: 12.34,
     });
 
-    expect(mockInsertAudit).toHaveBeenCalledWith(
+    const inserted = mockInsertAudit.mock.calls[0]?.[0] ?? {};
+    expect(inserted).toEqual(
       expect.objectContaining({
-        matchedValues: { BEARER_TOKEN: ["Bearer test-secret-123"] },
+        matchedValues: { BEARER_TOKEN: ["Bearer sample-token-for-test"] },
         bypassApplied: true,
         duration: 12.34,
       })
@@ -60,6 +61,6 @@ describe("logAudit", () => {
       })
     );
     expect(event).not.toHaveProperty("matchedValues");
-    expect(JSON.stringify(event)).not.toContain("Bearer test-secret-123");
+    expect(JSON.stringify(event)).not.toContain("sample-token-for-test");
   });
 });

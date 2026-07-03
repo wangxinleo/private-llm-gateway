@@ -1,14 +1,17 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { X } from "lucide-react";
+
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocale } from "@/i18n";
+import { getErrorText, isExclusionRuleArray, isStringArrayConfigValue } from "@/lib/admin-config";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import { JsonEditor } from "@/components/json-editor";
-import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import type { AdminConfigResponse, EditableConfig, EditableConfigValue } from "@/types";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -47,12 +50,6 @@ interface RuntimeEnv {
   debug: boolean;
   nodeEnv: string;
   port: string;
-}
-
-interface EditableConfig {
-  value: any;
-  type: "number" | "string" | "json_array";
-  description: string;
 }
 
 export default function SettingsPage() {
@@ -97,14 +94,16 @@ export default function SettingsPage() {
     try {
       const res = await authedFetch("/api/admin/config");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await res.json() as AdminConfigResponse;
 
       if (data.dbStats) setDbStats(data.dbStats);
       if (data.env) setRuntimeEnv(data.env);
       if (data.editableConfigs) {
         setEditableConfigs(data.editableConfigs);
-        setPathPrefixes(data.editableConfigs.path_prefix_options?.value ?? []);
-        setExclDraft(JSON.stringify(data.editableConfigs.scanner_exclusions?.value ?? [], null, 2));
+        const prefixValue = data.editableConfigs.path_prefix_options?.value;
+        const exclusionValue = data.editableConfigs.scanner_exclusions?.value;
+        setPathPrefixes(isStringArrayConfigValue(prefixValue) ? prefixValue : []);
+        setExclDraft(JSON.stringify(isExclusionRuleArray(exclusionValue) ? exclusionValue : [], null, 2));
       }
     } catch (err) {
       console.error("Failed to load config:", err);
@@ -113,7 +112,7 @@ export default function SettingsPage() {
     }
   }
 
-  async function updateConfig(key: string, value: any) {
+  async function updateConfig(key: string, value: EditableConfigValue) {
     setUpdating(key);
     setMessage(null);
     try {
@@ -124,8 +123,8 @@ export default function SettingsPage() {
       });
 
       if (!res.ok) {
-        const error = await res.json();
-        setMessage({ type: "error", text: error.error ?? t("settings.configUpdateFailed") });
+        const error = await res.json() as unknown;
+        setMessage({ type: "error", text: getErrorText(error) ?? t("settings.configUpdateFailed") });
         setTimeout(() => setMessage(null), 3000);
         return;
       }
@@ -162,8 +161,8 @@ export default function SettingsPage() {
 
   async function saveExclusionsDraft() {
     try {
-      const parsed = JSON.parse(exclDraft);
-      if (!Array.isArray(parsed)) throw new Error("not an array");
+      const parsed = JSON.parse(exclDraft) as unknown;
+      if (!isExclusionRuleArray(parsed)) throw new Error("invalid exclusion rules");
       await updateConfig("scanner_exclusions", parsed);
       setExclEditing(false);
     } catch {
@@ -321,7 +320,7 @@ export default function SettingsPage() {
               const config = editableConfigs[key];
               if (!config) return null;
               const isEditing = editingConfig === key;
-              const value = config.value as number;
+              const value = typeof config.value === "number" ? config.value : 0;
 
               return (
                 <div key={key} className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
@@ -373,7 +372,7 @@ export default function SettingsPage() {
               const config = editableConfigs[key];
               if (!config) return null;
               const isEditing = editingConfig === key;
-              const value = config.value as number;
+              const value = typeof config.value === "number" ? config.value : 0;
 
               return (
                 <div key={key} className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">

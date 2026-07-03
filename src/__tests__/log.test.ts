@@ -5,13 +5,11 @@ describe("Logger", () => {
   let infoSpy: ReturnType<typeof vi.spyOn>;
   let warnSpy: ReturnType<typeof vi.spyOn>;
   let errorSpy: ReturnType<typeof vi.spyOn>;
-  let logSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -26,8 +24,8 @@ describe("Logger", () => {
     logger.debug("d");
     expect(errorSpy).toHaveBeenCalledTimes(1);
     expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(infoSpy).toHaveBeenCalledTimes(1);
-    expect(logSpy).toHaveBeenCalledTimes(1);
+    expect(infoSpy).toHaveBeenCalledTimes(2);
+    expect(infoSpy.mock.calls[1][0] as string).toContain("DEBUG");
   });
 
   it("production mode suppresses debug", () => {
@@ -39,7 +37,6 @@ describe("Logger", () => {
     expect(errorSpy).toHaveBeenCalledTimes(1);
     expect(warnSpy).toHaveBeenCalledTimes(1);
     expect(infoSpy).toHaveBeenCalledTimes(1);
-    expect(logSpy).toHaveBeenCalledTimes(0);
   });
 
   it("format includes local timestamp", () => {
@@ -65,7 +62,7 @@ describe("Logger", () => {
     expect(errorSpy.mock.calls[0][0] as string).toContain("ERROR");
     expect(warnSpy.mock.calls[0][0] as string).toContain("WARN ");
     expect(infoSpy.mock.calls[0][0] as string).toContain("INFO ");
-    expect(logSpy.mock.calls[0][0] as string).toContain("DEBUG");
+    expect(infoSpy.mock.calls[1][0] as string).toContain("DEBUG");
   });
 
   it("format includes message", () => {

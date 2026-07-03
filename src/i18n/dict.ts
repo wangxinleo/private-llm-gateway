@@ -78,13 +78,14 @@ const zh: Record<string, string> = {
   "audit.confirmCleanup": "确认清理",
   "audit.confirmCleanupDesc": "将删除 {date} 之前动作类型为「{action}」的记录，预估 {count} 条",
   "audit.revealValues": "揭示原始值",
-  "audit.revealValuesActive": "原始值可见",
+  "audit.revealValuesActive": "原始值可复制",
   "audit.matchedValuesLabel": "匹配原始值",
   "audit.revealRequired": "点击工具栏「揭示原始值」按钮并输入管理员密码后可见",
   "audit.revealPasswordTitle": "揭示原始值",
-  "audit.revealPasswordDesc": "输入管理员密码以查看被拦截/脱敏的原始值，有效期 30 分钟",
+  "audit.revealPasswordDesc": "输入管理员密码以加载被拦截/脱敏的原始值；界面仍会部分掩码显示，复制按钮复制真实值。有效期 30 分钟",
   "audit.revealPasswordPlaceholder": "输入管理员密码",
   "audit.revealConfirm": "确认揭示",
+  "audit.copyRaw": "复制原始值",
   "audit.bypassAllowed": "放行(跳过拦截)",
 
   // Rules page
@@ -282,13 +283,14 @@ const en: Record<string, string> = {
   "audit.confirmCleanup": "Confirm Cleanup",
   "audit.confirmCleanupDesc": "Records before {date} with action \"{action}\" will be deleted. Estimated count: {count}",
   "audit.revealValues": "Reveal Values",
-  "audit.revealValuesActive": "Values Visible",
+  "audit.revealValuesActive": "Raw Copy Enabled",
   "audit.matchedValuesLabel": "Matched Values",
   "audit.revealRequired": "Click \"Reveal Values\" in toolbar and enter admin password to view",
   "audit.revealPasswordTitle": "Reveal Matched Values",
-  "audit.revealPasswordDesc": "Enter admin password to view intercepted/masked original values. Valid for 30 minutes.",
+  "audit.revealPasswordDesc": "Enter admin password to load intercepted/masked original values. The UI still partially masks display; copy uses the real value. Valid for 30 minutes.",
   "audit.revealPasswordPlaceholder": "Enter admin password",
   "audit.revealConfirm": "Confirm Reveal",
+  "audit.copyRaw": "Copy raw value",
   "audit.bypassAllowed": "Bypass",
 
   // Rules page

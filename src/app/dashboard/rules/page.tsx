@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useLocale } from "@/i18n";
+import { isStringArrayConfigValue } from "@/lib/admin-config";
 import { useAdminAuth } from "@/lib/admin-auth-context";
+import type { AdminConfigResponse } from "@/types";
 
 interface BypassRule {
   id: number;
@@ -79,9 +82,9 @@ export default function RulesPage() {
     try {
       const res = await authedFetch("/api/admin/config");
       if (!res.ok) return;
-      const data = await res.json();
-      if (data.editableConfigs?.path_prefix_options?.value) {
-        const options = data.editableConfigs.path_prefix_options.value;
+      const data = await res.json() as AdminConfigResponse;
+      const options = data.editableConfigs?.path_prefix_options?.value;
+      if (isStringArrayConfigValue(options)) {
         setPathPrefixOptions(options);
         // Set first option as default if form is still empty
         if (options.length > 0 && !form.pathPrefix) {

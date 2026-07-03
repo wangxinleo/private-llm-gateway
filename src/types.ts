@@ -22,6 +22,50 @@ export type FindingCategory =
 
 export type ActionType = "block" | "mask" | "allow";
 
+export interface ExclusionRule {
+  category: FindingCategory;
+  mode: "exact" | "regex";
+  value: string;
+}
+
+export type EditableConfigType = "number" | "string" | "json_array";
+export type EditableConfigValue = number | string | string[] | ExclusionRule[];
+
+export interface EditableConfig {
+  value: EditableConfigValue;
+  type: EditableConfigType;
+  description?: string;
+}
+
+export interface AdminConfigResponse {
+  env?: {
+    upstreamUrl: string;
+    dbPath: string;
+    debug: boolean;
+    nodeEnv: string;
+    port: string;
+  };
+  editableConfigs?: Record<string, EditableConfig>;
+  constants?: {
+    sizeThresholds: {
+      fullScan: number;
+      chunkedScan: number;
+    };
+    chunkSize: number;
+    contextKey: {
+      minLength: number;
+      maxLength: number;
+      maxSpaces: number;
+    };
+  };
+  dbStats?: {
+    totalRecords: number;
+    earliestRecord: string | null;
+    latestRecord: string | null;
+    dbFileSize: number;
+  };
+}
+
 export interface Finding {
   category: FindingCategory;
   action: ActionType;
@@ -53,7 +97,7 @@ export interface AuditEntry {
   model?: string;
   filenames: string[];
   findings: FindingCategory[];
-  matchedValues?: Record<string, string[]>;
+  matchedValues: Record<string, string[]>;
   action: ActionType;
   maskApplied?: boolean;
   maskCategories?: FindingCategory[];

@@ -1,8 +1,3 @@
-# ========================================
-# Docker Compose Configuration
-# ========================================
-# Uses ONLY bind mounts (no named volumes)
-
 services:
   privacy-proxy:
     image: ghcr.io/wangxinleo/private-llm-gateway:latest
@@ -12,14 +7,12 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
-      TZ: Asia/Shanghai
-      UPSTREAM_URL: http://localhost:8787
+      UPSTREAM_URL: http://host.docker.internal:8787
       DB_PATH: /data/audit.sqlite
-      ADMIN_KEY: ${ADMIN_KEY:-}
+      ADMIN_KEY: ""
     ports:
       - "3000:3000"
     volumes:
-      # Bind mount for persistent data (no named volumes per user requirement)
       - ./data:/data
     healthcheck:
       test:

@@ -145,8 +145,8 @@ describe("admin audit routes", () => {
       const req = makeRequest("GET", "/api/admin/audit", { adminKey: "test-key" });
       const res = await GET(req);
       const json = await res.json();
-      expect(json.rows[0]).toMatchObject({
-        matchedValues: { JWT: ["eyJhbGciOiJIUzI1NiJ9.payload.sig"] },
+      expect(json.rows[0].matchedValues).toEqual({
+        JWT: ["eyJhbGciOiJIUzI1NiJ9.payload.sig"],
       });
     });
 

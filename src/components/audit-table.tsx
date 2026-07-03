@@ -1,5 +1,22 @@
 "use client";
 
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Trash2,
+  Download,
+  RefreshCw,
+  ChevronDown,
+  ChevronRight,
+  X,
+  AlertTriangle,
+  Check,
+  Clock,
+  Copy,
+  Eye,
+  EyeOff,
+  Lock,
+} from "lucide-react";
+
 import {
   Table,
   TableHeader,
@@ -21,24 +38,11 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/i18n";
+import { isStringArrayConfigValue } from "@/lib/admin-config";
+import { maskMatchedValue } from "@/lib/matched-values";
 import { useAdminAuth } from "@/lib/admin-auth-context";
-import {
-  Trash2,
-  Download,
-  RefreshCw,
-  ChevronDown,
-  ChevronRight,
-  X,
-  AlertTriangle,
-  Clock,
-  Eye,
-  EyeOff,
-  Lock,
-} from "lucide-react";
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import type { ActionType, AdminConfigResponse, FindingCategory } from "@/types";
 
-type FindingCategory = string;
-type ActionType = "allow" | "mask" | "block";
 type TimeRangePreset = "today" | "last3days" | "thisWeek" | "thisMonth" | "last3months" | "last6months";
 
 interface AuditRow {
@@ -168,7 +172,9 @@ export function AuditTable() {
   const [revealExpiry, setRevealExpiry] = useState<number | null>(null);
   const [revealLoading, setRevealLoading] = useState(false);
   const [revealDialog, setRevealDialog] = useState<{ open: boolean; password: string }>({ open: false, password: "" });
+  const [copiedValueKey, setCopiedValueKey] = useState<string | null>(null);
   const revealTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [action, setAction] = useState("");
   const [method, setMethod] = useState("");
@@ -248,9 +254,10 @@ export function AuditTable() {
     try {
       const res = await authedFetch("/api/admin/config");
       if (!res.ok) return;
-      const data = await res.json();
-      if (data.editableConfigs?.path_prefix_options?.value) {
-        setPathPrefixOptions(data.editableConfigs.path_prefix_options.value);
+      const data = await res.json() as AdminConfigResponse;
+      const options = data.editableConfigs?.path_prefix_options?.value;
+      if (isStringArrayConfigValue(options)) {
+        setPathPrefixOptions(options);
       }
     } catch (err) {
       console.error("Failed to load path prefix options:", err);
@@ -269,10 +276,11 @@ export function AuditTable() {
         if (data.active && data.expiresAt && data.expiresAt > Date.now()) {
           setRevealAuthed(true);
           setRevealExpiry(data.expiresAt);
+          fetchData(1);
         }
       });
     }).catch(() => {});
-  }, [adminKey, authedFetch]);
+  }, [adminKey, authedFetch, fetchData]);
 
   useEffect(() => { fetchData(1); }, [fetchData]);
 
@@ -342,6 +350,19 @@ export function AuditTable() {
     }, 1000);
     return () => { if (revealTimerRef.current) clearInterval(revealTimerRef.current); };
   }, [revealAuthed, revealExpiry]);
+
+  useEffect(() => () => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }, []);
+
+  const handleCopyMatchedValue = useCallback(async (value: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedValueKey(key);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopiedValueKey(null), 1500);
+    } catch {
+      // Clipboard may be unavailable in non-secure contexts.
+    }
+  }, []);
 
   const toggleExpand = (id: number) => {
     setExpandedIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -585,11 +606,20 @@ export function AuditTable() {
                                  {Object.entries(row.matchedValues).map(([category, values]) => (
                                    <div key={category} className="flex items-start gap-2">
                                      <Badge variant="outline" className="font-mono text-xs shrink-0">{category}</Badge>
-                                     <div className="flex flex-wrap gap-1">
+                                      <div className="flex flex-wrap gap-1">
                                        {values.map((v, i) => (
-                                         <code key={i} className="rounded border border-destructive/30 bg-destructive/5 px-1.5 py-0.5 font-mono text-xs text-destructive break-all">
-                                           {v.slice(0, 100)}{v.length > 100 ? "…" : ""}
-                                         </code>
+                                         <span key={i} className="inline-flex items-center gap-1 rounded border border-destructive/30 bg-destructive/5 px-1.5 py-0.5">
+                                           <code className="font-mono text-xs text-destructive break-all">{maskMatchedValue(v)}</code>
+                                           <Button
+                                             variant="ghost"
+                                             size="icon"
+                                             className="h-4 w-4 text-muted-foreground hover:text-foreground"
+                                             aria-label={t("audit.copyRaw")}
+                                             onClick={() => handleCopyMatchedValue(v, `${row.id}:${category}:${i}`)}
+                                           >
+                                             {copiedValueKey === `${row.id}:${category}:${i}` ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                                           </Button>
+                                         </span>
                                        ))}
                                      </div>
                                    </div>

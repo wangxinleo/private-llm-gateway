@@ -1,14 +1,10 @@
-import type { FindingCategory } from "@/types";
+import type { ExclusionRule } from "@/types";
+
+export type { ExclusionRule } from "@/types";
 
 const UPSTREAM_URL = process.env.UPSTREAM_URL ?? "http://localhost:8787";
 const DB_PATH = process.env.DB_PATH ?? "audit.sqlite";
 const DEBUG = process.env.DEBUG === "true" || process.env.NODE_ENV !== "production";
-
-export interface ExclusionRule {
-  category: FindingCategory;
-  mode: "exact" | "regex";
-  value: string;
-}
 
 // Default values for hot-reloadable configs
 export const DEFAULT_CONFIG_VALUES = {

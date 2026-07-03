@@ -15,12 +15,12 @@ export function logAudit(params: {
   bypassApplied?: boolean;
   duration?: number;
 }): void {
-  const matchedValues: Record<string, string[]> = {};
-  for (const finding of params.findings) {
-    const values = matchedValues[finding.category] ?? [];
+  const matchedValues = params.findings.reduce<Record<string, string[]>>((acc, finding) => {
+    const values = acc[finding.category] ?? [];
     values.push(finding.matched);
-    matchedValues[finding.category] = values;
-  }
+    acc[finding.category] = values;
+    return acc;
+  }, {});
 
   const entry: AuditEntry = {
     timestamp: new Date().toISOString(),

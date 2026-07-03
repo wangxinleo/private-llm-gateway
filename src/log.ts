@@ -66,6 +66,6 @@ export class Logger {
   }
 
   debug(...args: unknown[]): void {
-    if (shouldLog("debug", this.verbose)) console.log(formatMsg("debug", this.tag, args));
+    if (shouldLog("debug", this.verbose)) console.info(formatMsg("debug", this.tag, args));
   }
 }

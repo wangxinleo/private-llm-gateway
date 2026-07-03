@@ -1,9 +1,12 @@
 import { getConfig, setConfig, getAllConfigs } from "@/audit";
-import { SIZE_THRESHOLDS, CONFIG_STATE, CONTEXT_KEY, PATH_PREFIX_OPTIONS, SCANNER_EXCLUSIONS, DEFAULT_EXCLUSION_RULES, DEFAULT_CONFIG_VALUES } from "@/config";
+import { SIZE_THRESHOLDS, CONFIG_STATE, CONTEXT_KEY, PATH_PREFIX_OPTIONS, SCANNER_EXCLUSIONS, DEFAULT_CONFIG_VALUES } from "@/config";
+import type { EditableConfigType } from "@/types";
+import { Logger } from "@/log";
 
 let configsInitialized = false;
+const log = new Logger("config");
 
-export function initializeConfigs() {
+export function initializeConfigs(): void {
   if (configsInitialized) return;
   configsInitialized = true;
 
@@ -12,15 +15,20 @@ export function initializeConfigs() {
     const configMap = new Map(configs.map(c => [c.key, c]));
 
     // Load or initialize each config
-    const loadOrInit = (key: string, defaultValue: any, type: 'number' | 'string' | 'json_array', description: string) => {
+    const loadOrInit = <T extends number | string | unknown[]>(
+      key: string,
+      defaultValue: T,
+      type: EditableConfigType,
+      description: string
+    ): T => {
       const config = configMap.get(key);
       if (config) {
-        return type === 'json_array' ? JSON.parse(config.value) : type === 'number' ? parseInt(config.value, 10) : config.value;
-      } else {
-        const value = type === 'json_array' ? JSON.stringify(defaultValue) : String(defaultValue);
-        setConfig(key, value, type, description);
-        return defaultValue;
+        return (type === "json_array" ? JSON.parse(config.value) : type === "number" ? parseInt(config.value, 10) : config.value) as T;
       }
+
+      const value = type === "json_array" ? JSON.stringify(defaultValue) : String(defaultValue);
+      setConfig(key, value, type, description);
+      return defaultValue;
     };
 
     SIZE_THRESHOLDS.FULL_SCAN = loadOrInit("size_threshold_full_scan", DEFAULT_CONFIG_VALUES.SIZE_THRESHOLD_FULL_SCAN, "number", "Full scan threshold in bytes");
@@ -35,13 +43,13 @@ export function initializeConfigs() {
     SCANNER_EXCLUSIONS.length = 0;
     SCANNER_EXCLUSIONS.push(...loadOrInit("scanner_exclusions", DEFAULT_CONFIG_VALUES.SCANNER_EXCLUSIONS, "json_array", "Scanner exclusion rules (false positive suppression)"));
   } catch (err) {
-    console.error("Failed to initialize configs from database:", err);
+    log.error("failed to initialize configs from database", err instanceof Error ? err.message : String(err));
     // Fall back to defaults on error
   }
 }
 
 // Refresh config from database (called after config updates via API)
-export function refreshConfig(key: string) {
+export function refreshConfig(key: string): void {
   const config = getConfig(key);
   if (!config) return;
 

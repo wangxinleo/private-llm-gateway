@@ -88,7 +88,7 @@ describe("admin config and stats routes", () => {
         earliestRecord: "2024-01-01",
         latestRecord: "2024-12-31",
       });
-      vi.mocked(statSync).mockReturnValue({ size: 4096 } as any);
+      vi.mocked(statSync).mockReturnValue({ size: 4096 } as ReturnType<typeof statSync>);
 
       const res = await configGET(makeRequest("test-key"));
       expect(res.status).toBe(200);
