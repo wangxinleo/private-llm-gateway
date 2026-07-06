@@ -2,6 +2,7 @@
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { OverflowBadges } from "@/components/overflow-badges";
 import { useLocale } from "@/i18n";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import { ShieldAlert, Eye, CheckCircle, Activity } from "lucide-react";
@@ -84,44 +85,36 @@ export function DashboardContent() {
         <StatCard title={t("overview.allowed")} value={stats.allowed} icon={CheckCircle} color="text-success" />
       </div>
 
-      <Card className="border-border/50">
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card className="overflow-hidden border-border/50">
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
           <CardTitle className="font-mono text-sm font-semibold tracking-wide">
             {t("overview.recentIncidents")}
           </CardTitle>
           <Link
             href="/dashboard/audit"
-            className="text-xs font-medium text-primary hover:underline"
+            className="shrink-0 text-xs font-medium text-primary hover:underline"
           >
             {t("overview.viewAll")}
           </Link>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0">
           {recentBlocked.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
               {t("overview.noIncidents")}
             </p>
           ) : (
-            <div className="divide-y divide-border/50">
+            <div className="min-w-0 divide-y divide-border/50">
               {recentBlocked.map((row) => (
-                <div key={row.id} className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-3">
-    <Badge variant={row.action === "block" ? "destructive" : "warning"} className="font-mono text-xs">
-                       {t(`action.${row.action}`)}
-                     </Badge>
-                    <span className="font-mono text-sm text-muted-foreground">{row.method}</span>
-                    <span className="max-w-[300px] truncate text-sm">{row.path}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      {row.findings.map((f: string) => (
-                        <Badge key={f} variant="outline" className="font-mono text-xs">{f}</Badge>
-                      ))}
-                    </div>
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {new Date(row.timestamp).toLocaleString()}
-                    </span>
-                  </div>
+                <div key={row.id} className="flex min-w-0 items-center gap-3 py-3">
+                  <Badge variant={row.action === "block" ? "destructive" : "warning"} className="shrink-0 font-mono text-xs">
+                    {t(`action.${row.action}`)}
+                  </Badge>
+                  <span className="shrink-0 font-mono text-sm text-muted-foreground">{row.method}</span>
+                  <span className="min-w-0 flex-[2] truncate text-sm">{row.path}</span>
+                  <OverflowBadges items={row.findings} className="min-w-0 flex-1" />
+                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                    {new Date(row.timestamp).toLocaleString()}
+                  </span>
                 </div>
               ))}
             </div>

@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { OverflowBadges } from "@/components/overflow-badges";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -115,7 +116,12 @@ function formatDuration(ms: number): string {
 
 function ActionBadge({ action, label }: { action: ActionType; label: string }) {
   const variant = action === "block" ? "destructive" : action === "mask" ? "warning" : "success";
-  return <Badge variant={variant} className="font-mono text-xs">{label}</Badge>;
+  return <Badge variant={variant} className="shrink-0 whitespace-nowrap font-mono text-xs">{label}</Badge>;
+}
+
+function getFindingVariant(finding: string): "destructive" | "warning" | "outline" {
+  if (finding === "SENSITIVE_FILENAME") return "destructive";
+  return ["PHONE", "EMAIL", "ID_CARD", "BANK_CARD"].includes(finding) ? "warning" : "outline";
 }
 
 function formatCountdown(ms: number): string {
@@ -582,21 +588,34 @@ export function AuditTable() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-border/50">
-        <Table>
+      <div className="overflow-hidden rounded-lg border border-border/50">
+        <Table className="table-fixed">
+          <colgroup>
+            <col className="w-10" />
+            <col className="w-8" />
+            <col className="w-36" />
+            <col className="w-20" />
+            <col className="w-[24%]" />
+            <col className="w-[12%]" />
+            <col className="w-20" />
+            <col className="w-[12%]" />
+            <col className="w-[16%]" />
+            <col className="w-24" />
+            <col className="w-28" />
+          </colgroup>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="w-10"><Checkbox checked={data.rows.length > 0 && selectedIds.size === data.rows.length} onCheckedChange={toggleSelectAll} /></TableHead>
-              <TableHead className="w-6" />
-              <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.time")}</TableHead>
-              <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.method")}</TableHead>
-              <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.path")}</TableHead>
-              <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.type")}</TableHead>
-              <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.size")}</TableHead>
-              <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.model")}</TableHead>
-              <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.findings")}</TableHead>
-              <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.duration")}</TableHead>
-              <TableHead className="font-mono text-sm uppercase tracking-wider">{t("audit.col.action")}</TableHead>
+              <TableHead className="w-8" />
+              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.time")}</TableHead>
+              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.method")}</TableHead>
+              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.path")}</TableHead>
+              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.type")}</TableHead>
+              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.size")}</TableHead>
+              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.model")}</TableHead>
+              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.findings")}</TableHead>
+              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.duration")}</TableHead>
+              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.action")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -613,99 +632,92 @@ export function AuditTable() {
               return (
                 <Fragment key={row.id}>
                   <TableRow data-state={selected ? "selected" : undefined} className={cn(row.action === "block" && "bg-destructive/5", row.action === "mask" && "bg-warning/5", row.bypassApplied && row.findings.length > 0 && "bg-warning/5")}>
-                    <TableCell onClick={(e) => e.stopPropagation()}><Checkbox checked={selected} onCheckedChange={() => toggleSelect(row.id)} /></TableCell>
-                    <TableCell><button onClick={clickRow} className="text-muted-foreground hover:text-foreground">{expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}</button></TableCell>
-                    <TableCell onClick={clickRow} className="cursor-pointer font-mono text-xs tabular-nums text-muted-foreground">{formatTime(row.timestamp)}</TableCell>
-                    <TableCell onClick={clickRow}><Badge variant="outline" className="font-mono text-xs">{row.method}</Badge></TableCell>
-                    <TableCell onClick={clickRow} className="cursor-pointer max-w-[280px] truncate text-sm">{row.path}</TableCell>
-                    <TableCell onClick={clickRow} className="cursor-pointer text-xs text-muted-foreground"><span className="max-w-[120px] truncate inline-block align-bottom">{row.contentType}</span></TableCell>
-                    <TableCell onClick={clickRow} className="cursor-pointer font-mono text-xs tabular-nums text-muted-foreground">{formatBytes(row.bodySize)}</TableCell>
-                    <TableCell onClick={clickRow} className="cursor-pointer max-w-[140px] truncate text-sm font-mono">{row.model || "—"}</TableCell>
-                    <TableCell onClick={clickRow}>
-                      <div className="flex flex-wrap gap-1">
-                        {row.findings.slice(0, 2).map((f) => (<Badge key={f} variant="outline" className="font-mono text-xs">{f}</Badge>))}
-                        {row.findings.length > 2 && (<Badge variant="outline" className="font-mono text-xs text-muted-foreground">+{row.findings.length - 2}</Badge>)}
-                      </div>
+                    <TableCell onClick={(e) => e.stopPropagation()} className="overflow-hidden whitespace-nowrap"><Checkbox checked={selected} onCheckedChange={() => toggleSelect(row.id)} /></TableCell>
+                    <TableCell className="overflow-hidden whitespace-nowrap"><button onClick={clickRow} className="text-muted-foreground hover:text-foreground">{expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}</button></TableCell>
+                    <TableCell onClick={clickRow} className="cursor-pointer overflow-hidden whitespace-nowrap font-mono text-xs tabular-nums text-muted-foreground">{formatTime(row.timestamp)}</TableCell>
+                    <TableCell onClick={clickRow} className="overflow-hidden whitespace-nowrap"><Badge variant="outline" className="shrink-0 whitespace-nowrap font-mono text-xs">{row.method}</Badge></TableCell>
+                    <TableCell onClick={clickRow} className="cursor-pointer overflow-hidden whitespace-nowrap text-sm"><span className="block truncate">{row.path}</span></TableCell>
+                    <TableCell onClick={clickRow} className="cursor-pointer overflow-hidden whitespace-nowrap text-xs text-muted-foreground"><span className="block truncate">{row.contentType}</span></TableCell>
+                    <TableCell onClick={clickRow} className="cursor-pointer overflow-hidden whitespace-nowrap font-mono text-xs tabular-nums text-muted-foreground">{formatBytes(row.bodySize)}</TableCell>
+                    <TableCell onClick={clickRow} className="cursor-pointer overflow-hidden whitespace-nowrap text-sm font-mono"><span className="block truncate">{row.model || "—"}</span></TableCell>
+                    <TableCell onClick={clickRow} className="overflow-hidden whitespace-nowrap">
+                      <OverflowBadges items={row.findings} getVariant={getFindingVariant} />
                     </TableCell>
-                    <TableCell onClick={clickRow} className="cursor-pointer font-mono text-xs tabular-nums text-muted-foreground">{row.duration != null ? formatDuration(row.duration) : "—"}</TableCell>
-                    <TableCell onClick={clickRow}>
-                      <div className="flex items-center gap-1">
+                    <TableCell onClick={clickRow} className="cursor-pointer overflow-hidden whitespace-nowrap font-mono text-xs tabular-nums text-muted-foreground">{row.duration != null ? formatDuration(row.duration) : "—"}</TableCell>
+                    <TableCell onClick={clickRow} className="overflow-hidden whitespace-nowrap">
+                      <div className="flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap">
                         <ActionBadge action={row.action} label={t(`action.${row.action}`)} />
-                        {row.bypassApplied && <Badge variant="outline" className="font-mono text-xs text-warning border-warning/50">{t("audit.bypassAllowed")}</Badge>}
+                        {row.bypassApplied && <Badge variant="outline" className="min-w-0 truncate whitespace-nowrap border-warning/50 font-mono text-xs text-warning">{t("audit.bypassAllowed")}</Badge>}
                       </div>
                     </TableCell>
                   </TableRow>
                   {expanded && (
                     <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={11} className="p-0">
-                        <div className="border-b border-border/50 bg-card/80 px-4 py-3">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <code className="font-mono text-sm text-muted-foreground">#{row.id}</code>
-                              <Badge variant="outline" className="font-mono text-xs">{row.method}</Badge>
+                      <TableCell colSpan={11} className="overflow-hidden p-0">
+                        <div className="max-w-full overflow-hidden border-b border-border/50 bg-card/80 px-4 py-3">
+                          <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap">
+                              <code className="shrink-0 font-mono text-sm text-muted-foreground">#{row.id}</code>
+                              <Badge variant="outline" className="shrink-0 whitespace-nowrap font-mono text-xs">{row.method}</Badge>
                               <ActionBadge action={row.action} label={t(`action.${row.action}`)} />
-                              {row.bypassApplied && <Badge variant="outline" className="font-mono text-xs text-warning border-warning/50">{t("audit.bypassAllowed")}</Badge>}
+                              {row.bypassApplied && <Badge variant="outline" className="min-w-0 truncate whitespace-nowrap border-warning/50 font-mono text-xs text-warning">{t("audit.bypassAllowed")}</Badge>}
                             </div>
-                            <Button variant="destructive" size="sm" className="h-6 text-xs" onClick={() => handleDeleteSingle(row.id)}>
+                            <Button variant="destructive" size="sm" className="h-6 shrink-0 text-xs" onClick={() => handleDeleteSingle(row.id)}>
                               <Trash2 className="mr-1 h-3 w-3" />{t("audit.delete")}
                             </Button>
                           </div>
                           <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                             <div><span className="text-muted-foreground">{t("audit.pathLabel")}: </span><code className="font-mono text-sm">{row.path}</code></div>
-                              <div><span className="text-muted-foreground">{t("audit.contentTypeLabel")}: </span><code className="font-mono text-sm">{row.contentType}</code></div>
-                              <div><span className="text-muted-foreground">{t("audit.bodySizeLabel")}: </span><span className="font-mono text-sm">{formatBytes(row.bodySize)}</span></div>
-                              <div><span className="text-muted-foreground">{t("audit.modelLabel")}: </span><code className="font-mono text-sm">{row.model || "—"}</code></div>
-                              <div><span className="text-muted-foreground">{t("audit.timeLabel")}: </span><span className="font-mono text-sm">{formatTime(row.timestamp)}</span></div>
-                              <div><span className="text-muted-foreground">{t("audit.durationLabel")}: </span><span className="font-mono text-sm">{row.duration != null ? formatDuration(row.duration) : "—"}</span></div>
-                           </div>
-                           {row.findings.length > 0 && (
-                             <div className="mt-3">
-                               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">{t("audit.findingsLabel")}</p>
-                               <div className="flex flex-wrap gap-1.5">
-                                 {row.findings.map((f) => (<Badge key={f} variant={f === "SENSITIVE_FILENAME" ? "destructive" : ["PHONE", "EMAIL", "ID_CARD", "BANK_CARD"].includes(f) ? "warning" : "outline"} className="font-mono text-xs">{f}</Badge>))}
-                               </div>
-                             </div>
-                           )}
-                           {revealAuthed && row.matchedValues && Object.keys(row.matchedValues).length > 0 && (
-                             <div className="mt-3">
-                               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">{t("audit.matchedValuesLabel")}</p>
-                               <div className="space-y-1.5">
-                                 {Object.entries(row.matchedValues).map(([category, values]) => (
-                                   <div key={category} className="flex items-start gap-2">
-                                     <Badge variant="outline" className="font-mono text-xs shrink-0">{category}</Badge>
-                                      <div className="flex flex-wrap gap-1">
-                                       {values.map((v, i) => (
-                                         <span key={i} className="inline-flex items-center gap-1 rounded border border-destructive/30 bg-destructive/5 px-1.5 py-0.5">
-                                           <code className="font-mono text-xs text-destructive break-all">{maskMatchedValue(v)}</code>
-                                           <Button
-                                             variant="ghost"
-                                             size="icon"
-                                             className="h-4 w-4 text-muted-foreground hover:text-foreground"
-                                             aria-label={t("audit.copyRaw")}
-                                             onClick={() => handleCopyMatchedValue(v, `${row.id}:${category}:${i}`)}
-                                           >
-                                             {copiedValueKey === `${row.id}:${category}:${i}` ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                                           </Button>
-                                         </span>
-                                       ))}
-                                     </div>
-                                   </div>
-                                 ))}
-                               </div>
-                             </div>
-                           )}
-                           {!revealAuthed && row.findings.length > 0 && (
-                             <div className="mt-3">
-                               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">{t("audit.matchedValuesLabel")}</p>
-                               <p className="text-xs text-muted-foreground italic">{t("audit.revealRequired")}</p>
-                             </div>
-                           )}
-                           {row.filenames.length > 0 && (
-                             <div className="mt-3">
-                               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">{t("audit.filenamesLabel")}</p>
-                               <div className="flex flex-wrap gap-1.5">
-                                 {row.filenames.map((f) => (<code key={f} className="rounded border border-border/30 bg-muted px-1.5 py-0.5 font-mono text-xs">{f}</code>))}
+                            <div className="min-w-0 truncate whitespace-nowrap"><span className="text-muted-foreground">{t("audit.pathLabel")}: </span><code className="font-mono text-sm">{row.path}</code></div>
+                            <div className="min-w-0 truncate whitespace-nowrap"><span className="text-muted-foreground">{t("audit.contentTypeLabel")}: </span><code className="font-mono text-sm">{row.contentType}</code></div>
+                            <div className="min-w-0 truncate whitespace-nowrap"><span className="text-muted-foreground">{t("audit.bodySizeLabel")}: </span><span className="font-mono text-sm">{formatBytes(row.bodySize)}</span></div>
+                            <div className="min-w-0 truncate whitespace-nowrap"><span className="text-muted-foreground">{t("audit.modelLabel")}: </span><code className="font-mono text-sm">{row.model || "—"}</code></div>
+                            <div className="min-w-0 truncate whitespace-nowrap"><span className="text-muted-foreground">{t("audit.timeLabel")}: </span><span className="font-mono text-sm">{formatTime(row.timestamp)}</span></div>
+                            <div className="min-w-0 truncate whitespace-nowrap"><span className="text-muted-foreground">{t("audit.durationLabel")}: </span><span className="font-mono text-sm">{row.duration != null ? formatDuration(row.duration) : "—"}</span></div>
+                          </div>
+                          {row.findings.length > 0 && (
+                            <div className="mt-3 min-w-0">
+                              <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.findingsLabel")}</p>
+                              <OverflowBadges items={row.findings} getVariant={getFindingVariant} />
+                            </div>
+                          )}
+                          {revealAuthed && row.matchedValues && Object.keys(row.matchedValues).length > 0 && (
+                            <div className="mt-3 min-w-0">
+                              <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.matchedValuesLabel")}</p>
+                              <div className="space-y-1.5">
+                                {Object.entries(row.matchedValues).map(([category, values]) => (
+                                  <div key={category} className="flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap">
+                                    <Badge variant="outline" className="shrink-0 whitespace-nowrap font-mono text-xs">{category}</Badge>
+                                    <div className="flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap">
+                                      {values.map((v, i) => (
+                                        <span key={i} className="inline-flex min-w-0 max-w-[240px] shrink items-center gap-1 rounded border border-destructive/30 bg-destructive/5 px-1.5 py-0.5">
+                                          <code className="min-w-0 truncate font-mono text-xs text-destructive">{maskMatchedValue(v)}</code>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-4 w-4 shrink-0 text-muted-foreground hover:text-foreground"
+                                            aria-label={t("audit.copyRaw")}
+                                            onClick={() => handleCopyMatchedValue(v, `${row.id}:${category}:${i}`)}
+                                          >
+                                            {copiedValueKey === `${row.id}:${category}:${i}` ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                                          </Button>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
+                            </div>
+                          )}
+                          {!revealAuthed && row.findings.length > 0 && (
+                            <div className="mt-3">
+                              <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.matchedValuesLabel")}</p>
+                              <p className="truncate whitespace-nowrap text-xs italic text-muted-foreground">{t("audit.revealRequired")}</p>
+                            </div>
+                          )}
+                          {row.filenames.length > 0 && (
+                            <div className="mt-3 min-w-0">
+                              <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.filenamesLabel")}</p>
+                              <OverflowBadges items={row.filenames} />
                             </div>
                           )}
                         </div>
