@@ -3,42 +3,71 @@ import { isBlockCategory } from "@/types";
 
 type ScanFn = (text: string, size: number) => ScanResult;
 
+const PATH_SEPARATOR = ".";
+
 export function isJsonContentType(contentType: string): boolean {
   const ct = contentType.toLowerCase().trim();
   return ct.startsWith("application/json") || ct.includes("+json");
 }
 
+function byteLength(str: string): number {
+  return new TextEncoder().encode(str).length;
+}
+
+function buildContextText(value: string, path: string[]): string {
+  const key = path.at(-1);
+  if (!key) return value;
+
+  const fullPath = path.join(PATH_SEPARATOR);
+  return key === fullPath
+    ? `${key}=${value}`
+    : `${key}=${value}\n${fullPath}=${value}`;
+}
+
+function maskStringValue(value: string, findings: Finding[]): string {
+  let masked = value;
+  for (const finding of findings) {
+    if (finding.action === "mask" && finding.maskTag) {
+      masked = masked.replaceAll(finding.matched, finding.maskTag);
+    }
+  }
+  return masked;
+}
+
 function scanValue(
   value: unknown,
   scan: ScanFn,
-  findings: Finding[]
+  findings: Finding[],
+  path: string[] = []
 ): unknown {
   if (typeof value === "string") {
-    const result = scan(value, value.length);
+    const scanText = buildContextText(value, path);
+    const result = scan(scanText, byteLength(scanText));
+
+    for (const finding of result.findings) {
+      if (result.action === "block") {
+        if (isBlockCategory(finding.category)) findings.push(finding);
+      } else {
+        findings.push(finding);
+      }
+    }
 
     if (result.action === "block") {
-      for (const f of result.findings) {
-        if (isBlockCategory(f.category)) findings.push(f);
-      }
       return value;
     }
 
-    for (const f of result.findings) {
-      findings.push(f);
-    }
-
-    return result.maskedBody !== value ? result.maskedBody : value;
+    return maskStringValue(value, result.findings);
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => scanValue(item, scan, findings));
+    return value.map((item, index) => scanValue(item, scan, findings, [...path, String(index)]));
   }
 
   if (value !== null && typeof value === "object") {
     const obj = value as Record<string, unknown>;
     const result: Record<string, unknown> = {};
     for (const key of Object.keys(obj)) {
-      result[key] = scanValue(obj[key], scan, findings);
+      result[key] = scanValue(obj[key], scan, findings, [...path, key]);
     }
     return result;
   }
@@ -51,7 +80,7 @@ export function maskJsonBody(body: string, scan: ScanFn): ScanResult {
   try {
     parsed = JSON.parse(body);
   } catch {
-    return scan(body, body.length);
+    return scan(body, byteLength(body));
   }
 
   const findings: Finding[] = [];

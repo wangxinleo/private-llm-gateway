@@ -9,6 +9,7 @@ import { applyDisambiguation } from "@/proxy/disambiguation";
 import { logAudit } from "@/audit/logger";
 import { Logger } from "@/log";
 import { PRIVACY_DEBUG_HEADERS } from "@/config";
+import { initializeConfigs } from "@/config-loader";
 import { findMatchingBypassRule } from "@/bypass/store";
 import { extractRequestModel } from "@/bypass/rules";
 
@@ -18,7 +19,8 @@ const MULTIPART = "multipart/form-data";
 
 function extractPath(request: NextRequest): string {
   const url = new URL(request.url);
-  return url.pathname.replace(/^\/api/, "") || "/";
+  const path = url.pathname.replace(/^\/api/, "") || "/";
+  return `${path}${url.search}`;
 }
 
 function isMultipart(contentType: string): boolean {
@@ -71,6 +73,7 @@ export async function DELETE(request: NextRequest) {
 
 async function handleRequest(request: NextRequest): Promise<Response> {
   const startTime = performance.now();
+  initializeConfigs();
   const path = extractPath(request);
   const method = request.method;
   const contentType = request.headers.get("content-type") ?? "";

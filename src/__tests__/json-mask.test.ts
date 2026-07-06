@@ -189,4 +189,47 @@ describe("maskJsonBody", () => {
     expect(parsed.config.timeout).toBe(30);
     expect(parsed.config.retries).toBe(5);
   });
+  it("detects contextual secrets from JSON field keys without leaking synthetic context", () => {
+    const rawSecret = "abc12345_67890";
+    const body = JSON.stringify({
+      model: "gpt-4o-mini",
+      api_key: rawSecret,
+    });
+
+    const result = maskJsonBody(body, scan);
+
+    expect(result.action).toBe("mask");
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ category: "CONTEXTUAL_SECRET", matched: rawSecret }),
+      ])
+    );
+
+    const parsed = JSON.parse(result.maskedBody);
+    expect(parsed.api_key).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(result.maskedBody).not.toContain(rawSecret);
+    expect(result.maskedBody).not.toContain("api_key=");
+  });
+
+  it("detects contextual secrets from nested JSON paths", () => {
+    const rawSecret = "nested98765_43210";
+    const body = JSON.stringify({
+      config: {
+        secret: rawSecret,
+      },
+    });
+
+    const result = maskJsonBody(body, scan);
+
+    expect(result.action).toBe("mask");
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ category: "CONTEXTUAL_SECRET", matched: rawSecret }),
+      ])
+    );
+
+    const parsed = JSON.parse(result.maskedBody);
+    expect(parsed.config.secret).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+  });
+
 });
