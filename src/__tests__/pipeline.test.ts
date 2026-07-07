@@ -180,3 +180,36 @@ describe("runPipeline", () => {
   });
 
 });
+
+describe("runPipeline — expanded rule packs", () => {
+  it("masks raw provider/developer token prefixes", () => {
+    const provider = "sk-ant-" + "P6".repeat(18);
+    const developer = "glpat-" + "Q7".repeat(12);
+    const r = runPipeline(`${provider}\n${developer}`, 100);
+
+    expect(r.action).toBe("mask");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:PROVIDER_API_KEY>>");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:DEVELOPER_TOKEN>>");
+    expect(r.maskedBody).not.toContain(provider);
+    expect(r.maskedBody).not.toContain(developer);
+  });
+
+  it("masks encoded config blobs after decoding confirms sensitive keys", () => {
+    const encoded = Buffer.from("api_key=encoded-key_1234567890\nbase_url=https://api.example.test/v1", "utf8").toString("base64");
+    const r = runPipeline(`config_base64=${encoded}`, 100);
+
+    expect(r.action).toBe("mask");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:ENCODED_SECRET>>");
+    expect(r.maskedBody).not.toContain(encoded);
+  });
+
+  it("masks cloud and connection-string credentials", () => {
+    const curl = "curl --proxy-user proxy:pa55w0rd https://api.example.test";
+    const connection = "redis://cache:pa55w0rd@redis.example.test:6379/0";
+    const r = runPipeline(`${curl}\n${connection}`, 100);
+
+    expect(r.action).toBe("mask");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:CLOUD_CREDENTIAL>>");
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:DB_URI>>");
+  });
+});

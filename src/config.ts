@@ -5,6 +5,7 @@ export type { ExclusionRule } from "@/types";
 const UPSTREAM_URL = process.env.UPSTREAM_URL ?? "http://localhost:8787";
 const DB_PATH = process.env.DB_PATH ?? "audit.sqlite";
 const DEBUG = process.env.DEBUG === "true" || process.env.NODE_ENV !== "production";
+const SECRET_SCANNER_MODE = process.env.PRIVACY_SECRET_SCANNER_MODE === "strict" ? "strict" : "balanced";
 
 // Default values for hot-reloadable configs
 export const DEFAULT_CONFIG_VALUES = {
@@ -57,4 +58,4 @@ const PRIVACY_NOTICE_TEXT = process.env.PRIVACY_NOTICE_TEXT ??
   `- If a required change touches a masked region, depends on exact line numbers after a masked region, or cannot be anchored to visible unmasked text, output a "Manual Modification Guide" with the file path, approximate location, intended change, and reason.`;
 const PRIVACY_DEBUG_HEADERS = process.env.PRIVACY_DEBUG_HEADERS === "true";
 
-export { UPSTREAM_URL, DB_PATH, DEBUG, PRIVACY_MASK_FORMAT, PRIVACY_DISAMBIGUATION_MODE, PRIVACY_NOTICE_TEXT, PRIVACY_DEBUG_HEADERS };
+export { UPSTREAM_URL, DB_PATH, DEBUG, SECRET_SCANNER_MODE, PRIVACY_MASK_FORMAT, PRIVACY_DISAMBIGUATION_MODE, PRIVACY_NOTICE_TEXT, PRIVACY_DEBUG_HEADERS };

@@ -65,9 +65,10 @@ describe("scanContextKey — IDENTITY_KEYS pair-trigger", () => {
     expect(f).toHaveLength(0);
   });
 
-  it("ignores token when no secret key present", () => {
+  it("detects token as a sensitive config key", () => {
     const f = scanContextKey(`"token": ${suspiciousValue}`);
-    expect(f).toHaveLength(0);
+    expect(f).toHaveLength(1);
+    expect(f[0].matched).toBe(suspiciousValue);
   });
 
   it("detects session_id when secret key also present", () => {
@@ -249,5 +250,69 @@ describe("scanContextKey — endpoint config leakage", () => {
     );
     expect(f.some((x) => x.matched === "demo-key_1234567890")).toBe(true);
     expect(f.some((x) => x.matched === "https://api.example.test/v1?tenant=abc&region=us")).toBe(true);
+  });
+});
+
+describe("scanContextKey — expanded provider/cloud/config coverage", () => {
+  it("detects provider-prefixed contextual keys", () => {
+    const f = scanContextKey(`OPENAI_API_KEY=${"sk-proj-" + "A1".repeat(18)}`);
+    expect(f).toContainEqual(expect.objectContaining({ category: "CONTEXTUAL_SECRET" }));
+  });
+
+  it("masks AWS credential pairs and optional session token", () => {
+    const text = [
+      "aws_access_key_id=AKIAIOSFODNN7EXAMPLE",
+      "aws_secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+      "aws_session_token=" + "M3".repeat(28),
+    ].join("\n");
+    const f = scanContextKey(text);
+
+    expect(f).toEqual(expect.arrayContaining([
+      expect.objectContaining({ matched: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" }),
+      expect.objectContaining({ matched: "M3".repeat(28) }),
+    ]));
+  });
+
+  it("masks Azure identity fields when paired with client secret", () => {
+    const clientId = "11111111-2222-4333-8444-555555555555";
+    const tenantId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+    const secret = "azure-secret_1234567890";
+    const f = scanContextKey(`client_id=${clientId}\ntenant_id=${tenantId}\nclient_secret=${secret}`);
+
+    expect(f).toEqual(expect.arrayContaining([
+      expect.objectContaining({ matched: clientId }),
+      expect.objectContaining({ matched: tenantId }),
+      expect.objectContaining({ matched: secret }),
+    ]));
+  });
+
+  it("detects npmrc auth token and Docker identity token keys", () => {
+    const npmToken = "npm_" + "N4".repeat(18);
+    const dockerToken = "D5".repeat(20);
+    const f = scanContextKey(`_authToken=${npmToken}\nidentitytoken=${dockerToken}`);
+
+    expect(f).toEqual(expect.arrayContaining([
+      expect.objectContaining({ matched: npmToken }),
+      expect.objectContaining({ matched: dockerToken }),
+    ]));
+  });
+
+  it("masks high-entropy alpha secrets under sensitive keys", () => {
+    const value = "AbCdEfGhIjKlMnOpQrStUvWxYzQqRrSsTtUu";
+    const f = scanContextKey(`api_key=${value}`);
+
+    expect(f).toContainEqual(expect.objectContaining({ matched: value }));
+  });
+
+  it("does not mask placeholders in balanced mode", () => {
+    const f = scanContextKey("api_key=YOUR_API_KEY");
+    expect(f).toHaveLength(0);
+  });
+
+  it("masks base64-encoded sensitive config under encoded keys", () => {
+    const encoded = Buffer.from(JSON.stringify({ apiKey: "encoded-key_1234567890", baseUrl: "https://api.example.test/v1" }), "utf8").toString("base64");
+    const f = scanContextKey(`config_b64=${encoded}`);
+
+    expect(f).toContainEqual(expect.objectContaining({ category: "ENCODED_SECRET", matched: encoded }));
   });
 });

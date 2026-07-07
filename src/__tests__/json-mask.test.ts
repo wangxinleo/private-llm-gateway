@@ -270,3 +270,59 @@ describe("maskJsonBody", () => {
   });
 
 });
+
+describe("maskJsonBody — expanded compound config masking", () => {
+  const scan = (text: string) => runPipeline(text, text.length);
+
+  it("masks Azure client identifiers when sibling clientSecret exists", () => {
+    const body = JSON.stringify({
+      azure: {
+        clientId: "11111111-2222-4333-8444-555555555555",
+        tenantId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        clientSecret: "azure-secret_1234567890",
+      },
+    });
+
+    const result = maskJsonBody(body, scan);
+    const parsed = JSON.parse(result.maskedBody);
+
+    expect(parsed.azure.clientId).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed.azure.tenantId).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed.azure.clientSecret).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+  });
+
+  it("masks GCP service-account identity metadata around private key id", () => {
+    const body = JSON.stringify({
+      type: "service_account",
+      project_id: "gateway-prod-123",
+      private_key_id: "a1b2c3d4e5f678901234567890abcdef12345678",
+      client_email: "svc-gateway-123@example.iam.gserviceaccount.com",
+    });
+
+    const result = maskJsonBody(body, scan);
+    const parsed = JSON.parse(result.maskedBody);
+
+    expect(parsed.project_id).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed.private_key_id).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed.client_email).not.toContain("svc-gateway-123");
+  });
+
+  it("masks Docker auth and kubeconfig token values", () => {
+    const body = JSON.stringify({
+      auths: {
+        "registry.example.test": {
+          auth: Buffer.from("user:pa55w0rd", "utf8").toString("base64"),
+          identitytoken: "R8".repeat(20),
+        },
+      },
+      users: [{ name: "cluster", user: { token: "K9".repeat(20) } }],
+    });
+
+    const result = maskJsonBody(body, scan);
+    const parsed = JSON.parse(result.maskedBody);
+
+    expect(parsed.auths["registry.example.test"].auth).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed.auths["registry.example.test"].identitytoken).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed.users[0].user.token).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+  });
+});

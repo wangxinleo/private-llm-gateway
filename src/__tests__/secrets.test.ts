@@ -253,3 +253,60 @@ def
     expect(f.every(x => x.action === "mask")).toBe(true);
   });
 });
+
+describe("scanSecrets — expanded provider/developer/cloud packs", () => {
+  it("detects LLM provider token prefixes", () => {
+    const openai = "sk-" + "proj-" + "A1".repeat(18);
+    const anthropic = "sk-ant-" + "B2".repeat(18);
+    const huggingFace = "hf_" + "C3".repeat(14);
+    const f = scanSecrets(`${openai} ${anthropic} ${huggingFace}`);
+
+    expect(f.filter((x) => x.category === "PROVIDER_API_KEY")).toHaveLength(3);
+    expect(f.every((x) => x.action === "mask")).toBe(true);
+  });
+
+  it("detects OpenRouter, Groq, Replicate, and Perplexity provider tokens", () => {
+    const openRouter = "sk-or-v1-" + "D4".repeat(18);
+    const groq = "gsk_" + "E5".repeat(16);
+    const replicate = "r8_" + "F6".repeat(16);
+    const perplexity = "pplx-" + "G7".repeat(16);
+    const f = scanSecrets(`${openRouter}\n${groq}\n${replicate}\n${perplexity}`);
+
+    expect(f.filter((x) => x.category === "PROVIDER_API_KEY")).toHaveLength(4);
+  });
+
+  it("detects expanded GitHub token prefixes", () => {
+    const prefixes = ["gho_", "ghu_", "ghs_", "ghr_"];
+    const f = scanSecrets(prefixes.map((prefix) => prefix + "A".repeat(36)).join("\n"));
+
+    expect(f.filter((x) => x.category === "GITHUB_TOKEN")).toHaveLength(prefixes.length);
+  });
+
+  it("detects GitLab, npm, PyPI, and Vercel developer tokens", () => {
+    const gitlab = "glpat-" + "H8".repeat(12);
+    const npm = "npm_" + "I9".repeat(18);
+    const pypi = "pypi-" + "J0".repeat(28);
+    const vercel = "vercel_" + "K1".repeat(14);
+    const f = scanSecrets(`${gitlab} ${npm} ${pypi} ${vercel}`);
+
+    expect(f.filter((x) => x.category === "DEVELOPER_TOKEN")).toHaveLength(4);
+  });
+
+  it("detects broader credentialed connection strings", () => {
+    const amqp = "amqps://gateway:pa55w0rd@mq.example.test/vhost";
+    const jdbc = "jdbc:postgresql://db.example.test:5432/app?user=gateway&password=pa55w0rd";
+    const f = scanSecrets(`${amqp}\n${jdbc}`);
+
+    expect(f.filter((x) => x.category === "CONNECTION_STRING")).toHaveLength(2);
+  });
+
+  it("detects Azure storage, netrc, and curl credential snippets", () => {
+    const azure = "DefaultEndpointsProtocol=https;AccountName=acct;AccountKey=" + "L2".repeat(24) + ";EndpointSuffix=core.windows.net";
+    const netrc = "machine api.example.test login gateway password pa55w0rd-token";
+    const curl = "curl --user gateway:pa55w0rd-token https://api.example.test";
+    const f = scanSecrets(`${azure}\n${netrc}\n${curl}`);
+
+    expect(f).toContainEqual(expect.objectContaining({ category: "CONNECTION_STRING" }));
+    expect(f.filter((x) => x.category === "CLOUD_CREDENTIAL")).toHaveLength(2);
+  });
+});
