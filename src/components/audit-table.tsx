@@ -119,9 +119,69 @@ function ActionBadge({ action, label }: { action: ActionType; label: string }) {
   return <Badge variant={variant} className="shrink-0 whitespace-nowrap font-mono text-xs">{label}</Badge>;
 }
 
+function SubtleActionBadge({ action, label }: { action: ActionType; label: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-1 font-mono text-xs",
+        action === "block" && "border-destructive/30 bg-destructive/5 text-destructive",
+        action === "mask" && "border-warning/30 bg-warning/5 text-warning",
+        action === "allow" && "border-success/30 bg-success/5 text-success"
+      )}
+    >
+      <span
+        className={cn(
+          "h-1.5 w-1.5 rounded-full",
+          action === "block" && "bg-destructive",
+          action === "mask" && "bg-warning",
+          action === "allow" && "bg-success"
+        )}
+      />
+      {label}
+    </span>
+  );
+}
+
 function getFindingVariant(finding: string): "destructive" | "warning" | "outline" {
   if (finding === "SENSITIVE_FILENAME") return "destructive";
   return ["PHONE", "EMAIL", "ID_CARD", "BANK_CARD"].includes(finding) ? "warning" : "outline";
+}
+
+interface ItemSummary {
+  item: string;
+  count: number;
+}
+
+function summarizeItems(items: string[]): ItemSummary[] {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    counts.set(item, (counts.get(item) ?? 0) + 1);
+  }
+  return Array.from(counts, ([item, count]) => ({ item, count }));
+}
+
+function formatSummaryLabel({ item, count }: ItemSummary): string {
+  return count > 1 ? `${item} × ${count}` : item;
+}
+
+function formatMatchedCategoryCount(total: number, unique: number): string {
+  return unique === total ? `${total}` : `${unique}/${total}`;
+}
+
+function formatMatchedValuePreview(value: string): string {
+  const emailMatch = value.match(/^([^@\s]+)@([^@\s]+)$/);
+  if (emailMatch) {
+    const [, local, domain] = emailMatch;
+    const localPreview = local.length <= 7 ? maskMatchedValue(local) : `${local.slice(0, 4)}…${local.slice(-3)}`;
+    return `${localPreview}@${domain}`;
+  }
+
+  if (value.length <= 16) return maskMatchedValue(value);
+  return `${value.slice(0, 8)}…${value.slice(-8)}`;
+}
+
+function formatMatchedValueLabel(summary: ItemSummary): string {
+  return formatMatchedValuePreview(summary.item);
 }
 
 function formatCountdown(ms: number): string {
@@ -204,6 +264,7 @@ export function AuditTable() {
   const [revealExpiry, setRevealExpiry] = useState<number | null>(null);
   const [revealLoading, setRevealLoading] = useState(false);
   const [revealDialog, setRevealDialog] = useState<{ open: boolean; password: string }>({ open: false, password: "" });
+  const [revealError, setRevealError] = useState(false);
   const [copiedValueKey, setCopiedValueKey] = useState<string | null>(null);
   const revealTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -577,7 +638,7 @@ export function AuditTable() {
               <EyeOff className="mr-1 h-3 w-3" />{t("audit.revealValuesActive")} [{formatCountdown(revealExpiry - Date.now())}]
             </Button>
           ) : (
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setRevealDialog({ open: true, password: "" })}>
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setRevealError(false); setRevealDialog({ open: true, password: "" }); }}>
               <Eye className="mr-1 h-3 w-3" />{t("audit.revealValues")}
             </Button>
           )}
@@ -628,6 +689,9 @@ export function AuditTable() {
             {data.rows.map((row) => {
               const expanded = expandedIds.has(row.id);
               const selected = selectedIds.has(row.id);
+              const findingSummaries = summarizeItems(row.findings);
+              const findingItems = findingSummaries.map(({ item }) => item);
+              const findingCounts = new Map(findingSummaries.map(({ item, count }) => [item, count]));
               const clickRow = (e: React.MouseEvent) => { e.stopPropagation(); toggleExpand(row.id); };
               return (
                 <Fragment key={row.id}>
@@ -641,7 +705,11 @@ export function AuditTable() {
                     <TableCell onClick={clickRow} className="cursor-pointer overflow-hidden whitespace-nowrap font-mono text-xs tabular-nums text-muted-foreground">{formatBytes(row.bodySize)}</TableCell>
                     <TableCell onClick={clickRow} className="cursor-pointer overflow-hidden whitespace-nowrap text-sm font-mono"><span className="block truncate">{row.model || "—"}</span></TableCell>
                     <TableCell onClick={clickRow} className="overflow-hidden whitespace-nowrap">
-                      <OverflowBadges items={row.findings} getVariant={getFindingVariant} />
+                      <OverflowBadges
+                        items={findingItems}
+                        getVariant={getFindingVariant}
+                        getLabel={(item) => formatSummaryLabel({ item, count: findingCounts.get(item) ?? 1 })}
+                      />
                     </TableCell>
                     <TableCell onClick={clickRow} className="cursor-pointer overflow-hidden whitespace-nowrap font-mono text-xs tabular-nums text-muted-foreground">{row.duration != null ? formatDuration(row.duration) : "—"}</TableCell>
                     <TableCell onClick={clickRow} className="overflow-hidden whitespace-nowrap">
@@ -655,14 +723,19 @@ export function AuditTable() {
                     <TableRow className="hover:bg-transparent">
                       <TableCell colSpan={11} className="overflow-hidden p-0">
                         <div className="max-w-full overflow-hidden border-b border-border/50 bg-card/80 px-4 py-3">
-                          <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
+                          <div className="mb-3 flex min-w-0 items-center justify-between gap-3 rounded-md border border-border/40 bg-muted/20 px-2.5 py-2">
                             <div className="flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap">
-                              <code className="shrink-0 font-mono text-sm text-muted-foreground">#{row.id}</code>
-                              <Badge variant="outline" className="shrink-0 whitespace-nowrap font-mono text-xs">{row.method}</Badge>
-                              <ActionBadge action={row.action} label={t(`action.${row.action}`)} />
-                              {row.bypassApplied && <Badge variant="outline" className="min-w-0 truncate whitespace-nowrap border-warning/50 font-mono text-xs text-warning">{t("audit.bypassAllowed")}</Badge>}
+                              <code className="shrink-0 rounded-md bg-background/70 px-2 py-1 font-mono text-xs text-muted-foreground">#{row.id}</code>
+                              <Badge variant="outline" className="shrink-0 whitespace-nowrap bg-background/70 font-mono text-xs">{row.method}</Badge>
+                              <SubtleActionBadge action={row.action} label={t(`action.${row.action}`)} />
+                              {row.bypassApplied && <Badge variant="outline" className="min-w-0 truncate whitespace-nowrap border-warning/40 bg-warning/5 font-mono text-xs text-warning">{t("audit.bypassAllowed")}</Badge>}
                             </div>
-                            <Button variant="destructive" size="sm" className="h-6 shrink-0 text-xs" onClick={() => handleDeleteSingle(row.id)}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 shrink-0 border border-destructive/20 px-2 text-xs text-destructive hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => handleDeleteSingle(row.id)}
+                            >
                               <Trash2 className="mr-1 h-3 w-3" />{t("audit.delete")}
                             </Button>
                           </div>
@@ -677,34 +750,55 @@ export function AuditTable() {
                           {row.findings.length > 0 && (
                             <div className="mt-3 min-w-0">
                               <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.findingsLabel")}</p>
-                              <OverflowBadges items={row.findings} getVariant={getFindingVariant} />
+                              <div className="flex max-h-24 min-w-0 flex-wrap gap-1.5 overflow-y-auto overflow-x-hidden rounded-md border border-border/40 bg-muted/20 p-2">
+                                {findingSummaries.map((summary) => (
+                                  <Badge key={summary.item} variant={getFindingVariant(summary.item)} className="shrink-0 whitespace-nowrap font-mono text-xs">
+                                    {formatSummaryLabel(summary)}
+                                  </Badge>
+                                ))}
+                              </div>
                             </div>
                           )}
                           {revealAuthed && row.matchedValues && Object.keys(row.matchedValues).length > 0 && (
                             <div className="mt-3 min-w-0">
                               <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.matchedValuesLabel")}</p>
-                              <div className="space-y-1.5">
-                                {Object.entries(row.matchedValues).map(([category, values]) => (
-                                  <div key={category} className="flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap">
-                                    <Badge variant="outline" className="shrink-0 whitespace-nowrap font-mono text-xs">{category}</Badge>
-                                    <div className="flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap">
-                                      {values.map((v, i) => (
-                                        <span key={i} className="inline-flex min-w-0 max-w-[240px] shrink items-center gap-1 rounded border border-destructive/30 bg-destructive/5 px-1.5 py-0.5">
-                                          <code className="min-w-0 truncate font-mono text-xs text-destructive">{maskMatchedValue(v)}</code>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-4 w-4 shrink-0 text-muted-foreground hover:text-foreground"
-                                            aria-label={t("audit.copyRaw")}
-                                            onClick={() => handleCopyMatchedValue(v, `${row.id}:${category}:${i}`)}
-                                          >
-                                            {copiedValueKey === `${row.id}:${category}:${i}` ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                                          </Button>
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ))}
+                              <div className="max-h-96 min-w-0 overflow-y-auto overflow-x-hidden pr-1">
+                                <div className="grid min-w-0 gap-2 md:grid-cols-2 xl:grid-cols-4">
+                                  {Object.entries(row.matchedValues).map(([category, values]) => {
+                                    const valueSummaries = summarizeItems(values);
+                                    return (
+                                      <div key={category} className="min-w-0 overflow-hidden rounded-md border border-border/50 bg-background/60">
+                                        <div className="flex min-w-0 items-center justify-between gap-2 border-b border-border/40 bg-muted/30 px-2 py-1.5">
+                                          <Badge variant="outline" className="min-w-0 truncate whitespace-nowrap font-mono text-xs">{category}</Badge>
+                                          <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                                            {formatMatchedCategoryCount(values.length, valueSummaries.length)}
+                                          </span>
+                                        </div>
+                                        <div className="max-h-40 min-w-0 space-y-1 overflow-y-auto overflow-x-hidden p-2">
+                                          {valueSummaries.map((summary, i) => {
+                                            const copyKey = `${row.id}:${category}:${i}`;
+                                            return (
+                                              <div key={`${summary.item}-${i}`} className="flex min-w-0 items-center gap-1.5 rounded border border-destructive/20 bg-destructive/5 px-1.5 py-1">
+                                                <code className="min-w-0 flex-1 truncate font-mono text-xs text-destructive" title={formatMatchedValuePreview(summary.item)}>
+                                                  {formatMatchedValueLabel(summary)}
+                                                </code>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  className="h-5 w-5 shrink-0 text-muted-foreground hover:text-foreground"
+                                                  aria-label={t("audit.copyRaw")}
+                                                  onClick={() => handleCopyMatchedValue(summary.item, copyKey)}
+                                                >
+                                                  {copiedValueKey === copyKey ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                                                </Button>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               </div>
                             </div>
                           )}
@@ -791,7 +885,7 @@ export function AuditTable() {
             className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={() => setRevealDialog({ open: false, password: "" })}>{t("audit.cancel")}</Button>
+            <Button variant="outline" size="sm" onClick={() => { setRevealError(false); setRevealDialog({ open: false, password: "" }); }}>{t("audit.cancel")}</Button>
             <Button variant="outline" size="sm" onClick={handleRevealAuth} disabled={revealLoading || !revealDialog.password.trim()}>
               {t("audit.revealConfirm")}
             </Button>

@@ -4,8 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { LayoutDashboard, FileText, Shield, Settings, ShieldCheck, Languages } from "lucide-react";
-import { useLocale, LOCALES } from "@/i18n";
-import type { Locale } from "@/i18n";
+import { useLocale } from "@/i18n";
 
 const NAV_KEYS = [
   { href: "/dashboard", labelKey: "nav.overview", icon: LayoutDashboard },
@@ -45,16 +44,17 @@ export function NavSidebar() {
         })}
       </nav>
       <div className="border-t border-sidebar-border px-3 py-3">
-        <div className="flex items-center justify-between">
-          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <p className="min-w-0 truncate whitespace-nowrap font-mono text-xs uppercase tracking-widest text-muted-foreground">
             {t("nav.version")}
           </p>
           <button
+            type="button"
             onClick={() => setLocale(locale === "zh" ? "en" : "zh")}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className="inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 text-sm leading-none text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
-            <Languages className="h-3.5 w-3.5" />
-            {locale === "zh" ? "EN" : "中文"}
+            <Languages className="h-3.5 w-3.5 shrink-0" />
+            <span className="shrink-0">{locale === "zh" ? "EN" : "中文"}</span>
           </button>
         </div>
       </div>
