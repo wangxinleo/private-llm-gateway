@@ -40,6 +40,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/i18n";
 import { isStringArrayConfigValue } from "@/lib/admin-config";
+import { formatSummaryLabel, getFindingVariant, summarizeItems, type ItemSummary } from "@/lib/finding-summary";
 import { maskMatchedValue } from "@/lib/matched-values";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import type { ActionType, AdminConfigResponse, FindingCategory } from "@/types";
@@ -140,28 +141,6 @@ function SubtleActionBadge({ action, label }: { action: ActionType; label: strin
       {label}
     </span>
   );
-}
-
-function getFindingVariant(finding: string): "destructive" | "warning" | "outline" {
-  if (finding === "SENSITIVE_FILENAME") return "destructive";
-  return ["PHONE", "EMAIL", "ID_CARD", "BANK_CARD"].includes(finding) ? "warning" : "outline";
-}
-
-interface ItemSummary {
-  item: string;
-  count: number;
-}
-
-function summarizeItems(items: string[]): ItemSummary[] {
-  const counts = new Map<string, number>();
-  for (const item of items) {
-    counts.set(item, (counts.get(item) ?? 0) + 1);
-  }
-  return Array.from(counts, ([item, count]) => ({ item, count }));
-}
-
-function formatSummaryLabel({ item, count }: ItemSummary): string {
-  return count > 1 ? `${item} × ${count}` : item;
 }
 
 function formatMatchedCategoryCount(total: number, unique: number): string {
@@ -691,7 +670,7 @@ export function AuditTable() {
               const selected = selectedIds.has(row.id);
               const findingSummaries = summarizeItems(row.findings);
               const findingItems = findingSummaries.map(({ item }) => item);
-              const findingCounts = new Map(findingSummaries.map(({ item, count }) => [item, count]));
+              const findingCounts = new Map<string, number>(findingSummaries.map(({ item, count }) => [item, count]));
               const clickRow = (e: React.MouseEvent) => { e.stopPropagation(); toggleExpand(row.id); };
               return (
                 <Fragment key={row.id}>

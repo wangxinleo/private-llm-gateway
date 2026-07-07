@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { OverflowBadges } from "@/components/overflow-badges";
 import { useLocale } from "@/i18n";
 import { useAdminAuth } from "@/lib/admin-auth-context";
+import { formatSummaryLabel, getFindingVariant, summarizeItems } from "@/lib/finding-summary";
 import { ShieldAlert, Eye, CheckCircle, Activity } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -104,19 +105,27 @@ export function DashboardContent() {
             </p>
           ) : (
             <div className="min-w-0 divide-y divide-border/50">
-              {recentBlocked.map((row) => (
-                <div key={row.id} className="flex min-w-0 items-center gap-3 py-3">
-                  <Badge variant={row.action === "block" ? "destructive" : "warning"} className="shrink-0 font-mono text-xs">
-                    {t(`action.${row.action}`)}
-                  </Badge>
-                  <span className="shrink-0 font-mono text-sm text-muted-foreground">{row.method}</span>
-                  <span className="min-w-0 flex-[2] truncate text-sm">{row.path}</span>
-                  <OverflowBadges items={row.findings} className="min-w-0 flex-1" />
-                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                    {new Date(row.timestamp).toLocaleString()}
-                  </span>
-                </div>
-              ))}
+              {recentBlocked.map((row) => {
+                const findingSummaries = summarizeItems(row.findings);
+                return (
+                  <div key={row.id} className="flex min-w-0 items-center gap-3 py-3">
+                    <Badge variant={row.action === "block" ? "destructive" : "warning"} className="shrink-0 font-mono text-xs">
+                      {t(`action.${row.action}`)}
+                    </Badge>
+                    <span className="shrink-0 font-mono text-sm text-muted-foreground">{row.method}</span>
+                    <span className="min-w-0 flex-[2] truncate text-sm">{row.path}</span>
+                    <OverflowBadges
+                      items={findingSummaries.map((summary) => summary.item)}
+                      getLabel={(item) => formatSummaryLabel(findingSummaries.find((summary) => summary.item === item) ?? { item, count: 1 })}
+                      getVariant={getFindingVariant}
+                      className="min-w-0 flex-1"
+                    />
+                    <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                      {new Date(row.timestamp).toLocaleString()}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>
