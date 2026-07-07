@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Privacy Proxy">
+  <rect width="64" height="64" rx="16" fill="#071814"/>
+  <path d="M32 10 49 17v13c0 11.6-7.2 19.6-17 24-9.8-4.4-17-12.4-17-24V17l17-7Z" fill="#8bd9aa"/>
+  <path d="M23 31h18M23 39h13M23 23h18" stroke="#071814" stroke-width="5" stroke-linecap="round"/>
+</svg>

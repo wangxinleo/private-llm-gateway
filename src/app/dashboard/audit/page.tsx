@@ -8,8 +8,8 @@ export default function AuditPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-mono text-xl font-bold tracking-tight">{t("audit.title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("audit.desc")}</p>
+        <h1 className="text-3xl font-bold leading-tight tracking-[-0.035em]">{t("audit.title")}</h1>
+        <p className="mt-1 max-w-[65ch] text-sm leading-6 text-muted-foreground">{t("audit.desc")}</p>
       </div>
       <AuditTable />
     </div>

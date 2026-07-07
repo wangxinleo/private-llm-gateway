@@ -12,8 +12,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <AdminLoginGate>
           <div className="flex min-h-screen">
             <NavSidebar />
-            <main className="ml-56 flex-1 overflow-auto">
-              <div className="mx-auto max-w-[1440px] px-6 py-6">{children}</div>
+            <main id="main-content" className="flex-1 overflow-auto pt-16 md:ml-56 md:pt-0">
+              <div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-6 md:py-7">{children}</div>
             </main>
           </div>
         </AdminLoginGate>

@@ -18,6 +18,7 @@ const zh: Record<string, string> = {
   "overview.recentIncidents": "最近拦截记录",
   "overview.viewAll": "查看全部 →",
   "overview.noIncidents": "暂无拦截记录",
+  "overview.noIncidentsHint": "出现拦截或脱敏事件后，最近记录会显示在这里。",
 
   // Audit log
   "audit.title": "审计日志",
@@ -111,6 +112,7 @@ const zh: Record<string, string> = {
   "rules.bypassSubmitting": "提交中…",
   "rules.bypassHint": "仅支持一次性时间窗口、路径前缀匹配、模型精确匹配。",
   "rules.bypassEmpty": "当前没有临时放行规则。",
+  "rules.bypassEmptyHint": "可信路径需要临时直连上游时，可在上方创建一次性规则。",
   "rules.bypassColStatus": "状态",
   "rules.bypassColPath": "路径前缀",
   "rules.bypassColModel": "模型",
@@ -195,6 +197,7 @@ const zh: Record<string, string> = {
   // Auth
   "auth.title": "管理员认证",
   "auth.desc": "请输入 ADMIN_KEY 以访问管理后台",
+  "auth.adminKeyLabel": "Admin Key",
   "auth.placeholder": "输入 Admin Key",
   "auth.login": "登录",
   "auth.invalidKey": "Admin Key 无效",
@@ -224,6 +227,7 @@ const en: Record<string, string> = {
   "overview.recentIncidents": "Recent Incidents",
   "overview.viewAll": "View all →",
   "overview.noIncidents": "No incidents recorded yet",
+  "overview.noIncidentsHint": "Recent block or mask events will appear here after protected traffic is processed.",
 
   // Audit log
   "audit.title": "Audit Log",
@@ -317,6 +321,7 @@ const en: Record<string, string> = {
   "rules.bypassSubmitting": "Submitting...",
   "rules.bypassHint": "Supports one-time time windows, path-prefix matching, and exact model matching only.",
   "rules.bypassEmpty": "No timed bypass rules yet.",
+  "rules.bypassEmptyHint": "Create a one-time rule above when a trusted route needs direct upstream access.",
   "rules.bypassColStatus": "Status",
   "rules.bypassColPath": "Path prefix",
   "rules.bypassColModel": "Model",
@@ -403,6 +408,7 @@ const en: Record<string, string> = {
   "action.any": "any",
   "auth.title": "Admin Authentication",
   "auth.desc": "Enter ADMIN_KEY to access the dashboard",
+  "auth.adminKeyLabel": "Admin Key",
   "auth.placeholder": "Enter Admin Key",
   "auth.login": "Login",
   "auth.invalidKey": "Invalid Admin Key",

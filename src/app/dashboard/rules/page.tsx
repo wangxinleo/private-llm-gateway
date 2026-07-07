@@ -177,8 +177,8 @@ export default function RulesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-mono text-xl font-bold tracking-tight">{t("rules.title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("rules.desc")}</p>
+        <h1 className="text-3xl font-bold leading-tight tracking-[-0.035em]">{t("rules.title")}</h1>
+        <p className="mt-1 max-w-[65ch] text-sm leading-6 text-muted-foreground">{t("rules.desc")}</p>
       </div>
 
       <Card className="border-border/50">
@@ -261,9 +261,16 @@ export default function RulesPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-sm text-muted-foreground">{t("audit.loading")}</p>
+            <div className="space-y-3">
+              <div className="h-9 animate-pulse rounded-md bg-muted/50" />
+              <div className="h-9 animate-pulse rounded-md bg-muted/40" />
+              <div className="h-9 animate-pulse rounded-md bg-muted/30" />
+            </div>
           ) : rules.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("rules.bypassEmpty")}</p>
+            <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 px-4 py-8 text-center">
+              <p className="text-sm font-medium text-foreground">{t("rules.bypassEmpty")}</p>
+              <p className="mx-auto mt-1 max-w-[48ch] text-xs leading-5 text-muted-foreground">{t("rules.bypassEmptyHint")}</p>
+            </div>
           ) : (
             <Table>
               <TableHeader>

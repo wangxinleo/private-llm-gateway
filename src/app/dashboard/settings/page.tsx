@@ -223,10 +223,16 @@ export default function SettingsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="font-mono text-xl font-bold tracking-tight">{t("settings.title")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("settings.desc")}</p>
+          <h1 className="text-3xl font-bold leading-tight tracking-[-0.035em]">{t("settings.title")}</h1>
+          <p className="mt-1 max-w-[65ch] text-sm leading-6 text-muted-foreground">{t("settings.desc")}</p>
         </div>
-        <p className="text-sm text-muted-foreground">Loading...</p>
+        <Card>
+          <CardContent className="space-y-3 pt-6">
+            <div className="h-4 w-48 animate-pulse rounded bg-muted/60" />
+            <div className="h-10 animate-pulse rounded-md bg-muted/40" />
+            <div className="h-10 animate-pulse rounded-md bg-muted/30" />
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -234,12 +240,12 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-mono text-xl font-bold tracking-tight">{t("settings.title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("settings.desc")}</p>
+        <h1 className="text-3xl font-bold leading-tight tracking-[-0.035em]">{t("settings.title")}</h1>
+        <p className="mt-1 max-w-[65ch] text-sm leading-6 text-muted-foreground">{t("settings.desc")}</p>
       </div>
 
       {message && (
-        <div className={`fixed top-4 right-4 z-50 rounded-md border px-4 py-2 text-sm shadow-lg ${message.type === "success" ? "border-green-500 bg-green-50 text-green-800" : "border-red-500 bg-red-50 text-red-800"}`}>
+        <div role="status" className={`fixed right-4 top-20 z-50 rounded-lg border px-4 py-2 text-sm shadow-[0_18px_50px_oklch(0.07_0.02_175/0.32)] backdrop-blur-xl md:top-4 ${message.type === "success" ? "border-success/35 bg-success/12 text-success" : "border-destructive/35 bg-destructive/12 text-destructive"}`}>
           {message.text}
         </div>
       )}
