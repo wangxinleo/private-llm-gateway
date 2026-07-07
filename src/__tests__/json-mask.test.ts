@@ -232,4 +232,41 @@ describe("maskJsonBody", () => {
     expect(parsed.config.secret).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
   });
 
+
+  it("S10: masks nested apiKey and baseUrl values while preserving valid JSON", () => {
+    const body = JSON.stringify({
+      providers: {
+        openai: {
+          apiKey: "demo-key_1234567890",
+          baseUrl: "https://api.example.test/v1",
+        },
+      },
+    });
+
+    const result = maskJsonBody(body, scan);
+    expect(result.action).toBe("mask");
+
+    const parsed = JSON.parse(result.maskedBody);
+    expect(parsed.providers.openai.apiKey).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed.providers.openai.baseUrl).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+  });
+
+  it("S11: masks separator and case variants in JSON", () => {
+    const body = JSON.stringify({
+      APIKEY: "demo-key_1234567890",
+      base_url: "https://api.example.test/v1",
+      "api-key": "demo-key_abcdef123456",
+      bashUrl: "https://edge.example.test/v1",
+    });
+
+    const result = maskJsonBody(body, scan);
+    expect(result.action).toBe("mask");
+
+    const parsed = JSON.parse(result.maskedBody);
+    expect(parsed.APIKEY).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed.base_url).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed["api-key"]).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed.bashUrl).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+  });
+
 });

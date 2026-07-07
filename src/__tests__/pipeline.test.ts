@@ -160,4 +160,23 @@ describe("runPipeline", () => {
     expect(r.action).toBe("mask");
     expect(r.maskedBody).toContain("<<PRIVACY_MASK:GOOGLE_API_KEY>>");
   });
+
+  it("masks raw API key and endpoint config text", () => {
+    const r = runPipeline(
+      "APIKEY=demo-key_1234567890\nBASEURL=https://api.example.test/v1",
+      100
+    );
+    expect(r.action).toBe("mask");
+    expect(r.maskedBody).toContain("APIKEY=<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(r.maskedBody).toContain("BASEURL=<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(r.maskedBody).not.toContain("demo-key_1234567890");
+    expect(r.maskedBody).not.toContain("https://api.example.test/v1");
+  });
+
+  it("does not mask ordinary prose URLs without endpoint key context", () => {
+    const r = runPipeline("See https://api.example.test/v1 for public docs", 100);
+    expect(r.action).toBe("allow");
+    expect(r.maskedBody).toBe("See https://api.example.test/v1 for public docs");
+  });
+
 });

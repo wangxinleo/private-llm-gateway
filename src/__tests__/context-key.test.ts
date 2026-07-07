@@ -208,3 +208,46 @@ describe("scanContextKey — multi-format coverage", () => {
     expect(f.some((x) => x.matched === pwdVal)).toBe(true);
   });
 });
+
+
+describe("scanContextKey — endpoint config leakage", () => {
+  const apiKey = "demo-key_1234567890";
+  const endpoint = "https://api.example.test/v1";
+
+  it("masks camelCase apiKey and baseUrl together", () => {
+    const f = scanContextKey(`"apiKey": "${apiKey}", "baseUrl": "${endpoint}"`);
+    expect(f.some((x) => x.matched === apiKey)).toBe(true);
+    expect(f.some((x) => x.matched === endpoint)).toBe(true);
+  });
+
+  it("masks mixed-case APIKEY and BASEURL", () => {
+    const f = scanContextKey(`APIKEY=${apiKey}\nBASEURL=${endpoint}`);
+    expect(f.some((x) => x.matched === apiKey)).toBe(true);
+    expect(f.some((x) => x.matched === endpoint)).toBe(true);
+  });
+
+  it("masks separator variants api-key and base_url", () => {
+    const f = scanContextKey(`"api-key": "${apiKey}", "base_url": "${endpoint}"`);
+    expect(f.some((x) => x.matched === apiKey)).toBe(true);
+    expect(f.some((x) => x.matched === endpoint)).toBe(true);
+  });
+
+  it("masks reported bashUrl typo when paired with API key config", () => {
+    const f = scanContextKey(`apiKey=${apiKey}\nbashUrl=${endpoint}`);
+    expect(f.some((x) => x.matched === apiKey)).toBe(true);
+    expect(f.some((x) => x.matched === endpoint)).toBe(true);
+  });
+
+  it("does not mask arbitrary prose URL without endpoint key context", () => {
+    const f = scanContextKey(`Please read https://api.example.test/v1 before continuing.`);
+    expect(f).toHaveLength(0);
+  });
+
+  it("masks full endpoint values that include URL query parameters", () => {
+    const f = scanContextKey(
+      `apiKey=demo-key_1234567890\nbaseUrl=https://api.example.test/v1?tenant=abc&region=us`
+    );
+    expect(f.some((x) => x.matched === "demo-key_1234567890")).toBe(true);
+    expect(f.some((x) => x.matched === "https://api.example.test/v1?tenant=abc&region=us")).toBe(true);
+  });
+});

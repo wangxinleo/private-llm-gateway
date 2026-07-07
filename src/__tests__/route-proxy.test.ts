@@ -22,11 +22,13 @@ import { initializeConfigs } from "@/config-loader";
 import { forwardRequest } from "@/proxy/forwarder";
 import { findMatchingBypassRule } from "@/bypass/store";
 
+type NextRequestInit = ConstructorParameters<typeof NextRequest>[1];
+
 const mockInitializeConfigs = vi.mocked(initializeConfigs);
 const mockForward = vi.mocked(forwardRequest);
 const mockFindMatchingBypassRule = vi.mocked(findMatchingBypassRule);
 
-function makeRequest(path: string, init?: RequestInit): NextRequest {
+function makeRequest(path: string, init?: NextRequestInit): NextRequest {
   return new NextRequest(`http://localhost:3000/api${path}`, init);
 }
 
