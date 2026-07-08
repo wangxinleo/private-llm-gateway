@@ -1,210 +1,199 @@
-# 快速隐私代理（Fast Privacy Proxy）v1
+# Private LLM Gateway
 
-## 目标
+Languages: [English](./README.md) | [简体中文](./README.zh-CN.md)
 
-这个目录用于说明一个本地快速隐私代理在 v1 阶段的明确范围。
+Last reviewed: 2026-07-08
 
-目标链路：
+Private LLM Gateway is a fast privacy reverse proxy for LLM API traffic. It scans requests before forwarding them to an upstream LLM-compatible service, masks likely secrets and common PII, blocks obviously sensitive uploaded filenames, and records local SQLite audit metadata.
 
-`client -> privacy-proxy -> upstream-service -> LLM provider`
+```text
+client -> private-llm-gateway -> upstream service -> LLM provider
+```
 
-这个版本重点追求低延迟和可预测的行为。
+## What it does
 
-## 非目标
+- Proxies `/api/*` traffic to the same path on `UPSTREAM_URL`.
+- Supports OpenAI/Anthropic-style JSON requests and SSE streaming responses.
+- Scans JSON, plain text, form, and multipart requests before forwarding.
+- Masks credential-like values and common PII instead of sending raw values upstream.
+- Blocks uploads with sensitive filenames such as private-key and env/config files.
+- Stores audit metadata in SQLite and exposes a local admin dashboard.
+- Keeps all runtime configuration in environment variables or admin-managed settings.
 
-- v1 不解析文件内容。
-- 不做 OCR、PDF 解析或 Office 文档解析。
-- 不做基于 NLP 或语义的 PII 识别。
-- 不尝试在没有上下文的情况下识别所有看起来随机的密钥字符串。
+## What it does not do
 
-## 核心行为
+- It does not parse uploaded file contents.
+- It does not perform OCR, PDF parsing, or Office document parsing.
+- It does not use NLP/semantic detection for names or addresses.
+- It does not treat every random-looking string as a secret without context.
 
-- 代理定位为 LLM API 隐私网关，优先支持 OpenAI/Anthropic 兼容的 JSON 请求与 SSE 响应。
-- 所有进入的请求都会在转发前先被检查。
-- 文本字段会扫描高风险密钥和基础个人信息。
-- 文件上传仅检查文件名、扩展名和 MIME 类型。
-- LLM 文本/JSON 中类似凭证的敏感内容默认脱敏后继续转发。
-- 基础身份信息会先脱敏，再继续转发。
-- 敏感文件名会在不读取文件内容的前提下直接拦截。
+## Quick start
 
-## 请求覆盖范围
+### 1. Configure the app
 
-v1 支持处理以下请求类型：
+```bash
+cp .env.template .env
+openssl rand -base64 32
+```
 
-- `application/json`
-- `text/plain`
-- `application/x-www-form-urlencoded`
-- `multipart/form-data`
+Edit `.env`:
 
-默认处理方式：
+```dotenv
+UPSTREAM_URL=http://localhost:8787
+ADMIN_KEY=<paste-generated-admin-key>
+```
 
-- JSON：递归扫描所有字符串值。
-- 纯文本：扫描整个请求体。
-- 表单：扫描所有字段值。
-- Multipart：扫描文本字段；上传文件只检查元数据。
+Never commit `.env` or real credentials.
 
-## 快速模式策略
+### 2. Run locally
 
-这个版本使用快速策略配置。
+```bash
+npm install
+npm run dev
+```
 
-### 动作
+The proxy listens on `http://localhost:3000` by default.
 
-- `block`：拒绝请求，并返回明确原因。
-- `mask-and-forward`：替换匹配到的 PII 或密钥类敏感值后继续转发。
-- `allow`：不做修改，直接转发。
+### 3. Send traffic through the proxy
 
-### 密钥类内容
+Requests under `/api/*` are forwarded to `UPSTREAM_URL` with the `/api` prefix removed.
 
-当 LLM 文本或 JSON 字段中检测到以下内容时，默认执行 `mask-and-forward`，避免把原始密钥发给上游，同时不阻断代码、日志和配置分析工作流：
+```bash
+curl -s http://localhost:3000/api/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"demo-model","messages":[{"role":"user","content":"hello"}]}'
+```
 
-- 私钥标记，例如 `-----BEGIN PRIVATE KEY-----`
-- Bearer token 模式
-- JWT 模式
-- Cookie 头样式的会话内容
-- 内嵌凭证的数据库 URI
-- 带有密钥上下文字段且值表现为长随机字符串的内容
+With `UPSTREAM_URL=http://localhost:8787`, the example above forwards to:
 
-高风险上下文字段示例：
+```text
+http://localhost:8787/v1/chat/completions
+```
 
-- `api_key`
-- `apikey`
-- `token`
-- `access_token`
-- `refresh_token`
-- `secret`
-- `secret_key`
-- `client_secret`
-- `authorization`
-- `cookie`
-- `session`
-- `sessionid`
-- `password`
-- `passwd`
+### 4. Open the admin dashboard
 
-快速模式不会因为“长得像随机串”就单独处理所有内容。只有当随机值出现在类似密钥的上下文中时，才会触发密钥类脱敏。
+Visit:
 
-### PII 脱敏内容
+```text
+http://localhost:3000/dashboard
+```
 
-当检测到以下常见 PII 模式时，同样执行脱敏后转发：
+Use `ADMIN_KEY` to authenticate. Without `ADMIN_KEY`, dashboard APIs return `503`.
 
-- 中国大陆手机号
-- 电子邮箱地址
-- 中国居民身份证号
-- 银行卡号
+## Docker deployment
 
-建议替换标记：
+The production image is published to GitHub Container Registry:
 
-- `<<PRIVACY_MASK:PHONE>>`
-- `<<PRIVACY_MASK:EMAIL>>`
-- `<<PRIVACY_MASK:ID_CARD>>`
-- `<<PRIVACY_MASK:BANK_CARD>>`
+```text
+ghcr.io/wangxinleo/private-llm-gateway:latest
+```
 
-## 文件上传策略
+Edit `docker-compose.yaml` before starting:
 
-在 v1 中，不解析上传文件的内容。
+```yaml
+environment:
+  NODE_ENV: production
+  PORT: 3000
+  HOSTNAME: 0.0.0.0
+  UPSTREAM_URL: http://host.docker.internal:8787
+  DB_PATH: /data/audit.sqlite
+  ADMIN_KEY: "<strong-admin-key>"
+```
 
-代理只检查：
+Start the service:
 
-- 文件名
-- 扩展名
-- MIME 类型
+```bash
+docker compose up -d privacy-proxy
+```
 
-### 拦截的文件名和扩展名
+Check status and logs:
 
-如果文件名或扩展名匹配以下任一项，立即拦截：
+```bash
+docker compose ps
+docker compose logs -f privacy-proxy
+```
 
-- `.env`
-- `.pem`
-- `.key`
-- `.p12`
-- `.pfx`
-- `id_rsa`
-- `id_dsa`
-- `authorized_keys`
-- `known_hosts`
-- `credentials.json`
-- `service-account.json`
-- `secrets.yaml`
-- `secrets.yml`
-- `prod.env`
-- `config.prod`
-- `.npmrc`
-- `.pypirc`
+Stop the service:
 
-### 可选拦截的文件类型
+```bash
+docker compose down
+```
 
-以下类型建议作为可配置项，不强制纳入快速模式的默认拦截：
+Audit data is persisted in `./data/audit.sqlite` through the `/data` container mount. To clear audit data:
 
-- `.sql`
-- `.db`
-- `.sqlite`
-- `.bak`
-- `.zip`
-- `.7z`
-- `.rar`
+```bash
+docker compose down
+rm -rf ./data/audit.sqlite
+rm -rf ./data  # clears the whole mounted data directory
+```
 
-快速模式的默认建议：
+If the upstream service runs on the Docker host, `http://host.docker.internal:8787` works on Docker Desktop. If the upstream service runs in the same Docker network, use its service name, for example `http://your-upstream-service:8787`.
 
-- 拦截明显的凭证类文件
-- 放行普通文档和代码文件
-- 不检查文件内容
+## Runtime configuration
 
-## 检测模型
+| Variable | Default | Description |
+| --- | --- | --- |
+| `NODE_ENV` | `production` in Compose | Node.js runtime environment. |
+| `PORT` | `3000` | Next.js listen port. |
+| `HOSTNAME` | `0.0.0.0` in Compose | Bind interface inside the container. |
+| `UPSTREAM_URL` | `http://localhost:8787` directly / `http://host.docker.internal:8787` in Compose | Upstream base URL. |
+| `DB_PATH` | `audit.sqlite` directly / `/data/audit.sqlite` in Compose | SQLite audit database path. |
+| `DEBUG` | `false` in production | Enables verbose scan flow logs when `true`. |
+| `ADMIN_KEY` | empty | Required for dashboard and reveal-auth access. |
+| `PRIVACY_SECRET_SCANNER_MODE` | `balanced` | Set to `strict` to use stricter contextual secret scanning. |
+| `PRIVACY_MASK_FORMAT` | `explicit` | Mask token format; `legacy` is available for compatibility. |
+| `PRIVACY_DISAMBIGUATION_MODE` | `auto` | Adds privacy-mask guidance for upstream LLMs. Values: `off`, `prefix`, `json-meta`, `auto`. |
+| `PRIVACY_NOTICE_TEXT` | built-in notice | Custom notice text for masked-token handling. |
+| `PRIVACY_DEBUG_HEADERS` | `false` | Adds debug response headers for masked requests when enabled. |
 
-v1 的检测策略刻意保持简单。
+The admin settings page also manages hot-reloadable scanner settings stored in SQLite: scan size thresholds, chunk size, contextual secret limits, bypass path options, and scanner exclusion rules.
 
-### 强规则
+## Privacy behavior
 
-以下结构性特征一旦直接匹配，就始终拦截：
+### Supported request bodies
 
-- JWT
-- Bearer Token
-- Cookie 头样式数据
-- 私钥头
-- 带密码的数据库 URI
+| Content type | Behavior |
+| --- | --- |
+| `application/json` | Recursively scans string values and forwards masked JSON. |
+| `text/plain` | Scans the full text body. |
+| `application/x-www-form-urlencoded` | Scans submitted field values. |
+| `multipart/form-data` | Scans text fields and checks uploaded file metadata only. |
 
-### 上下文密钥规则
+### Actions
 
-当以下两个条件同时满足时进行拦截：
+| Action | Meaning |
+| --- | --- |
+| `allow` | Forward the request unchanged. |
+| `mask` | Replace matched values with privacy mask tokens, then forward. |
+| `block` | Reject the request with a deterministic JSON error. |
 
-- 存在类似密钥的字段名或附近关键字
-- 对应的值看起来像高熵 token 或 session 字符串
+Only sensitive uploaded filenames are currently hard-blocked. Secrets, contextual secrets, connection strings, provider tokens, and PII are masked and forwarded so code-review and debugging workflows can continue without exposing raw values upstream.
 
-针对值的初始形态建议：
+### Masked categories
 
-- 长度在 `20` 到 `200` 之间
-- 字符主要来自 `[A-Za-z0-9._-]`
-- 不具备明显自然语言的空格分布
+The scanner covers these broad categories:
 
-### PII 规则
+- Private-key blocks, authorization-token values, JWTs, cookie headers, database URIs, and connection strings.
+- Provider/developer/cloud tokens such as OpenAI/Anthropic-style provider keys, GitHub/GitLab/npm/PyPI/Vercel/Linear tokens, AWS access keys, Slack tokens, Google API keys, Stripe keys, SendGrid keys, base64-like tokens, and encoded secrets.
+- Contextual secrets where a high-risk key name appears near a suspicious token-like value.
+- Common PII: mainland China phone numbers, email addresses, Chinese resident ID numbers, and bank card numbers.
 
-仅使用基于正则的脱敏规则。
+Example mask tokens:
 
-v1 不做语义层面的人名或地址识别。
+```text
+<<PRIVACY_MASK:EMAIL>>
+<<PRIVACY_MASK:BEARER_TOKEN>>
+<<PRIVACY_MASK:CONTEXTUAL_SECRET>>
+```
 
-## 性能规则
+### Blocked upload metadata
 
-这个版本优先保证速度。
+The proxy does not read uploaded file contents. It blocks only by filename or extension:
 
-### 请求体大小阈值
+- Extensions: `.env`, `.pem`, `.key`, `.p12`, `.pfx`, `.npmrc`, `.pypirc`
+- Filenames: `id_rsa`, `id_dsa`, `authorized_keys`, `known_hosts`, `credentials.json`, `service-account.json`, `secrets.yaml`, `secrets.yml`, `prod.env`, `config.prod`
 
-- `< 128 KB`：完整扫描所有受支持的文本字段
-- `128 KB - 1 MB`：对文本字段做分块扫描
-- `> 1 MB`：只执行强密钥规则和基础 PII 脱敏
-
-### Multipart 行为
-
-- 检查 multipart 文本字段
-- 只检查文件元数据
-- 不读取文件内容进行扫描
-
-### 提前退出
-
-- 一旦确认命中文件名等硬拦截条件，立即停止后续扫描
-
-## 响应行为
-
-当请求被拦截时，返回确定性的 JSON 响应，例如：
+Blocked requests return JSON similar to:
 
 ```json
 {
@@ -213,183 +202,176 @@ v1 不做语义层面的人名或地址识别。
 }
 ```
 
-当请求被脱敏后转发时：
+### Size tiers
 
-- 不暴露原始内容
-- 仅在本地环境调试时，可选附加内部响应头
+| Request body size | Scan behavior |
+| --- | --- |
+| `< 128 KB` | Full scan: secrets, contextual secrets, and PII. |
+| `128 KB - 1 MB` | Chunked secret/context scan plus PII scan. |
+| `> 1 MB` | Minimal scan: strong secret rules and PII. |
 
-## 日志与审计
+The thresholds and chunk size can be changed from the admin settings page.
 
-审计库会记录每次命中的原始匹配值（按类别分组），用于私人部署中的泄露统计和真实暴露追踪。系统不会把完整提示词或原始文件内容写入审计库；实时 SSE 和应用日志也不会发送原始匹配值。管理后台通过 reveal-auth 加载真实值后，界面仍以带 `**` 的部分掩码显示，复制按钮复制真实未掩码值。请保护好宿主机 `./data/audit.sqlite`。
+## Audit and admin console
 
-### 日志模式
+The SQLite audit log records request metadata, findings, actions, duration, model when detected, and raw matched values grouped by category. It does not store full prompts or uploaded file contents.
 
-系统支持两种日志模式,通过环境变量 `DEBUG` 控制:
+Raw matched values are intentionally not sent through live SSE events or normal logs. Admin audit APIs return them only after reveal-auth succeeds, and the UI displays partially masked values while still allowing authenticated copy actions.
 
-**生产模式 (DEBUG=false 或未设置)**:
-- 仅输出命中规则的请求摘要
-- 格式: `[proxy] METHOD PATH | action: ACTION | hits: CATEGORIES | DURATION ms`
-- 示例: `[proxy] POST /v1/chat/completions | action: mask | hits: BEARER_TOKEN, PHONE | 12.34ms`
-- allow 放行的请求不产生日志,降低噪音
+Protect the SQLite file (`./data/audit.sqlite` in Docker deployments) as sensitive local data.
 
-**调试模式 (DEBUG=true)**:
-- 输出完整扫描流程
-- 包括请求预览、扫描层级、命中详情等
-- 用于故障排查和开发调试
+Dashboard areas:
 
-审计字段：
+- Overview: recent incidents and summary metrics.
+- Audit: searchable audit entries, hit categories, matched-value reveal flow, duration, model, and bypass status.
+- Rules: temporary bypass rules for path/model windows.
+- Settings: hot-reloadable scanner thresholds, path prefix options, and exclusion rules.
 
-- 时间戳
-- 请求路径
-- 请求方法
-- 内容类型
-- 请求体大小
-- 文件名
-- 命中类别
-- 原始匹配值（仅 SQLite 审计库；后台显示时部分掩码）
-- 执行动作
-- 处理耗时
+Bypass rules allow matching traffic to continue, but the proxy still scans and audits findings with `bypassApplied: true`.
 
-日志/SSE 不要输出：
+## Project structure
 
-- 原始提示词文本
-- 完整密钥值
-- 原始文件内容
+| Path | Purpose |
+| --- | --- |
+| `src/app/api/[[...path]]/route.ts` | Reverse proxy entry point for `/api/*`. |
+| `src/app/api/admin/*` | Admin APIs for audit, stats, config, reveal auth, and bypass rules. |
+| `src/app/dashboard/*` | Admin dashboard pages. |
+| `src/scanner/` | Privacy scanning pipeline: secrets, contextual keys, PII, filenames, multipart parsing, and exclusions. |
+| `src/proxy/` | Upstream forwarding, SSE streaming, and mask disambiguation. |
+| `src/audit/` | SQLite schema, audit persistence, and live audit events. |
+| `src/bypass/` | Temporary bypass rule storage and matching. |
+| `Dockerfile` | Multi-stage production image using Next.js standalone output. |
+| `docker-compose.yaml` | Deployment entry point for the published image. |
+| `.env.template` | Direct `npm run dev` / `npm start` configuration template. |
+| `doc/` | Additional design notes. |
 
-## 当前实现拆分
+## Development
 
-当前项目使用 Next.js Route Handler 实现透明代理：
-
-- `src/app/api/[[...path]]/route.ts`：接收 `/api/*` 请求，执行扫描、审计和转发。
-- `src/scanner/`：隐私扫描管线，包括凭证、上下文密钥、PII、文件名和 multipart 元数据检查。
-- `src/proxy/`：上游转发与 SSE 响应透传。
-- `src/audit/`：SQLite 审计元数据写入。
-- `Dockerfile`：生产镜像，使用 Next.js standalone 输出。
-- `docker-compose.yaml`：本地和生产部署入口。
-
-## Docker 部署设计
-
-### 镜像策略
-
-- 使用 `node:22-alpine` 多阶段构建。
-- 构建阶段运行 `npm ci` 和 `npm run build`，生成 Next.js standalone 输出。
-- 运行阶段只复制 `.next/standalone`、`.next/static` 和 `public`。
-- GitHub Actions 会在 `master` 分支发布镜像到 GitHub Container Registry (`ghcr.io/<owner>/<repo>:latest`)，并在 `v*` Git tag 上发布版本镜像。
-- `better-sqlite3` 是原生模块，builder 和 runner 使用同一个 Alpine 基础镜像以保持 ABI 一致。
-- 容器以 `node` 非 root 用户运行。
-- 容器内审计数据库默认写入 `/data/audit.sqlite`，通过宿主机目录映射 `./data` 持久化（bind mount）。
-- 健康检查访问代理根路径 `/`，只验证代理进程存活，不依赖上游服务。
-
-### 运行时配置
-
-所有应用配置通过环境变量注入。`docker-compose.yaml` 直接写入最小启动配置，不再通过 `.env` 或项目专用前缀变量二次映射；需要部署时直接编辑 Compose 文件中的明文值。`.env.template` 仅作为 `npm run dev` / `npm start` 直接运行时的参考。
-
-| 变量 | 默认值 | 说明 |
-| --- | --- | --- |
-| `NODE_ENV` | `production` | Node 运行环境 |
-| `PORT` | `3000` | Next.js 监听端口 |
-| `HOSTNAME` | `0.0.0.0` | 容器内绑定的网络接口 |
-| `UPSTREAM_URL` | `http://host.docker.internal:8787`（Compose）/ `http://localhost:8787`（直接运行） | 上游服务 base URL；按实际上游地址直接修改 |
-| `DB_PATH` | `/data/audit.sqlite`（Compose）/ `audit.sqlite`（直接运行） | SQLite 审计库路径 |
-| `DEBUG` | `false` | 调试模式。建议只在本地直接运行时开启 |
-| `ADMIN_KEY` | _(空)_ | 管理后台访问密钥。必须设置才能访问 `/dashboard`。建议使用 `openssl rand -base64 32` 生成 |
-
-**必须设置 ADMIN_KEY 才能访问管理后台**：
+Install dependencies:
 
 ```bash
-openssl rand -base64 32
-# 将生成的密钥填入 docker-compose.yaml 的 ADMIN_KEY，或直接运行时填入 .env
+npm install
 ```
 
-如果上游服务跑在宿主机上，Docker Desktop 可使用：
-
-```yaml
-UPSTREAM_URL: http://host.docker.internal:8787
-```
-
-如果上游服务是同一个 Docker network 里的真实服务，改成该服务名：
-
-```yaml
-UPSTREAM_URL: http://your-upstream-service:8787
-```
-
-### 生产启动
-
-镜像由 GitHub/cloud 构建并发布；Compose 只拉取镜像运行，不在服务器本地 `build`。
+Run the app:
 
 ```bash
-docker compose up -d privacy-proxy
+npm run dev
 ```
 
-查看状态和日志：
+Run tests:
 
 ```bash
-docker compose ps
-docker compose logs -f privacy-proxy
+npm test
 ```
 
-停止服务：
+Build production output:
 
 ```bash
-docker compose down
+npm run build
 ```
 
-审计数据存储在宿主机 `./data/audit.sqlite`。如需清空审计数据：
+Optional local upstream for manual proxy checks:
 
 ```bash
-docker compose down
-rm -rf ./data/audit.sqlite
-# 或清空整个数据目录
-rm -rf ./data
+node mock-upstream.mjs
 ```
 
-### 本地容器烟测
+Then send requests to `http://localhost:3000/api/...` with `UPSTREAM_URL=http://localhost:8787`.
 
-Compose 不再提供内置模拟上游服务。请先启动真实上游服务，并把 `docker-compose.yaml` 中的 `UPSTREAM_URL` 改成容器可访问的地址，然后运行：
+## Security notes
 
-```bash
-docker compose up -d privacy-proxy
-```
+- Keep `ADMIN_KEY` strong and private.
+- Keep `UPSTREAM_URL` explicit per environment; do not hardcode provider credentials in source code.
+- Do not expose the dashboard or SQLite data directory publicly without additional network controls.
+- Enable `DEBUG=true` only for local troubleshooting. Debug logs can reveal scan flow details.
+- Treat `audit.sqlite` as sensitive because matched values are persisted for leak statistics.
 
-允许并转发普通请求：
+## License
 
-```bash
-curl -s http://localhost:3000/api/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"message":"hello"}'
-```
+MIT. See [LICENSE](./LICENSE).
 
-脱敏后转发 PII：
+## Project history
 
-```bash
-curl -s http://localhost:3000/api/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com"}'
-```
+This timeline is based on Git commit history, with Trellis task names added only where they clarify the work. It is an implementation log, not a formal release changelog.
 
-拦截敏感文件名：
+### 2026-06-10
 
-```bash
-curl -s -w "\n%{http_code}\n" http://localhost:3000/api/v1/upload \
-  -H "Content-Type: multipart/form-data; boundary=----TestBoundary123" \
-  --data-binary $'------TestBoundary123\r\nContent-Disposition: form-data; name="file"; filename="id_rsa"\r\nContent-Type: application/octet-stream\r\n\r\nfake\r\n------TestBoundary123--\r\n'
-```
+- Initialized `private-llm-gateway` and established the Next.js privacy proxy structure. Git: `ccdc70c`.
+- Added automated build workflow for install, tests, and production build. Trellis: `Git automatic build workflow`; Git: `7e58857`.
+- Started the Docker image publishing direction that later became `Publish Docker image to GHCR`.
 
-## v1 已确认的问题结论
+### 2026-06-15
 
-- 是否透明代理：是
-- 是否过滤所有请求：是
-- 是否解析文件内容：否
-- 是否拦截敏感文件名：是
-- PII 如何处理：脱敏后转发
-- 凭证如何处理：直接拦截
-- 未知随机字符串如何处理：仅在上下文显示其可能是密钥时拦截
+- Unified environment-variable configuration and Docker/Compose workflow to reduce drift between local, container, and production runs. Git: `44569e2`, `5eddc7a`.
+- Improved sensitive-data detection configuration and tests, and added debug mode for scan troubleshooting. Git: `253367b`, `fe7e807`.
 
-## 推荐下一步
+### 2026-06-16
 
-如果后续确实有需要，可以再实现 `balanced` 模式；但当前建议先从这个快速配置开始：
+- Added proxy logs, error handling, debug output, and related documentation/configuration. Git: `310ee42`.
+- Added the admin dashboard, navigation structure, and i18n foundation. Git: `5e3cbe4`.
 
-- 低延迟
-- 运维复杂度低
-- 对明显的凭证泄露有较强保护
-- 相比激进的随机字符串拦截，误报更可控
+### 2026-06-17
+
+- Upgraded privacy mask token format and added request-level semantic disambiguation to reduce ambiguity and context loss. Git: `1d4465d`.
+- Fixed frontend runtime config loading by reading server-side environment values through an API. Git: `694c191`.
+- Added admin authentication with `ADMIN_KEY`, root redirect to the dashboard, and admin context initialization. Git: `c445c1a`, `914d5e1`, `b9b0f8a`.
+- Polished dashboard text sizing, audit table time-range filtering, and i18n copy. Git: `54a8c71`, `b565f0e`.
+
+### 2026-06-18
+
+- Updated integration tests to use a local HTTP server as upstream, making proxy-forwarding tests more stable. Git: `8d23b7f`.
+
+### 2026-06-23
+
+- Added temporary bypass rules that can skip privacy enforcement during a configured time window. Git: `9753c7c`.
+- Implemented hot-reloadable system configuration and started admin UX improvements. Git: `ab5a255`.
+- Trellis bypass-rule work in this period: `Make bypass rule path prefix options configurable via admin settings`, `Merge path prefix options in audit log filter with configured path_prefix_options`, and `Optimize temporary bypass rule time and path selection UX`.
+
+### 2026-06-24
+
+- Adjusted path prefix options by removing API version prefixes so filters and rules better match actual upstream paths. Git: `96bfdec`.
+- Updated the admin UI with temporary bypass-rule management and improved i18n copy. Git: `ce7e220`.
+- Trellis cleanup tasks: `Fix incorrect default path prefix configuration`, `Update all documentation references from scan rules to bypass rules`, `Update nav.rules translation from scan rules to bypass rules`, and `Fix dashboard recent incidents to show both block and mask actions`.
+
+### 2026-06-25
+
+- Added reveal authentication for matched audit values and improved contextual key scanning. Git: `4050aaa`.
+- By this point, GHCR publishing, bypass-rule path options, audit filter options, temporary bypass UX, default path configuration, and terminology migration were largely complete.
+
+### 2026-06-26
+
+- Added model tracking to audit records and updated related APIs and i18n text. Git: `994f22a`.
+- Fixed matched-value reveal state so switching pages no longer requires re-entering the key. Git: `1629821`.
+- Added bypass-rule re-enable support and fixed stored type handling. Git: `e004d49`.
+- Added Trellis project-management instructions and collaboration guidance. Git: `e18da49`.
+
+### 2026-06-29
+
+- Kept scanning and recording findings when bypass rules allow a request, with bypass status included for later risk analysis. Git: `26eae87`.
+
+### 2026-06-30
+
+- Updated the privacy notice copy to explain how mask tokens should be handled. Git: `31fcaef`.
+- Added scanner exclusion rules with exact and regex modes, then synced configuration and UI. Git: `c8e9c85`.
+
+### 2026-07-02
+
+- Added `BASE64_TOKEN`, `STRIPE_KEY`, and `SENDGRID_KEY` detection; made audit duration nullable; added duration to the dashboard. Git: `c519824`.
+
+### 2026-07-03
+
+- Enhanced audit logging and raw matched-value handling. Git: `3459638`.
+- Switched admin SSE to header-only auth to reduce credential exposure. Git: `fac341f`.
+
+### 2026-07-06
+
+- Fixed secret masking preservation in LLM JSON proxy requests. Git: `cc70080`.
+- Updated frontend implementation details. Git: `6bea77b`.
+- Trellis alignment: `Align LLM privacy proxy design`, which narrowed README scope to an LLM API privacy gateway with fast scanning, SSE pass-through, SQLite audit, and Docker deployment.
+
+### 2026-07-07
+
+- Fixed audit page overflow, language button styles, dashboard hit labels, and dashboard visual polish. Git: `d66ea08`, `22d48cf`, `551c9fd`.
+- Fixed scanner configuration secret leakage. Trellis: `Fix secret configuration leakage`; Git: `8e01f7b`.
+- Expanded scanner secret rule packs to cover more LLM provider tokens, developer platform tokens, cloud/config credentials, connection strings, high-entropy values, and base64-encoded configuration. Git: `d474680`.
