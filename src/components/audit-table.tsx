@@ -692,11 +692,8 @@ export function AuditTable() {
                       />
                     </TableCell>
                     <TableCell onClick={clickRow} className="cursor-pointer overflow-hidden whitespace-nowrap font-mono text-xs tabular-nums text-muted-foreground">{row.duration != null ? formatDuration(row.duration) : "—"}</TableCell>
-                    <TableCell onClick={clickRow} className="overflow-hidden whitespace-nowrap">
-                      <div className="flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap">
-                        <ActionBadge action={row.action} label={t(`action.${row.action}`)} />
-                        {row.bypassApplied && <Badge variant="outline" className="min-w-0 truncate whitespace-nowrap border-warning/50 font-mono text-xs text-warning">{t("audit.bypassAllowed")}</Badge>}
-                      </div>
+                    <TableCell onClick={clickRow} className="overflow-visible">
+                      <ActionBadge action={row.action} label={row.bypassApplied ? t("audit.bypassAllowed") : t(`action.${row.action}`)} />
                     </TableCell>
                   </TableRow>
                   {expanded && (
@@ -704,11 +701,10 @@ export function AuditTable() {
                       <TableCell colSpan={11} className="overflow-hidden p-0">
                         <div className="max-w-full overflow-hidden border-b border-border/50 bg-card/80 px-4 py-3">
                           <div className="mb-3 flex min-w-0 items-center justify-between gap-3 rounded-md border border-border/40 bg-muted/20 px-2.5 py-2">
-                            <div className="flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap">
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
                               <code className="shrink-0 rounded-md bg-background/70 px-2 py-1 font-mono text-xs text-muted-foreground">#{row.id}</code>
                               <Badge variant="outline" className="shrink-0 whitespace-nowrap bg-background/70 font-mono text-xs">{row.method}</Badge>
-                              <SubtleActionBadge action={row.action} label={t(`action.${row.action}`)} />
-                              {row.bypassApplied && <Badge variant="outline" className="min-w-0 truncate whitespace-nowrap border-warning/40 bg-warning/5 font-mono text-xs text-warning">{t("audit.bypassAllowed")}</Badge>}
+                              <SubtleActionBadge action={row.action} label={row.bypassApplied ? t("audit.bypassAllowed") : t(`action.${row.action}`)} />
                             </div>
                             <Button
                               variant="ghost"
