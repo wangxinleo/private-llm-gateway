@@ -116,8 +116,12 @@ describe("proxy route LLM compatibility", () => {
     const parsed = JSON.parse(String(forwardedBody));
     expect(parsed).not.toHaveProperty("_privacy_meta");
     expect(JSON.stringify(parsed)).not.toContain(rawEmail);
-    expect(parsed.messages[0].content).toContain("[Privacy notice]");
-    expect(parsed.messages[0].content).toContain("You are careful.");
+    // Original messages preserved untouched
+    expect(parsed.messages[0].content).toBe("You are careful.");
     expect(parsed.messages[1].content).toContain("<<PRIVACY_MASK:EMAIL>>");
+    // Notice appended as a new system message at the tail
+    const lastMsg = parsed.messages[parsed.messages.length - 1];
+    expect(lastMsg.role).toBe("system");
+    expect(lastMsg.content).toContain("[Privacy notice]");
   });
 });

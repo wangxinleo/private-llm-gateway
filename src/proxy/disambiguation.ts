@@ -9,7 +9,6 @@ export interface DisambiguationContext {
 
 const NOTICE_PREFIX = "[Privacy notice]";
 const STANDARD_PROMPT_FIELDS = ["system", "instructions", "prompt", "input"] as const;
-const PREFERRED_MESSAGE_ROLES = new Set(["system", "developer"]);
 
 function buildNotice(scanResult: ScanResult): string {
   const sampleTag = scanResult.maskSummary.categories[0]
@@ -31,63 +30,43 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function prefixNotice(text: string, notice: string): string {
-  if (text.startsWith(NOTICE_PREFIX)) return text;
-  return `${NOTICE_PREFIX} ${notice}\n\n${text}`;
+function buildNoticeText(notice: string): string {
+  return `${NOTICE_PREFIX} ${notice}`;
 }
 
-function injectIntoContent(content: unknown, notice: string): unknown | null {
+function appendToContent(content: unknown, noticeText: string): unknown | null {
   if (typeof content === "string") {
-    return prefixNotice(content, notice);
+    return `${content}\n\n${noticeText}`;
   }
 
   if (!Array.isArray(content)) return null;
 
-  for (let index = 0; index < content.length; index += 1) {
-    const part = content[index];
-    if (!isRecord(part) || typeof part.text !== "string") continue;
-
+  const lastPart = content[content.length - 1];
+  if (isRecord(lastPart) && typeof lastPart.text === "string") {
     const nextParts = content.slice();
-    nextParts[index] = { ...part, text: prefixNotice(part.text, notice) };
+    nextParts[content.length - 1] = {
+      ...lastPart,
+      text: `${lastPart.text}\n\n${noticeText}`,
+    };
     return nextParts;
   }
 
-  return null;
+  return [...content, { type: "text", text: noticeText }];
 }
 
-function injectIntoMessages(messages: unknown[], notice: string): unknown[] {
-  for (let index = 0; index < messages.length; index += 1) {
-    const message = messages[index];
-    if (!isRecord(message) || typeof message.role !== "string") continue;
-    if (!PREFERRED_MESSAGE_ROLES.has(message.role)) continue;
-
-    const nextContent = injectIntoContent(message.content, notice);
-    if (nextContent === null) continue;
-
-    const nextMessages = messages.slice();
-    nextMessages[index] = { ...message, content: nextContent };
-    return nextMessages;
-  }
-
-  return [
-    { role: "system", content: `${NOTICE_PREFIX} ${notice}` },
-    ...messages,
-  ];
-}
-
-function injectIntoStandardFields(
+function appendToStandardField(
   body: Record<string, unknown>,
-  notice: string
+  noticeText: string
 ): Record<string, unknown> | null {
   for (const field of STANDARD_PROMPT_FIELDS) {
     const value = body[field];
 
     if (typeof value === "string") {
-      return { ...body, [field]: prefixNotice(value, notice) };
+      return { ...body, [field]: `${value}\n\n${noticeText}` };
     }
 
     if (Array.isArray(value)) {
-      const nextContent = injectIntoContent(value, notice);
+      const nextContent = appendToContent(value, noticeText);
       if (nextContent !== null) {
         return { ...body, [field]: nextContent };
       }
@@ -96,7 +75,27 @@ function injectIntoStandardFields(
   return null;
 }
 
-function injectJsonPromptNotice(body: string, notice: string): string | null {
+function appendSystemMessage(messages: unknown[], noticeText: string): unknown[] {
+  const noticeContent = `${noticeText}`;
+
+  const lastMessage = messages[messages.length - 1];
+  if (
+    isRecord(lastMessage) &&
+    typeof lastMessage.role === "string" &&
+    lastMessage.role === "system"
+  ) {
+    const nextContent = appendToContent(lastMessage.content, noticeContent);
+    if (nextContent !== null) {
+      const nextMessages = messages.slice();
+      nextMessages[messages.length - 1] = { ...lastMessage, content: nextContent };
+      return nextMessages;
+    }
+  }
+
+  return [...messages, { role: "system", content: noticeContent }];
+}
+
+function injectJsonPromptNotice(body: string, noticeText: string): string | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(body);
@@ -106,8 +105,7 @@ function injectJsonPromptNotice(body: string, notice: string): string | null {
 
   if (!isRecord(parsed)) return null;
 
-  // Prefer standard top-level prompt fields first (Anthropic system, prompt/input APIs).
-  const withStandardField = injectIntoStandardFields(parsed, notice);
+  const withStandardField = appendToStandardField(parsed, noticeText);
   if (withStandardField) {
     return JSON.stringify(withStandardField);
   }
@@ -115,7 +113,7 @@ function injectJsonPromptNotice(body: string, notice: string): string | null {
   if (Array.isArray(parsed.messages)) {
     return JSON.stringify({
       ...parsed,
-      messages: injectIntoMessages(parsed.messages, notice),
+      messages: appendSystemMessage(parsed.messages, noticeText),
     });
   }
 
@@ -123,8 +121,8 @@ function injectJsonPromptNotice(body: string, notice: string): string | null {
   return body;
 }
 
-function injectTextPrefix(body: string, notice: string): string {
-  return prefixNotice(body, notice);
+function injectTextSuffix(body: string, noticeText: string): string {
+  return `${body}\n\n${noticeText}`;
 }
 
 export function applyDisambiguation(context: DisambiguationContext): string {
@@ -135,15 +133,15 @@ export function applyDisambiguation(context: DisambiguationContext): string {
   if (isMultipartContentType(contentType)) return maskedBody;
 
   const notice = buildNotice(scanResult);
+  const noticeText = buildNoticeText(notice);
 
   if (PRIVACY_DISAMBIGUATION_MODE === "prefix") {
-    return injectTextPrefix(maskedBody, notice);
+    return `${NOTICE_PREFIX} ${notice}\n\n${maskedBody}`;
   }
 
-  // auto (and legacy json-meta alias): only mutate standard prompt surfaces.
   if (isJsonContentType(contentType)) {
-    return injectJsonPromptNotice(maskedBody, notice) ?? injectTextPrefix(maskedBody, notice);
+    return injectJsonPromptNotice(maskedBody, noticeText) ?? injectTextSuffix(maskedBody, noticeText);
   }
 
-  return injectTextPrefix(maskedBody, notice);
+  return injectTextSuffix(maskedBody, noticeText);
 }

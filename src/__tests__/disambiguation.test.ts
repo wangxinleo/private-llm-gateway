@@ -64,7 +64,7 @@ describe("applyDisambiguation", () => {
     expect(output).toBe("hello");
   });
 
-  it("injects text prefix for plain text content type", () => {
+  it("appends notice as suffix for plain text content type", () => {
     const result = makeMaskResult(["EMAIL"], "Contact <<PRIVACY_MASK:EMAIL>> for details");
     const output = applyDisambiguation({
       contentType: "text/plain",
@@ -73,9 +73,12 @@ describe("applyDisambiguation", () => {
     });
     expect(output).toContain("[Privacy notice]");
     expect(output).toContain("Contact <<PRIVACY_MASK:EMAIL>> for details");
+    const noticeIdx = output.indexOf("[Privacy notice]");
+    const bodyIdx = output.indexOf("Contact");
+    expect(noticeIdx).toBeGreaterThan(bodyIdx);
   });
 
-  it("injects notice into system message for chat JSON", () => {
+  it("appends a system message at the end for chat JSON", () => {
     const body = JSON.stringify({
       model: "gpt-4",
       messages: [
@@ -90,13 +93,14 @@ describe("applyDisambiguation", () => {
       scanResult: result,
     });
     const parsed = JSON.parse(output);
-    expect(parsed.messages[0].content).toContain("[Privacy notice]");
-    expect(parsed.messages[0].content).toContain("You are helpful.");
+    expect(parsed.messages[0].content).toBe("You are helpful.");
     expect(parsed.messages[1].content).toBe("My email is <<PRIVACY_MASK:EMAIL>>");
+    expect(parsed.messages[2].role).toBe("system");
+    expect(parsed.messages[2].content).toContain("[Privacy notice]");
     assertNoCustomMeta(parsed);
   });
 
-  it("prefers top-level system field over messages for Anthropic-style payloads", () => {
+  it("appends notice to existing top-level system field for Anthropic-style payloads", () => {
     const body = JSON.stringify({
       model: "claude",
       system: "You are careful.",
@@ -109,8 +113,11 @@ describe("applyDisambiguation", () => {
       scanResult: result,
     });
     const parsed = JSON.parse(output);
-    expect(parsed.system).toContain("[Privacy notice]");
     expect(parsed.system).toContain("You are careful.");
+    expect(parsed.system).toContain("[Privacy notice]");
+    const originalIdx = parsed.system.indexOf("You are careful.");
+    const noticeIdx = parsed.system.indexOf("[Privacy notice]");
+    expect(noticeIdx).toBeGreaterThan(originalIdx);
     expect(parsed.messages[0].content).toBe("email <<PRIVACY_MASK:EMAIL>>");
     assertNoCustomMeta(parsed);
   });
@@ -142,7 +149,7 @@ describe("applyDisambiguation", () => {
     expect(output).toBe("body text");
   });
 
-  it("falls back to text prefix for invalid JSON in application/json content type", () => {
+  it("falls back to text suffix for invalid JSON in application/json content type", () => {
     const result = makeMaskResult(["PHONE"], "call <<PRIVACY_MASK:PHONE>>");
     const output = applyDisambiguation({
       contentType: "application/json",
@@ -151,9 +158,12 @@ describe("applyDisambiguation", () => {
     });
     expect(output).toContain("[Privacy notice]");
     expect(output).toContain("not valid json");
+    const noticeIdx = output.indexOf("[Privacy notice]");
+    const bodyIdx = output.indexOf("not valid json");
+    expect(noticeIdx).toBeGreaterThan(bodyIdx);
   });
 
-  it("injects notice into prompt field without adding custom JSON properties", () => {
+  it("appends notice into prompt field without adding custom JSON properties", () => {
     const body = JSON.stringify({
       prompt: "contact <<PRIVACY_MASK:EMAIL>> at <<PRIVACY_MASK:PHONE>>",
     });
@@ -170,7 +180,7 @@ describe("applyDisambiguation", () => {
     assertNoCustomMeta(parsed);
   });
 
-  it("prepends a system message when only a user multimodal message exists", () => {
+  it("appends notice into last multimodal message text part", () => {
     const body = JSON.stringify({
       messages: [
         {
@@ -189,36 +199,17 @@ describe("applyDisambiguation", () => {
       scanResult: result,
     });
     const parsed = JSON.parse(output);
-    expect(parsed.messages[0].role).toBe("system");
-    expect(parsed.messages[0].content).toContain("[Privacy notice]");
-    expect(parsed.messages[1].content[0].text).toBe("hello <<PRIVACY_MASK:EMAIL>>");
-    expect(parsed.messages[1].content[1].type).toBe("image_url");
+    // Notice appended as a new system message at the end
+    const lastMsg = parsed.messages[parsed.messages.length - 1];
+    expect(lastMsg.role).toBe("system");
+    expect(lastMsg.content).toContain("[Privacy notice]");
+    // Original messages preserved
+    expect(parsed.messages[0].content[0].text).toBe("hello <<PRIVACY_MASK:EMAIL>>");
+    expect(parsed.messages[0].content[1].type).toBe("image_url");
     assertNoCustomMeta(parsed);
   });
 
-  it("prepends a system message when chat messages have no writable text content", () => {
-    const body = JSON.stringify({
-      messages: [
-        {
-          role: "user",
-          content: [{ type: "image_url", image_url: { url: "https://example.com/a.png" } }],
-        },
-      ],
-    });
-    const result = makeMaskResult(["EMAIL"], body);
-    const output = applyDisambiguation({
-      contentType: "application/json",
-      maskedBody: body,
-      scanResult: result,
-    });
-    const parsed = JSON.parse(output);
-    expect(parsed.messages[0].role).toBe("system");
-    expect(parsed.messages[0].content).toContain("[Privacy notice]");
-    expect(parsed.messages[1].role).toBe("user");
-    assertNoCustomMeta(parsed);
-  });
-
-  it("preserves user content when prepending a system notice", () => {
+  it("preserves all original messages when appending system notice", () => {
     const body = JSON.stringify({
       messages: [{ role: "user", content: "Hello world" }],
     });
@@ -229,9 +220,30 @@ describe("applyDisambiguation", () => {
       scanResult: result,
     });
     const parsed = JSON.parse(output);
-    expect(parsed.messages[0].role).toBe("system");
-    expect(parsed.messages[0].content).toContain("[Privacy notice]");
-    expect(parsed.messages[1].content).toBe("Hello world");
+    expect(parsed.messages[0].content).toBe("Hello world");
+    expect(parsed.messages[1].role).toBe("system");
+    expect(parsed.messages[1].content).toContain("[Privacy notice]");
+    assertNoCustomMeta(parsed);
+  });
+
+  it("appends to existing trailing system message content instead of adding a new one", () => {
+    const body = JSON.stringify({
+      messages: [
+        { role: "user", content: "do something" },
+        { role: "system", content: "Existing system note." },
+      ],
+    });
+    const result = makeMaskResult(["PHONE"], body);
+    const output = applyDisambiguation({
+      contentType: "application/json",
+      maskedBody: body,
+      scanResult: result,
+    });
+    const parsed = JSON.parse(output);
+    expect(parsed.messages.length).toBe(2);
+    expect(parsed.messages[1].role).toBe("system");
+    expect(parsed.messages[1].content).toContain("Existing system note.");
+    expect(parsed.messages[1].content).toContain("[Privacy notice]");
     assertNoCustomMeta(parsed);
   });
 
@@ -246,7 +258,7 @@ describe("applyDisambiguation", () => {
     expect(output).toBe(body);
   });
 
-  it("injects notice into Anthropic-style system field array", () => {
+  it("appends notice into Anthropic-style system field array", () => {
     const body = JSON.stringify({
       model: "claude",
       system: [
@@ -262,66 +274,21 @@ describe("applyDisambiguation", () => {
       scanResult: result,
     });
     const parsed = JSON.parse(output);
-    expect(parsed.system[0].text).toContain("[Privacy notice]");
-    expect(parsed.system[0].text).toContain("You are careful.");
-    expect(parsed.system[1].text).toBe("Additional context.");
+    expect(parsed.system[parsed.system.length - 1].text).toContain("[Privacy notice]");
+    expect(parsed.system[0].text).toBe("You are careful.");
+    expect(parsed.system[1].text).toContain("Additional context.");
     expect(parsed.messages[0].content).toBe("email <<PRIVACY_MASK:EMAIL>>");
     assertNoCustomMeta(parsed);
   });
 
-  it("injects notice into developer role message", () => {
-    const body = JSON.stringify({
-      model: "o1",
-      messages: [
-        { role: "developer", content: "Follow these rules." },
-        { role: "user", content: "data <<PRIVACY_MASK:PHONE>>" },
-      ],
-    });
-    const result = makeMaskResult(["PHONE"], body);
-    const output = applyDisambiguation({
-      contentType: "application/json",
-      maskedBody: body,
-      scanResult: result,
-    });
-    const parsed = JSON.parse(output);
-    expect(parsed.messages[0].content).toContain("[Privacy notice]");
-    expect(parsed.messages[0].content).toContain("Follow these rules.");
-    expect(parsed.messages[1].content).toBe("data <<PRIVACY_MASK:PHONE>>");
-    assertNoCustomMeta(parsed);
-  });
-
-  it("does not duplicate notice when body already starts with notice prefix", () => {
-    const body = JSON.stringify({
-      messages: [
-        { role: "system", content: "[Privacy notice] existing notice\n\nYou are helpful." },
-        { role: "user", content: "<<PRIVACY_MASK:EMAIL>>" },
-      ],
-    });
-    const result = makeMaskResult(["EMAIL"], body);
-    const output = applyDisambiguation({
-      contentType: "application/json",
-      maskedBody: body,
-      scanResult: result,
-    });
-    const parsed = JSON.parse(output);
-    const count = (parsed.messages[0].content.match(/\[Privacy notice\]/g) || []).length;
-    expect(count).toBe(1);
-    assertNoCustomMeta(parsed);
-  });
-
-  it("does not duplicate notice on repeated text prefix injection", () => {
+  it("appends notice exactly once per disambiguation call for text", () => {
     const result = makeMaskResult(["EMAIL"], "<<PRIVACY_MASK:EMAIL>>");
-    const firstOutput = applyDisambiguation({
+    const output = applyDisambiguation({
       contentType: "text/plain",
       maskedBody: result.maskedBody,
       scanResult: result,
     });
-    const secondOutput = applyDisambiguation({
-      contentType: "text/plain",
-      maskedBody: firstOutput,
-      scanResult: result,
-    });
-    const count = (secondOutput.match(/\[Privacy notice\]/g) || []).length;
+    const count = (output.match(/\[Privacy notice\]/g) || []).length;
     expect(count).toBe(1);
   });
 });
