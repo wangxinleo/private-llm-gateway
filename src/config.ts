@@ -46,7 +46,16 @@ export const SCANNER_EXCLUSIONS: ExclusionRule[] = [];
 export const DEFAULT_EXCLUSION_RULES: ExclusionRule[] = [...DEFAULT_CONFIG_VALUES.SCANNER_EXCLUSIONS];
 
 const PRIVACY_MASK_FORMAT = (process.env.PRIVACY_MASK_FORMAT ?? "explicit") as "legacy" | "explicit";
-const PRIVACY_DISAMBIGUATION_MODE = (process.env.PRIVACY_DISAMBIGUATION_MODE ?? "auto") as "off" | "prefix" | "json-meta" | "auto";
+export type PrivacyDisambiguationMode = "off" | "prefix" | "auto";
+
+function resolveDisambiguationMode(raw: string | undefined): PrivacyDisambiguationMode {
+  // legacy "json-meta" used to inject custom top-level fields; map it to safe prompt injection.
+  if (raw === "off" || raw === "prefix" || raw === "auto") return raw;
+  if (raw === "json-meta") return "auto";
+  return "auto";
+}
+
+const PRIVACY_DISAMBIGUATION_MODE = resolveDisambiguationMode(process.env.PRIVACY_DISAMBIGUATION_MODE);
 const PRIVACY_NOTICE_TEXT = process.env.PRIVACY_NOTICE_TEXT ??
   `Tokens like <<PRIVACY_MASK:EMAIL>> were inserted by the privacy proxy and are not original source text.\n` +
   `When file content contains <<PRIVACY_MASK:xxx>> tokens:\n` +

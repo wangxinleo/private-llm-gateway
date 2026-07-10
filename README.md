@@ -142,7 +142,7 @@ If the upstream service runs on the Docker host, `http://host.docker.internal:87
 | `ADMIN_KEY` | empty | Required for dashboard and reveal-auth access. |
 | `PRIVACY_SECRET_SCANNER_MODE` | `balanced` | Set to `strict` to use stricter contextual secret scanning. |
 | `PRIVACY_MASK_FORMAT` | `explicit` | Mask token format; `legacy` is available for compatibility. |
-| `PRIVACY_DISAMBIGUATION_MODE` | `auto` | Adds privacy-mask guidance for upstream LLMs. Values: `off`, `prefix`, `json-meta`, `auto`. |
+| `PRIVACY_DISAMBIGUATION_MODE` | `auto` | Adds privacy-mask guidance for upstream LLMs by prepending notice text into standard prompt fields (`system` / `messages` / `prompt` / `input`). Values: `off`, `prefix`, `auto`. Legacy `json-meta` is treated as `auto` and no longer injects custom JSON fields. |
 | `PRIVACY_NOTICE_TEXT` | built-in notice | Custom notice text for masked-token handling. |
 | `PRIVACY_DEBUG_HEADERS` | `false` | Adds debug response headers for masked requests when enabled. |
 

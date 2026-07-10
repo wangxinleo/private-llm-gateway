@@ -93,4 +93,31 @@ describe("proxy route LLM compatibility", () => {
       expect.any(String)
     );
   });
+
+
+  it("never forwards custom privacy meta fields for masked chat requests", async () => {
+    const rawEmail = "alice@example.com";
+
+    const response = await POST(makeRequest("/v1/chat/completions", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: "You are careful." },
+          { role: "user", content: `contact me at ${rawEmail}` },
+        ],
+      }),
+    }));
+
+    expect(response.status).toBe(200);
+    const forwardedBody = mockForward.mock.calls[0]?.[2];
+    expect(typeof forwardedBody).toBe("string");
+    const parsed = JSON.parse(String(forwardedBody));
+    expect(parsed).not.toHaveProperty("_privacy_meta");
+    expect(JSON.stringify(parsed)).not.toContain(rawEmail);
+    expect(parsed.messages[0].content).toContain("[Privacy notice]");
+    expect(parsed.messages[0].content).toContain("You are careful.");
+    expect(parsed.messages[1].content).toContain("<<PRIVACY_MASK:EMAIL>>");
+  });
 });

@@ -142,7 +142,7 @@ rm -rf ./data  # 清空整个挂载数据目录
 | `ADMIN_KEY` | 空 | 管理后台和 reveal-auth 必填密钥。 |
 | `PRIVACY_SECRET_SCANNER_MODE` | `balanced` | 设置为 `strict` 可启用更严格的上下文密钥扫描。 |
 | `PRIVACY_MASK_FORMAT` | `explicit` | 脱敏标记格式；`legacy` 用于兼容旧格式。 |
-| `PRIVACY_DISAMBIGUATION_MODE` | `auto` | 给上游 LLM 增加隐私标记说明。可选值：`off`、`prefix`、`json-meta`、`auto`。 |
+| `PRIVACY_DISAMBIGUATION_MODE` | `auto` | 通过标准提示词字段（`system` / `messages` / `prompt` / `input`）拼接隐私标记说明。可选值：`off`、`prefix`、`auto`。旧值 `json-meta` 会按 `auto` 处理，且不再注入自定义 JSON 字段。 |
 | `PRIVACY_NOTICE_TEXT` | 内置说明文本 | 自定义脱敏标记处理说明。 |
 | `PRIVACY_DEBUG_HEADERS` | `false` | 启用后，为被脱敏的请求增加调试响应头。 |
 

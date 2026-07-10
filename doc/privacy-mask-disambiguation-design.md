@@ -276,32 +276,15 @@ export function applyDisambiguation(context: DisambiguationContext): string;
 
 对于 JSON 请求，优先采用两种策略之一：
 
-##### 策略 B1：顶层元数据注入
+##### 策略 B1：标准提示词字段注入（默认）
 
-如果请求体是对象，向顶层追加：
+只修改上游已有、schema 合法的提示词表面，不新增任何自定义属性：
 
-```json
-{
-  "_privacy_meta": {
-    "masked": true,
-    "mask_types": ["EMAIL", "PHONE"],
-    "notice": "Tokens like <<PRIVACY_MASK:EMAIL>> were inserted by the privacy proxy and are not original content."
-  }
-}
-```
-
-优点：
-
-1. 结构化清晰
-2. 对工具链和后处理友好
-
-风险：
-
-1. 某些上游 API 严格校验 schema，新增字段可能失败
-
-##### 策略 B2：消息内容前缀注入
-
-对于典型 LLM 请求格式，若存在 `messages[*].content`，则在首个可写入的 system/developer/user 文本消息前加前缀：
+1. 顶层字符串字段优先：`system` / `instructions` / `prompt` / `input`
+2. 否则处理 `messages`：
+   - 优先写入已有 `system` / `developer` 消息
+   - 再回退到第一条可写文本消息（string 或 multimodal `content[].text`）
+   - 若完全没有可写文本内容，则前置一条标准 `system` 消息
 
 ```text
 [Privacy notice] Tokens like <<PRIVACY_MASK:EMAIL>> were inserted by the privacy proxy and are not original source text.
@@ -309,14 +292,19 @@ export function applyDisambiguation(context: DisambiguationContext): string;
 
 优点：
 
-1. 更兼容 schema 严格的上游接口
-2. 与模型实际阅读路径更接近
+1. 兼容 schema 严格的上游接口
+2. 与模型实际阅读路径一致
+3. 避免 `Unsupported parameter` 类 400 错误
+
+##### 策略 B2：文本前缀注入
+
+对 `text/plain` 等非结构化 body，或声明为 JSON 但解析失败的 body，使用前缀声明。
 
 建议默认优先级：
 
-1. 检测到典型 chat messages 结构时，使用 B2
-2. 否则对宽松 JSON 对象使用 B1
-3. 若不满足则回退为文本前缀策略
+1. JSON 标准提示词字段 / messages 注入
+2. 无标准提示词表面时保持 JSON 原样（不新增字段）
+3. 非 JSON 或非法 JSON 回退文本前缀
 
 #### 规则 C：纯文本按前缀注入
 
@@ -426,7 +414,6 @@ const forwardBody = scanResult.action === "mask"
 
 - `off`
 - `prefix`
-- `json-meta`
 - `auto`
 
 默认：`auto`
@@ -435,8 +422,8 @@ const forwardBody = scanResult.action === "mask"
 
 - `off`：只替换，不注入声明
 - `prefix`：统一走文本前缀策略
-- `json-meta`：JSON 顶层元数据优先
-- `auto`：按内容类型自动选择最佳策略
+- `auto`：仅通过标准提示词字段拼接 notice（`system` / `messages` / `prompt` / `input`）
+- 兼容：旧值 `json-meta` 会映射为 `auto`，不再注入 `_privacy_meta`
 
 ### `PRIVACY_NOTICE_TEXT`
 
@@ -527,12 +514,13 @@ export interface AuditEntry {
 
 ## 风险 1：上游接口严格校验 JSON schema
 
-风险：新增 `_privacy_meta` 会导致请求失败。
+风险：新增自定义字段（如 `_privacy_meta`）会导致请求失败。
 
 缓解：
 
-1. `auto` 模式优先使用 message 前缀注入
-2. 仅在确认上游允许额外字段时启用 `json-meta`
+1. 永不注入自定义 JSON 属性
+2. `auto` 模式只改写标准提示词字段
+3. 没有标准字段时保持 JSON 原样
 
 ## 风险 2：前缀注入影响业务语义
 
@@ -575,9 +563,9 @@ export interface AuditEntry {
 
 ## Phase 2：JSON 智能注入
 
-1. 对常见 `messages` 结构注入 notice
-2. 对宽松 JSON 对象支持 `_privacy_meta`
-3. 增加更多兼容测试
+1. 对常见 `messages` / `system` / `prompt` / `input` 结构注入 notice
+2. 支持 multimodal `content[].text`
+3. 增加更多兼容测试（禁止自定义字段）
 
 ## Phase 3：审计增强
 
@@ -604,8 +592,8 @@ export interface AuditEntry {
 
 1. 未发生脱敏时不注入 notice
 2. 纯文本 mask 时会插入 notice
-3. JSON 普通对象在 `json-meta` 模式下插入 `_privacy_meta`
-4. chat `messages` 结构在 `auto` 模式下注入首条 notice
+3. JSON 普通对象不会插入 `_privacy_meta` 或其他自定义字段
+4. chat `messages` / 标准提示词字段在 `auto` 模式下注入 notice
 
 ### 更新 `src/__tests__/json-mask.test.ts`
 
