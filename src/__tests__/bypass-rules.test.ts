@@ -138,5 +138,52 @@ describe("bypass rules", () => {
 
       expect(matched).toBeNull();
     });
+
+    it("matches model variant by prefix (gpt-4o-mini matches rule gpt-4o)", () => {
+      const prefixRule = {
+        ...activeRule,
+        modelName: "gpt-4o",
+      };
+      const matched = matchBypassRule(
+        [prefixRule],
+        {
+          path: "/v1/chat/completions",
+          model: "gpt-4o-mini",
+        },
+        new Date("2026-06-22T08:00:00.000Z")
+      );
+
+      expect(matched?.id).toBe(1);
+    });
+
+    it("matches exact model name (prefix includes full match)", () => {
+      const matched = matchBypassRule(
+        [activeRule],
+        {
+          path: "/v1/chat/completions",
+          model: "gpt-4o-mini",
+        },
+        new Date("2026-06-22T08:00:00.000Z")
+      );
+
+      expect(matched?.id).toBe(1);
+    });
+
+    it("does not match unrelated model with different prefix", () => {
+      const prefixRule = {
+        ...activeRule,
+        modelName: "gpt-4o",
+      };
+      const matched = matchBypassRule(
+        [prefixRule],
+        {
+          path: "/v1/chat/completions",
+          model: "claude-3-opus",
+        },
+        new Date("2026-06-22T08:00:00.000Z")
+      );
+
+      expect(matched).toBeNull();
+    });
   });
 });

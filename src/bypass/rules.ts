@@ -59,7 +59,7 @@ export function matchBypassRule(
   for (const rule of rules) {
     if (!isBypassRuleActive(rule, now)) continue;
     if (!input.path.startsWith(rule.pathPrefix)) continue;
-    if (rule.modelName !== input.model) continue;
+    if (!input.model.startsWith(rule.modelName)) continue;
     return rule;
   }
 
