@@ -291,4 +291,196 @@ describe("applyDisambiguation", () => {
     const count = (output.match(/\[Privacy notice\]/g) || []).length;
     expect(count).toBe(1);
   });
+
+  it("appends notice into instructions string for OpenAI Responses payloads", () => {
+    const body = JSON.stringify({
+      model: "gpt-5.1-codex",
+      instructions: "You are Codex.",
+      input: [
+        {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: "email <<PRIVACY_MASK:EMAIL>>" }],
+        },
+      ],
+    });
+    const result = makeMaskResult(["EMAIL"], body);
+    const output = applyDisambiguation({
+      contentType: "application/json",
+      maskedBody: body,
+      scanResult: result,
+    });
+    const parsed = JSON.parse(output);
+    expect(parsed.instructions).toContain("You are Codex.");
+    expect(parsed.instructions).toContain("[Privacy notice]");
+    expect(parsed.input).toEqual([
+      {
+        type: "message",
+        role: "user",
+        content: [{ type: "input_text", text: "email <<PRIVACY_MASK:EMAIL>>" }],
+      },
+    ]);
+    expect(parsed.input.some((item: { type?: string }) => item.type === "text")).toBe(false);
+    assertNoCustomMeta(parsed);
+  });
+
+  it("creates instructions instead of appending type:text to Responses input items", () => {
+    const longInput: Record<string, unknown>[] = Array.from({ length: 5 }, (_, i) => ({
+      type: "message",
+      role: i % 2 === 0 ? "user" : "assistant",
+      content:
+        i % 2 === 0
+          ? [{ type: "input_text", text: `turn ${i} secret <<PRIVACY_MASK:CONTEXTUAL_SECRET>>` }]
+          : [{ type: "output_text", text: `reply ${i}` }],
+    }));
+    longInput.push({
+      type: "function_call_output",
+      call_id: "call_abc",
+      output: "ok",
+    });
+
+    const body = JSON.stringify({
+      model: "gpt-5.1-codex",
+      input: longInput,
+    });
+    const result = makeMaskResult(["CONTEXTUAL_SECRET"], body);
+    const output = applyDisambiguation({
+      contentType: "application/json",
+      maskedBody: body,
+      scanResult: result,
+    });
+    const parsed = JSON.parse(output);
+
+    expect(typeof parsed.instructions).toBe("string");
+    expect(parsed.instructions).toContain("[Privacy notice]");
+    expect(parsed.input).toHaveLength(longInput.length);
+    expect(parsed.input[parsed.input.length - 1]).toEqual({
+      type: "function_call_output",
+      call_id: "call_abc",
+      output: "ok",
+    });
+    for (const item of parsed.input) {
+      expect(item.type).not.toBe("text");
+    }
+    assertNoCustomMeta(parsed);
+  });
+
+  it("detects Responses EasyInputMessage input items without type field", () => {
+    const body = JSON.stringify({
+      model: "gpt-5",
+      input: [
+        { role: "user", content: "contact <<PRIVACY_MASK:EMAIL>>" },
+        { role: "assistant", content: "acknowledged" },
+      ],
+    });
+    const result = makeMaskResult(["EMAIL"], body);
+    const output = applyDisambiguation({
+      contentType: "application/json",
+      maskedBody: body,
+      scanResult: result,
+    });
+    const parsed = JSON.parse(output);
+    expect(parsed.instructions).toContain("[Privacy notice]");
+    expect(parsed.input).toHaveLength(2);
+    expect(parsed.input[0]).toEqual({ role: "user", content: "contact <<PRIVACY_MASK:EMAIL>>" });
+    expect(parsed.input.some((item: { type?: string }) => item?.type === "text")).toBe(false);
+    assertNoCustomMeta(parsed);
+  });
+
+  it("appends notice into existing Gemini system_instruction parts", () => {
+    const body = JSON.stringify({
+      system_instruction: {
+        parts: [{ text: "You are careful." }],
+      },
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: "email <<PRIVACY_MASK:EMAIL>>" }],
+        },
+      ],
+    });
+    const result = makeMaskResult(["EMAIL"], body);
+    const output = applyDisambiguation({
+      contentType: "application/json",
+      maskedBody: body,
+      scanResult: result,
+    });
+    const parsed = JSON.parse(output);
+    const parts = parsed.system_instruction.parts;
+    expect(parts[parts.length - 1].text).toContain("[Privacy notice]");
+    expect(parts[0].text).toContain("You are careful.");
+    expect(parsed.contents[0].parts[0].text).toBe("email <<PRIVACY_MASK:EMAIL>>");
+    assertNoCustomMeta(parsed);
+  });
+
+  it("creates Gemini system_instruction when only contents exist", () => {
+    const body = JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: "phone <<PRIVACY_MASK:PHONE>>" }],
+        },
+      ],
+    });
+    const result = makeMaskResult(["PHONE"], body);
+    const output = applyDisambiguation({
+      contentType: "application/json",
+      maskedBody: body,
+      scanResult: result,
+    });
+    const parsed = JSON.parse(output);
+    expect(parsed.system_instruction.parts[0].text).toContain("[Privacy notice]");
+    expect(parsed.system_instruction.parts[0]).not.toHaveProperty("type");
+    expect(parsed.contents[0].parts[0].text).toBe("phone <<PRIVACY_MASK:PHONE>>");
+    assertNoCustomMeta(parsed);
+  });
+
+  it("appends untyped text part into empty Gemini system_instruction.parts", () => {
+    const body = JSON.stringify({
+      system_instruction: { parts: [] },
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: "email <<PRIVACY_MASK:EMAIL>>" }],
+        },
+      ],
+    });
+    const result = makeMaskResult(["EMAIL"], body);
+    const output = applyDisambiguation({
+      contentType: "application/json",
+      maskedBody: body,
+      scanResult: result,
+    });
+    const parsed = JSON.parse(output);
+    expect(parsed.system_instruction.parts).toEqual([
+      expect.objectContaining({ text: expect.stringContaining("[Privacy notice]") }),
+    ]);
+    expect(parsed.system_instruction.parts[0]).not.toHaveProperty("type");
+    assertNoCustomMeta(parsed);
+  });
+
+  it("routes unknown typed input items into instructions without type:text", () => {
+    const body = JSON.stringify({
+      model: "gpt-5.1-codex",
+      input: [
+        {
+          type: "future_unknown_item",
+          id: "item_1",
+          payload: "secret <<PRIVACY_MASK:CONTEXTUAL_SECRET>>",
+        },
+      ],
+    });
+    const result = makeMaskResult(["CONTEXTUAL_SECRET"], body);
+    const output = applyDisambiguation({
+      contentType: "application/json",
+      maskedBody: body,
+      scanResult: result,
+    });
+    const parsed = JSON.parse(output);
+    expect(parsed.instructions).toContain("[Privacy notice]");
+    expect(parsed.input).toHaveLength(1);
+    expect(parsed.input[0].type).toBe("future_unknown_item");
+    expect(parsed.input.some((item: { type?: string }) => item.type === "text")).toBe(false);
+    assertNoCustomMeta(parsed);
+  });
 });
