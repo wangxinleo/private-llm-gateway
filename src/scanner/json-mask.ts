@@ -24,6 +24,21 @@ function buildContextText(value: string, path: string[]): string {
     : `${key}=${value}\n${fullPath}=${value}`;
 }
 
+const DATA_URI_RE = /^data:[a-zA-Z0-9+.-]+\/[a-zA-Z0-9+.-]+;base64,/;
+const BASE64_BLOB_RE = /^[A-Za-z0-9+/]+={0,2}$/;
+const BASE64_BLOB_MIN_LENGTH = 64;
+
+/**
+ * 二进制 base64 payload 不被当作文本扫描,否则 BASE64_TOKEN 会误判其中的
+ * `eyJ...` 序列并打码,破坏 base64。仅豁免 data URI 与键名 `data` 的长纯 base64
+ * (Anthropic/Gemini 图片形态);短值或含 `-`/`_` 的 base64url 仍正常扫描。
+ */
+function isBinaryPayload(value: string, key: string | undefined): boolean {
+  if (DATA_URI_RE.test(value)) return true;
+  if (key !== "data" || value.length < BASE64_BLOB_MIN_LENGTH) return false;
+  return BASE64_BLOB_RE.test(value);
+}
+
 function appendFindings(target: Finding[], additions: Finding[]): void {
   const seen = new Set(target.map((finding) => `${finding.category}\0${finding.action}\0${finding.matched}`));
   for (const finding of additions) {
@@ -62,7 +77,7 @@ function scanObjectContext(
   const contextLines: string[] = [];
   for (const key of Object.keys(obj)) {
     const value = obj[key];
-    if (typeof value === "string") {
+    if (typeof value === "string" && !isBinaryPayload(value, key)) {
       contextLines.push(buildContextText(value, [...path, key]));
     }
   }
@@ -85,6 +100,10 @@ function scanValue(
   siblingFindings: Finding[] = []
 ): unknown {
   if (typeof value === "string") {
+    if (isBinaryPayload(value, path.at(-1))) {
+      return value;
+    }
+
     const result = scanStringContext(value, scan, path);
     appendFindings(findings, result.findings);
 
