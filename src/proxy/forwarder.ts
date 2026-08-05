@@ -17,6 +17,10 @@ export async function forwardRequest(
 
   if (body !== undefined) {
     headers.delete("content-length");
+    if (body instanceof FormData) {
+      // fetch 会为 FormData 生成新 boundary;保留旧 multipart content-type 会导致 boundary 不匹配
+      headers.delete("content-type");
+    }
     init.body = body;
   } else if (request.method !== "GET" && request.method !== "HEAD") {
     init.body = request.body;

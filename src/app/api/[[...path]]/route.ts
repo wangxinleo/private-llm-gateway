@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
+import type { Finding } from "@/types";
 import { runPipeline } from "@/scanner/pipeline";
 import { isJsonContentType, maskJsonBody } from "@/scanner/json-mask";
 import { parseMultipart, collectMultipartText, collectFilenames } from "@/scanner/multipart";
+import { applyMasks } from "@/scanner/pii";
 import { blockedResponse } from "@/engine/policy";
 import { forwardRequest } from "@/proxy/forwarder";
 import { createStreamingResponse } from "@/proxy/streaming";
@@ -49,6 +51,22 @@ async function extractBodyText(
 
   const text = await cloned.text();
   return { text, filenames: [], size: byteLength(text) };
+}
+
+async function rebuildMaskedMultipart(
+  request: NextRequest,
+  findings: Finding[]
+): Promise<FormData> {
+  const formData = await request.clone().formData();
+  const rebuilt = new FormData();
+  for (const [key, value] of formData.entries()) {
+    if (typeof value === "string") {
+      rebuilt.append(key, applyMasks(value, findings).masked);
+    } else {
+      rebuilt.append(key, value);
+    }
+  }
+  return rebuilt;
 }
 
 export async function POST(request: NextRequest) {
@@ -140,7 +158,11 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     }
 
     try {
-      const upstream = await forwardRequest(path, request, hasBody ? bodyText : undefined);
+      const upstream = await forwardRequest(
+        path,
+        request,
+        hasBody && !multipart ? bodyText : multipart ? await request.formData() : undefined
+      );
       const upstreamContentType = upstream.headers.get("content-type") ?? "";
       if (upstreamContentType.includes("text/event-stream")) {
         return createStreamingResponse(upstream);
@@ -198,9 +220,18 @@ async function handleRequest(request: NextRequest): Promise<Response> {
   }
 
   try {
-    const forwardBody = result.action === "mask"
-      ? applyDisambiguation({ contentType, maskedBody: result.maskedBody, scanResult: result })
-      : hasBody ? bodyText : undefined;
+    let forwardBody: BodyInit | undefined;
+    if (multipart) {
+      // 原始流转发需要 duplex 选项且易出问题;统一用 FormData 重建,
+      // 内容完整(字段+文件),fetch 自动生成新 boundary
+      forwardBody = result.action === "mask"
+        ? await rebuildMaskedMultipart(request, result.findings)
+        : await request.formData();
+    } else {
+      forwardBody = result.action === "mask"
+        ? applyDisambiguation({ contentType, maskedBody: result.maskedBody, scanResult: result })
+        : hasBody ? bodyText : undefined;
+    }
 
     const upstream = await forwardRequest(
       path,
