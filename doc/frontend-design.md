@@ -332,8 +332,6 @@ data: {"id":102,"timestamp":"...","path":"...","method":"POST","contentType":"ap
     "port": 3000
   },
   "constants": {
-    "sizeThresholds": { "fullScan": 131072, "chunkedScan": 1048576 },
-    "chunkSize": 65536,
     "contextKey": { "minLength": 8, "maxLength": 200, "maxSpaces": 2 }
   },
   "dbStats": {

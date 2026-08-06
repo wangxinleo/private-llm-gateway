@@ -215,7 +215,7 @@ Dashboard areas:
 - Overview: recent incidents and summary metrics.
 - Audit: searchable audit entries, hit categories, matched-value reveal flow, duration, model, and bypass status.
 - Rules: temporary bypass rules for path/model windows.
-- Settings: hot-reloadable scanner thresholds, path prefix options, and high-risk asset whitelists.
+- Settings: hot-reloadable scanner settings, path prefix options, and high-risk asset whitelists.
 
 Bypass rules allow matching traffic to continue, but the proxy still scans and audits findings with `bypassApplied: true`.
 

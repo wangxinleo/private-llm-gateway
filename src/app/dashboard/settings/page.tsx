@@ -20,23 +20,6 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
-function parseBytes(input: string): number | null {
-  const trimmed = input.trim();
-  const match = trimmed.match(/^(\d+(?:\.\d+)?)\s*(B|KB|MB|GB)?$/i);
-  if (!match) return null;
-
-  const value = parseFloat(match[1]);
-  const unit = (match[2] || 'B').toUpperCase();
-
-  switch (unit) {
-    case 'B': return value;
-    case 'KB': return value * 1024;
-    case 'MB': return value * 1024 * 1024;
-    case 'GB': return value * 1024 * 1024 * 1024;
-    default: return null;
-  }
-}
-
 interface DbStats {
   totalRecords: number;
   earliestRecord: string | null;
@@ -177,35 +160,16 @@ export default function SettingsPage() {
 
   function startEditConfig(key: string, currentValue: number) {
     setEditingConfig(key);
-    // For size configs, show formatted value with unit (e.g., "128 KB")
-    if (key.includes('size') || key.includes('threshold')) {
-      setEditValue(formatBytes(currentValue));
-    } else {
-      setEditValue(String(currentValue));
-    }
+    setEditValue(String(currentValue));
   }
 
   async function saveEditConfig(key: string) {
-    let numValue: number;
-
-    // For size configs, parse unit-aware input (e.g., "128 KB", "1 MB")
-    if (key.includes('size') || key.includes('threshold')) {
-      const parsed = parseBytes(editValue);
-      if (parsed === null || parsed < 0) {
-        setMessage({ type: "error", text: t("settings.configUpdateFailed") });
-        setEditingConfig(null);
-        setTimeout(() => setMessage(null), 3000);
-        return;
-      }
-      numValue = parsed;
-    } else {
-      numValue = Number(editValue);
-      if (isNaN(numValue) || numValue < 0) {
-        setMessage({ type: "error", text: t("settings.configUpdateFailed") });
-        setEditingConfig(null);
-        setTimeout(() => setMessage(null), 3000);
-        return;
-      }
+    const numValue = Number(editValue);
+    if (isNaN(numValue) || numValue < 0) {
+      setMessage({ type: "error", text: t("settings.configUpdateFailed") });
+      setEditingConfig(null);
+      setTimeout(() => setMessage(null), 3000);
+      return;
     }
 
     await updateConfig(key, numValue);
