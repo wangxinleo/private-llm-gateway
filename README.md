@@ -146,7 +146,7 @@ If the upstream service runs on the Docker host, `http://host.docker.internal:87
 | `PRIVACY_NOTICE_TEXT` | built-in notice | Custom notice text for masked-token handling. |
 | `PRIVACY_DEBUG_HEADERS` | `false` | Adds debug response headers for masked requests when enabled. |
 
-The admin settings page also manages hot-reloadable scanner settings stored in SQLite: scan size thresholds, chunk size, contextual secret limits, bypass path options, and scanner exclusion rules.
+The admin settings page also manages hot-reloadable scanner settings stored in SQLite: scan size thresholds, chunk size, contextual secret limits, bypass path options, and high-risk asset whitelists.
 
 ## Privacy behavior
 
@@ -225,7 +225,7 @@ Dashboard areas:
 - Overview: recent incidents and summary metrics.
 - Audit: searchable audit entries, hit categories, matched-value reveal flow, duration, model, and bypass status.
 - Rules: temporary bypass rules for path/model windows.
-- Settings: hot-reloadable scanner thresholds, path prefix options, and exclusion rules.
+- Settings: hot-reloadable scanner thresholds, path prefix options, and high-risk asset whitelists.
 
 Bypass rules allow matching traffic to continue, but the proxy still scans and audits findings with `bypassApplied: true`.
 
@@ -236,7 +236,7 @@ Bypass rules allow matching traffic to continue, but the proxy still scans and a
 | `src/app/api/[[...path]]/route.ts` | Reverse proxy entry point for `/api/*`. |
 | `src/app/api/admin/*` | Admin APIs for audit, stats, config, reveal auth, and bypass rules. |
 | `src/app/dashboard/*` | Admin dashboard pages. |
-| `src/scanner/` | Privacy scanning pipeline: secrets, contextual keys, PII, filenames, multipart parsing, and exclusions. |
+| `src/scanner/` | Privacy scanning pipeline: secrets, contextual keys, PII, filenames, multipart parsing, and high-risk asset window scanning. |
 | `src/proxy/` | Upstream forwarding, SSE streaming, and mask disambiguation. |
 | `src/audit/` | SQLite schema, audit persistence, and live audit events. |
 | `src/bypass/` | Temporary bypass rule storage and matching. |
