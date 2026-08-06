@@ -14,6 +14,9 @@ export function getSizeTier(bodySize: number): SizeTier {
   return "minimal";
 }
 
+// 注意:所有 tier 均执行相同的窗口扫描(scanContextWindows)。
+// tier 值仅用于审计分类与调试日志,不改变扫描行为。
+
 function scanText(text: string): Finding[] {
   const findings = scanContextWindows(text);
   log.debug(`context-window scan complete | findings: ${findings.length}`);

@@ -202,15 +202,15 @@ Blocked requests return JSON similar to:
 }
 ```
 
-### Size tiers
+### Scanning tiers
 
 | Request body size | Scan behavior |
 | --- | --- |
-| `< 128 KB` | Full scan: secrets, contextual secrets, and PII. |
-| `128 KB - 1 MB` | Chunked secret/context scan plus PII scan. |
-| `> 1 MB` | Minimal scan: strong secret rules and PII. |
+| `< 128 KB` | Full scan tier. |
+| `128 KB - 1 MB` | Chunked scan tier. |
+| `> 1 MB` | Minimal scan tier. |
 
-The thresholds and chunk size can be changed from the admin settings page.
+All tiers run the same window-based scanner: PII full-text scan, global strong-signal layer (provider token prefixes), and context-window scans around whitelisted high-risk assets and sensitive key names. Tier values currently only affect audit classification and debug logs; the thresholds and chunk size remain configurable from the admin settings page for audit display.
 
 ## Audit and admin console
 
