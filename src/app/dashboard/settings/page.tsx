@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocale } from "@/i18n";
-import { getErrorText, isExclusionRuleArray, isStringArrayConfigValue } from "@/lib/admin-config";
+import { getErrorText, isHighRiskAssets, isStringArrayConfigValue } from "@/lib/admin-config";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import { JsonEditor } from "@/components/json-editor";
 import type { AdminConfigResponse, EditableConfig, EditableConfigValue } from "@/types";
@@ -81,7 +81,7 @@ export default function SettingsPage() {
   const [editingConfig, setEditingConfig] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
 
-  // Scanner exclusions state
+  // High-risk assets state
   const [exclDraft, setExclDraft] = useState("");
   const [exclEditing, setExclEditing] = useState(false);
 
@@ -101,9 +101,9 @@ export default function SettingsPage() {
       if (data.editableConfigs) {
         setEditableConfigs(data.editableConfigs);
         const prefixValue = data.editableConfigs.path_prefix_options?.value;
-        const exclusionValue = data.editableConfigs.scanner_exclusions?.value;
+        const assetsValue = data.editableConfigs.high_risk_assets?.value;
         setPathPrefixes(isStringArrayConfigValue(prefixValue) ? prefixValue : []);
-        setExclDraft(JSON.stringify(isExclusionRuleArray(exclusionValue) ? exclusionValue : [], null, 2));
+        setExclDraft(JSON.stringify(isHighRiskAssets(assetsValue) ? assetsValue : { domains: [], emails: [], accounts: [] }, null, 2));
       }
     } catch (err) {
       console.error("Failed to load config:", err);
@@ -162,8 +162,8 @@ export default function SettingsPage() {
   async function saveExclusionsDraft() {
     try {
       const parsed = JSON.parse(exclDraft) as unknown;
-      if (!isExclusionRuleArray(parsed)) throw new Error("invalid exclusion rules");
-      await updateConfig("scanner_exclusions", parsed);
+      if (!isHighRiskAssets(parsed)) throw new Error("invalid high-risk assets");
+      await updateConfig("high_risk_assets", parsed);
       setExclEditing(false);
     } catch {
       setMessage({ type: "error", text: t("settings.configUpdateFailed") });
@@ -413,11 +413,11 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Scanner Exclusion Rules */}
+      {/* High-risk assets */}
       <Card className="border-border/50">
         <CardHeader>
-          <CardTitle className="font-mono text-sm tracking-wide">{t("settings.scannerExclusions")}</CardTitle>
-          <p className="text-xs text-muted-foreground">{t("settings.scannerExclusionsDesc")}</p>
+          <CardTitle className="font-mono text-sm tracking-wide">{t("settings.highRiskAssets")}</CardTitle>
+          <p className="text-xs text-muted-foreground">{t("settings.highRiskAssetsDesc")}</p>
         </CardHeader>
         <CardContent>
           {exclEditing ? (
@@ -431,14 +431,14 @@ export default function SettingsPage() {
               <div className="flex gap-2">
                 <Button
                   onClick={saveExclusionsDraft}
-                  disabled={updating === "scanner_exclusions"}
+                  disabled={updating === "high_risk_assets"}
                 >
                   {t("settings.exclusionSave")}
                 </Button>
                 <Button
                   variant="outline"
                   onClick={cancelExclEdit}
-                  disabled={updating === "scanner_exclusions"}
+                  disabled={updating === "high_risk_assets"}
                 >
                   {t("settings.exclusionCancel")}
                 </Button>
