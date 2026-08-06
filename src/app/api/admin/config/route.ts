@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDbStats, getAllConfigs, setConfig } from "@/audit";
 import { checkAdminAuth } from "@/lib/admin-auth";
-import { UPSTREAM_URL, DB_PATH, DEBUG, SIZE_THRESHOLDS, CONFIG_STATE, CONTEXT_KEY, PATH_PREFIX_OPTIONS, SCANNER_EXCLUSIONS } from "@/config";
+import { UPSTREAM_URL, DB_PATH, DEBUG, SIZE_THRESHOLDS, CONFIG_STATE, CONTEXT_KEY, PATH_PREFIX_OPTIONS, HIGH_RISK_ASSETS } from "@/config";
 import { initializeConfigs, refreshConfig } from "@/config-loader";
 import { Logger } from "@/log";
 import { statSync } from "fs";
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
         context_key_min_length: { value: CONTEXT_KEY.MIN_LENGTH, type: "number", description: "Context key minimum length" },
         context_key_max_length: { value: CONTEXT_KEY.MAX_LENGTH, type: "number", description: "Context key maximum length" },
         context_key_max_spaces: { value: CONTEXT_KEY.MAX_SPACES, type: "number", description: "Context key maximum spaces" },
-        scanner_exclusions: { value: SCANNER_EXCLUSIONS, type: "json_array", description: "Scanner exclusion rules (false positive suppression)" },
+        high_risk_assets: { value: HIGH_RISK_ASSETS, type: "json_array", description: "High-risk asset whitelist (domains/emails/accounts) whose context windows are scanned" },
       },
       constants: {
         sizeThresholds: {
@@ -89,7 +89,7 @@ export async function PUT(request: Request) {
       "context_key_min_length",
       "context_key_max_length",
       "context_key_max_spaces",
-      "scanner_exclusions",
+      "high_risk_assets",
     ];
 
     if (!editableKeys.includes(key)) {
@@ -109,25 +109,22 @@ export async function PUT(request: Request) {
       }
       type = "json_array";
       valueStr = JSON.stringify(value);
-    } else if (key === "scanner_exclusions") {
-      if (!Array.isArray(value)) {
-        return NextResponse.json({ error: "scanner_exclusions must be an array" }, { status: 400 });
+    } else if (key === "high_risk_assets") {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return NextResponse.json({ error: "high_risk_assets must be an object" }, { status: 400 });
       }
-      for (const rule of value) {
-        if (!rule || typeof rule !== "object" ||
-            typeof rule.category !== "string" ||
-            (rule.mode !== "exact" && rule.mode !== "regex") ||
-            typeof rule.value !== "string") {
-          return NextResponse.json({ error: "each exclusion rule must have { category, mode: 'exact'|'regex', value }" }, { status: 400 });
-        }
-        if (rule.mode === "regex") {
-          try { new RegExp(rule.value); } catch {
-            return NextResponse.json({ error: `invalid regex: ${rule.value}` }, { status: 400 });
-          }
+      const { domains, emails, accounts } = value as Record<string, unknown>;
+      for (const [field, arr] of [["domains", domains], ["emails", emails], ["accounts", accounts]] as const) {
+        if (arr !== undefined && (!Array.isArray(arr) || !arr.every(v => typeof v === "string"))) {
+          return NextResponse.json({ error: `high_risk_assets.${field} must be an array of strings` }, { status: 400 });
         }
       }
       type = "json_array";
-      valueStr = JSON.stringify(value);
+      valueStr = JSON.stringify({
+        domains: Array.isArray(domains) ? domains : [],
+        emails: Array.isArray(emails) ? emails : [],
+        accounts: Array.isArray(accounts) ? accounts : [],
+      });
     } else {
       // Number configs
       const numValue = Number(value);
