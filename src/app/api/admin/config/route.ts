@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDbStats, getAllConfigs, setConfig } from "@/audit";
 import { checkAdminAuth } from "@/lib/admin-auth";
-import { UPSTREAM_URL, DB_PATH, DEBUG, SIZE_THRESHOLDS, CONFIG_STATE, CONTEXT_KEY, PATH_PREFIX_OPTIONS, HIGH_RISK_ASSETS } from "@/config";
+import { UPSTREAM_URL, DB_PATH, DEBUG, CONTEXT_KEY, PATH_PREFIX_OPTIONS, HIGH_RISK_ASSETS } from "@/config";
 import { initializeConfigs, refreshConfig } from "@/config-loader";
 import { Logger } from "@/log";
 import { statSync } from "fs";
@@ -35,20 +35,12 @@ export async function GET(request: Request) {
       },
       editableConfigs: {
         path_prefix_options: { value: PATH_PREFIX_OPTIONS, type: "json_array", description: "Path prefix options for bypass rules" },
-        size_threshold_full_scan: { value: SIZE_THRESHOLDS.FULL_SCAN, type: "number", description: "Full scan threshold in bytes" },
-        size_threshold_chunked_scan: { value: SIZE_THRESHOLDS.CHUNKED_SCAN, type: "number", description: "Chunked scan threshold in bytes" },
-        chunk_size: { value: CONFIG_STATE.CHUNK_SIZE, type: "number", description: "Chunk size in bytes" },
         context_key_min_length: { value: CONTEXT_KEY.MIN_LENGTH, type: "number", description: "Context key minimum length" },
         context_key_max_length: { value: CONTEXT_KEY.MAX_LENGTH, type: "number", description: "Context key maximum length" },
         context_key_max_spaces: { value: CONTEXT_KEY.MAX_SPACES, type: "number", description: "Context key maximum spaces" },
         high_risk_assets: { value: HIGH_RISK_ASSETS, type: "json_array", description: "High-risk asset whitelist (domains/emails/accounts) whose context windows are scanned" },
       },
       constants: {
-        sizeThresholds: {
-          fullScan: SIZE_THRESHOLDS.FULL_SCAN,
-          chunkedScan: SIZE_THRESHOLDS.CHUNKED_SCAN,
-        },
-        chunkSize: CONFIG_STATE.CHUNK_SIZE,
         contextKey: {
           minLength: CONTEXT_KEY.MIN_LENGTH,
           maxLength: CONTEXT_KEY.MAX_LENGTH,
@@ -83,9 +75,6 @@ export async function PUT(request: Request) {
     // Validate key is editable
     const editableKeys = [
       "path_prefix_options",
-      "size_threshold_full_scan",
-      "size_threshold_chunked_scan",
-      "chunk_size",
       "context_key_min_length",
       "context_key_max_length",
       "context_key_max_spaces",

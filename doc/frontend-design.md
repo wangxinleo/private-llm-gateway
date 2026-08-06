@@ -181,9 +181,6 @@ v1 范围：审计日志展示 + 实时刷新 + 批量删除 + 临时放行规�
 
 | 常量 | 值 | 说明 |
 |------|-----|------|
-| FULL_SCAN | 128 KB | 低于此值完整扫描 |
-| CHUNKED_SCAN | 1 MB | 低于此值分块扫描 |
-| CHUNK_SIZE | 64 KB | 分块大小 |
 | CONTEXT_KEY.MIN_LENGTH | 8 | 上下文密钥最小长度 |
 | CONTEXT_KEY.MAX_LENGTH | 200 | 上下文密钥最大长度 |
 | CONTEXT_KEY.MAX_SPACES | 2 | 可疑值最大空格数 |

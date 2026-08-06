@@ -29,13 +29,6 @@ vi.mock("@/config", () => ({
   UPSTREAM_URL: "http://localhost:8787",
   DB_PATH: "/tmp/test.sqlite",
   DEBUG: false,
-  SIZE_THRESHOLDS: {
-    FULL_SCAN: 131072,
-    CHUNKED_SCAN: 1048576,
-  },
-  CONFIG_STATE: {
-    CHUNK_SIZE: 65536,
-  },
   CONTEXT_KEY: {
     MIN_LENGTH: 8,
     MAX_LENGTH: 200,
@@ -103,17 +96,12 @@ describe("admin config and stats routes", () => {
         },
         editableConfigs: {
           path_prefix_options: { value: ["/v1/messages", "/v1/responses", "/v1beta"], type: "json_array" },
-          size_threshold_full_scan: { value: 131072, type: "number" },
-          size_threshold_chunked_scan: { value: 1048576, type: "number" },
-          chunk_size: { value: 65536, type: "number" },
           context_key_min_length: { value: 8, type: "number" },
           context_key_max_length: { value: 200, type: "number" },
           context_key_max_spaces: { value: 2, type: "number" },
           high_risk_assets: { value: { domains: ["*.ccload.com", "*.gffunds.com"], emails: [], accounts: [] }, type: "json_array" },
         },
         constants: {
-          sizeThresholds: { fullScan: 131072, chunkedScan: 1048576 },
-          chunkSize: 65536,
           contextKey: { minLength: 8, maxLength: 200, maxSpaces: 2 },
         },
         dbStats: {

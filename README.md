@@ -146,7 +146,7 @@ If the upstream service runs on the Docker host, `http://host.docker.internal:87
 | `PRIVACY_NOTICE_TEXT` | built-in notice | Custom notice text for masked-token handling. |
 | `PRIVACY_DEBUG_HEADERS` | `false` | Adds debug response headers for masked requests when enabled. |
 
-The admin settings page also manages hot-reloadable scanner settings stored in SQLite: scan size thresholds, chunk size, contextual secret limits, bypass path options, and high-risk asset whitelists.
+The admin settings page also manages hot-reloadable scanner settings stored in SQLite: contextual secret limits, bypass path options, and high-risk asset whitelists.
 
 ## Privacy behavior
 
@@ -201,16 +201,6 @@ Blocked requests return JSON similar to:
   "blocked_types": ["SENSITIVE_FILENAME"]
 }
 ```
-
-### Scanning tiers
-
-| Request body size | Scan behavior |
-| --- | --- |
-| `< 128 KB` | Full scan tier. |
-| `128 KB - 1 MB` | Chunked scan tier. |
-| `> 1 MB` | Minimal scan tier. |
-
-All tiers run the same window-based scanner: PII full-text scan, global strong-signal layer (provider token prefixes), and context-window scans around whitelisted high-risk assets and sensitive key names. Tier values currently only affect audit classification and debug logs; the thresholds and chunk size remain configurable from the admin settings page for audit display.
 
 ## Audit and admin console
 

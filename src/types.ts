@@ -52,11 +52,6 @@ export interface AdminConfigResponse {
   };
   editableConfigs?: Record<string, EditableConfig>;
   constants?: {
-    sizeThresholds: {
-      fullScan: number;
-      chunkedScan: number;
-    };
-    chunkSize: number;
     contextKey: {
       minLength: number;
       maxLength: number;
@@ -77,8 +72,6 @@ export interface Finding {
   matched: string;
   maskTag?: string;
 }
-
-export type SizeTier = "full" | "chunked" | "minimal";
 
 export interface ScanResult {
   findings: Finding[];

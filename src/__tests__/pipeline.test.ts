@@ -1,23 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runPipeline, getSizeTier } from "@/scanner/pipeline";
-
-describe("getSizeTier", () => {
-  it("< 128KB -> full", () => {
-    expect(getSizeTier(127 * 1024)).toBe("full");
-    expect(getSizeTier(0)).toBe("full");
-  });
-
-  it("128KB - 1MB -> chunked", () => {
-    expect(getSizeTier(128 * 1024)).toBe("chunked");
-    expect(getSizeTier(512 * 1024)).toBe("chunked");
-    expect(getSizeTier(1024 * 1024 - 1)).toBe("chunked");
-  });
-
-  it("> 1MB -> minimal", () => {
-    expect(getSizeTier(1024 * 1024)).toBe("minimal");
-    expect(getSizeTier(10 * 1024 * 1024)).toBe("minimal");
-  });
-});
+import { runPipeline } from "@/scanner/pipeline";
 
 describe("runPipeline", () => {
   it("allows clean text", () => {
@@ -112,7 +94,7 @@ describe("runPipeline", () => {
     expect(r.maskedBody).not.toContain("a@b.com");
   });
 
-  it("minimal tier (large body) catches secrets", () => {
+  it("large body still catches secrets", () => {
     const text =
       "-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----";
     const r = runPipeline(text, 1024 * 1024 + 100);

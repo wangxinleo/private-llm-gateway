@@ -1,21 +1,11 @@
-import type { Finding, SizeTier, ScanResult } from "@/types";
+import type { Finding, ScanResult } from "@/types";
 import { isBlockCategory } from "@/types";
 import { scanFilename } from "./filename";
 import { scanContextWindows } from "./context-window";
 import { applyMasks } from "./pii";
-import { SIZE_THRESHOLDS } from "@/config";
 import { Logger } from "@/log";
 
 const log = new Logger("pipeline");
-
-export function getSizeTier(bodySize: number): SizeTier {
-  if (bodySize < SIZE_THRESHOLDS.FULL_SCAN) return "full";
-  if (bodySize < SIZE_THRESHOLDS.CHUNKED_SCAN) return "chunked";
-  return "minimal";
-}
-
-// 注意:所有 tier 均执行相同的窗口扫描(scanContextWindows)。
-// tier 值仅用于审计分类与调试日志,不改变扫描行为。
 
 function scanText(text: string): Finding[] {
   const findings = scanContextWindows(text);
@@ -28,9 +18,7 @@ export function runPipeline(
   bodySize: number,
   filenames: string[] = []
 ): ScanResult {
-  const tier = getSizeTier(bodySize);
-  
-  log.debug(`scan start | size: ${bodySize} bytes | tier: ${tier} | filenames: [${filenames.join(", ")}]`);
+  log.debug(`scan start | size: ${bodySize} bytes | filenames: [${filenames.join(", ")}]`);
   log.debug(`body preview (first 200 chars): ${text.slice(0, 200)}`);
 
   const fileFindings: Finding[] = [];

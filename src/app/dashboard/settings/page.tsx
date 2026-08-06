@@ -313,58 +313,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Scanner Thresholds (Editable) */}
-      <Card className="border-border/50">
-        <CardHeader><CardTitle className="font-mono text-sm tracking-wide">{t("settings.scannerThresholds")}</CardTitle></CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {[
-              { key: "size_threshold_full_scan", label: "FULL_SCAN", desc: t("settings.fullScanDesc") },
-              { key: "size_threshold_chunked_scan", label: "CHUNKED_SCAN", desc: t("settings.chunkedScanDesc") },
-              { key: "chunk_size", label: "CHUNK_SIZE", desc: t("settings.chunkSizeDesc") },
-            ].map(({ key, label, desc }) => {
-              const config = editableConfigs[key];
-              if (!config) return null;
-              const isEditing = editingConfig === key;
-              const value = typeof config.value === "number" ? config.value : 0;
-
-              return (
-                <div key={key} className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
-                  <div>
-                    <code className="font-mono text-xs text-primary">{label}</code>
-                    <span className="ml-2 text-xs text-muted-foreground">{desc}</span>
-                  </div>
-                  {isEditing ? (
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="text"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") saveEditConfig(key);
-                          if (e.key === "Escape") cancelEdit();
-                        }}
-                        onBlur={() => saveEditConfig(key)}
-                        className="h-7 w-40 text-xs"
-                        autoFocus
-                        placeholder="e.g., 128 KB, 1 MB"
-                      />
-                    </div>
-                  ) : (
-                    <code
-                      className="cursor-pointer rounded bg-muted px-2 py-0.5 font-mono text-xs hover:bg-muted/70"
-                      onClick={() => startEditConfig(key, value)}
-                    >
-                      {formatBytes(value)}
-                    </code>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Context Key Configuration (Editable) */}
       <Card className="border-border/50">
         <CardHeader><CardTitle className="font-mono text-sm tracking-wide">{t("settings.contextKeyConfig")}</CardTitle></CardHeader>
