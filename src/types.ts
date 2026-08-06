@@ -27,14 +27,14 @@ export type FindingCategory =
 
 export type ActionType = "block" | "mask" | "allow";
 
-export interface ExclusionRule {
-  category: FindingCategory;
-  mode: "exact" | "regex";
-  value: string;
+export interface HighRiskAssets {
+  domains: string[];
+  emails: string[];
+  accounts: string[];
 }
 
 export type EditableConfigType = "number" | "string" | "json_array";
-export type EditableConfigValue = number | string | string[] | ExclusionRule[];
+export type EditableConfigValue = number | string | string[] | HighRiskAssets;
 
 export interface EditableConfig {
   value: EditableConfigValue;

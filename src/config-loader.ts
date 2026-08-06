@@ -1,6 +1,6 @@
 import { getConfig, setConfig, getAllConfigs } from "@/audit";
-import { SIZE_THRESHOLDS, CONFIG_STATE, CONTEXT_KEY, PATH_PREFIX_OPTIONS, SCANNER_EXCLUSIONS, DEFAULT_CONFIG_VALUES } from "@/config";
-import type { EditableConfigType } from "@/types";
+import { SIZE_THRESHOLDS, CONFIG_STATE, CONTEXT_KEY, PATH_PREFIX_OPTIONS, HIGH_RISK_ASSETS, DEFAULT_CONFIG_VALUES } from "@/config";
+import type { EditableConfigType, HighRiskAssets } from "@/types";
 import { Logger } from "@/log";
 
 let configsInitialized = false;
@@ -15,7 +15,7 @@ export function initializeConfigs(): void {
     const configMap = new Map(configs.map(c => [c.key, c]));
 
     // Load or initialize each config
-    const loadOrInit = <T extends number | string | unknown[]>(
+    const loadOrInit = <T>(
       key: string,
       defaultValue: T,
       type: EditableConfigType,
@@ -40,8 +40,10 @@ export function initializeConfigs(): void {
     PATH_PREFIX_OPTIONS.length = 0;
     PATH_PREFIX_OPTIONS.push(...loadOrInit("path_prefix_options", DEFAULT_CONFIG_VALUES.PATH_PREFIX_OPTIONS, "json_array", "Path prefix options for bypass rules"));
 
-    SCANNER_EXCLUSIONS.length = 0;
-    SCANNER_EXCLUSIONS.push(...loadOrInit("scanner_exclusions", DEFAULT_CONFIG_VALUES.SCANNER_EXCLUSIONS, "json_array", "Scanner exclusion rules (false positive suppression)"));
+    const loadedAssets = loadOrInit("high_risk_assets", DEFAULT_CONFIG_VALUES.HIGH_RISK_ASSETS, "json_array", "High-risk asset whitelist (domains/emails/accounts) whose context windows are scanned");
+    HIGH_RISK_ASSETS.domains = Array.isArray(loadedAssets.domains) ? loadedAssets.domains : [];
+    HIGH_RISK_ASSETS.emails = Array.isArray(loadedAssets.emails) ? loadedAssets.emails : [];
+    HIGH_RISK_ASSETS.accounts = Array.isArray(loadedAssets.accounts) ? loadedAssets.accounts : [];
   } catch (err) {
     log.error("failed to initialize configs from database", err instanceof Error ? err.message : String(err));
     // Fall back to defaults on error
@@ -76,9 +78,12 @@ export function refreshConfig(key: string): void {
     case "context_key_max_spaces":
       CONTEXT_KEY.MAX_SPACES = parseInt(config.value, 10);
       break;
-    case "scanner_exclusions":
-      SCANNER_EXCLUSIONS.length = 0;
-      SCANNER_EXCLUSIONS.push(...JSON.parse(config.value));
+    case "high_risk_assets": {
+      const loaded = JSON.parse(config.value) as Partial<HighRiskAssets>;
+      HIGH_RISK_ASSETS.domains = Array.isArray(loaded.domains) ? loaded.domains : HIGH_RISK_ASSETS.domains;
+      HIGH_RISK_ASSETS.emails = Array.isArray(loaded.emails) ? loaded.emails : HIGH_RISK_ASSETS.emails;
+      HIGH_RISK_ASSETS.accounts = Array.isArray(loaded.accounts) ? loaded.accounts : HIGH_RISK_ASSETS.accounts;
       break;
+    }
   }
 }
