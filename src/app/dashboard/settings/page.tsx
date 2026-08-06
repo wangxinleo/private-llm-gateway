@@ -325,6 +325,52 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Context Window Size (Editable) */}
+      <Card className="border-border/50">
+        <CardHeader><CardTitle className="font-mono text-sm tracking-wide">{t("settings.contextWindowConfig")}</CardTitle></CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {[
+              { key: "context_window_size", label: "WINDOW_SIZE" },
+            ].map(({ key, label }) => {
+              const config = editableConfigs[key];
+              if (!config) return null;
+              const isEditing = editingConfig === key;
+              const value = typeof config.value === "number" ? config.value : 0;
+
+              return (
+                <div key={key} className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
+                  <code className="font-mono text-xs text-primary">CONTEXT_WINDOW.{label}</code>
+                  {isEditing ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEditConfig(key);
+                          if (e.key === "Escape") cancelEdit();
+                        }}
+                        onBlur={() => saveEditConfig(key)}
+                        className="h-7 w-32 text-xs"
+                        autoFocus
+                      />
+                    </div>
+                  ) : (
+                    <code
+                      className="cursor-pointer rounded bg-muted px-2 py-0.5 font-mono text-xs hover:bg-muted/70"
+                      onClick={() => startEditConfig(key, value)}
+                    >
+                      {value}
+                    </code>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* High-risk assets */}
       <Card className="border-border/50">
         <CardHeader>

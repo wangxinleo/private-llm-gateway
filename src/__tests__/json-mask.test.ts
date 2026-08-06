@@ -96,7 +96,7 @@ describe("maskJsonBody", () => {
       messages: [
         {
           role: "system",
-          content: "Use this key: Bearer abc123def456ghi789",
+          content: "Authorization: Bearer abc123def456ghi789",
         },
       ],
     });

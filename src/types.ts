@@ -57,6 +57,7 @@ export interface AdminConfigResponse {
       maxLength: number;
       maxSpaces: number;
     };
+    contextWindowSize?: number;
   };
   dbStats?: {
     totalRecords: number;

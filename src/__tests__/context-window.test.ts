@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
-  hasStrongSecretSignal,
   sliceWindow,
   scanContextWindows,
   CONTEXT_WINDOW,
 } from "@/scanner/context-window";
 import { globToRegExp, locateHighRiskAssets } from "@/scanner/high-risk-assets";
+import { CONTEXT_WINDOW_SIZE } from "@/config";
 
 describe("globToRegExp", () => {
   it("matches wildcard * as any sequence", () => {
@@ -62,37 +62,6 @@ describe("locateHighRiskAssets", () => {
   });
 });
 
-describe("hasStrongSecretSignal (D7 四重信号)", () => {
-  it("chaos token: 无序 8+ 位字符命中", () => {
-    expect(hasStrongSecretSignal("key aB3x9K2mQwe7")).toBe(true);
-    expect(hasStrongSecretSignal("secret wx456_klm")).toBe(true);
-  });
-
-  it("chaos token: 纯字母单词/纯数字/重复字符/已知明文词不命中", () => {
-    expect(hasStrongSecretSignal("the password is password")).toBe(false);
-    expect(hasStrongSecretSignal("BasicFlow is a flow")).toBe(false);
-    expect(hasStrongSecretSignal("order 12345678")).toBe(false);
-    expect(hasStrongSecretSignal("aaaaaaa")).toBe(false);
-    expect(hasStrongSecretSignal("use example.com")).toBe(false);
-  });
-
-  it("口令标志后值命中", () => {
-    expect(hasStrongSecretSignal("passwd: xyz123!")).toBe(true);
-    expect(hasStrongSecretSignal("PASSWORD=abcDEF9")).toBe(true);
-    expect(hasStrongSecretSignal("pwd:hunter2")).toBe(true);
-  });
-
-  it("关键词信号命中", () => {
-    expect(hasStrongSecretSignal("the api_key is aB3x9K2mQwe7")).toBe(true);
-    expect(hasStrongSecretSignal("authorization: gX9mQ2kL8v")).toBe(true);
-  });
-
-  it("强规则前缀命中", () => {
-    expect(hasStrongSecretSignal("ghp_" + "A".repeat(40))).toBe(true);
-    expect(hasStrongSecretSignal("sk-proj-" + "B".repeat(20))).toBe(true);
-  });
-});
-
 describe("sliceWindow", () => {
   it("cuts ±200 chars around hit", () => {
     const text = "x".repeat(100) + "TARGET" + "y".repeat(100);
@@ -129,14 +98,90 @@ describe("scanContextWindows", () => {
     expect(findings.length).toBe(0);
   });
 
-  it("窗口边界外不误报", () => {
-    const text =
+  it("无白名单时 secrets 不扫描", () => {
+    const text = "the token abc123token appears in prose without context";
+    const findings = scanContextWindows(text, {
+      domains: [],
+      emails: [],
+      accounts: [],
+    });
+    expect(findings.length).toBe(0);
+  });
+
+  it("无白名单时 email 不扫描", () => {
+    const text = "contact: user@example.com";
+    const findings = scanContextWindows(text, {
+      domains: [],
+      emails: [],
+      accounts: [],
+    });
+    expect(findings).not.toContainEqual(expect.objectContaining({ category: "EMAIL" }));
+  });
+
+  it("窗口边界:窗内 chaos 命中,窗外不误报", () => {
+    // 窗内:白名单锚点命中后,无序形似密钥的 chaos token 无条件脱敏
+    const inside = "wangxinleo aB3x9K2mQwe7";
+    const insideFindings = scanContextWindows(inside, {
+      domains: [],
+      emails: [],
+      accounts: ["wangxinleo"],
+    });
+    expect(insideFindings.some((f) => f.category === "CONTEXTUAL_SECRET")).toBe(true);
+    // 窗外:chaos 距锚点超过窗口半径,不扫
+    const outside =
       "wangxinleo" + " ".repeat(CONTEXT_WINDOW * 2) + "aB3x9K2mQwe7";
+    const outsideFindings = scanContextWindows(outside, {
+      domains: [],
+      emails: [],
+      accounts: ["wangxinleo"],
+    });
+    expect(outsideFindings.some((f) => f.category === "CONTEXTUAL_SECRET")).toBe(false);
+  });
+
+  it("白名单窗口内 EMAIL 被扫描", () => {
+    const text = "contact wangxinleo mail user@example.com";
     const findings = scanContextWindows(text, {
       domains: [],
       emails: [],
       accounts: ["wangxinleo"],
     });
-    expect(findings.length).toBe(0);
+    expect(findings.some((f) => f.category === "EMAIL")).toBe(true);
+  });
+
+  it("白名单窗口外 EMAIL 不扫描", () => {
+    const text = "wangxinleo" + " x".repeat(500) + " mail user@example.com";
+    const findings = scanContextWindows(text, {
+      domains: [],
+      emails: [],
+      accounts: ["wangxinleo"],
+    });
+    expect(findings.some((f) => f.category === "EMAIL")).toBe(false);
+  });
+
+  it("PHONE 全文扫描不受白名单限制", () => {
+    const text = "phone 13912345678";
+    const findings = scanContextWindows(text, {
+      domains: [],
+      emails: [],
+      accounts: [],
+    });
+    expect(findings.some((f) => f.category === "PHONE")).toBe(true);
+  });
+
+  it("窗口大小热更新后生效", () => {
+    const prev = CONTEXT_WINDOW_SIZE.value;
+    CONTEXT_WINDOW_SIZE.value = 50;
+    try {
+      const text = "wangxinleo" + " x".repeat(100) + " aB3x9K2mQwe7";
+      const findings = scanContextWindows(text, {
+        domains: [],
+        emails: [],
+        accounts: ["wangxinleo"],
+      });
+      // 100 字符中间隔超过 50 半径,chaos token 不应命中
+      expect(findings.length).toBe(0);
+    } finally {
+      CONTEXT_WINDOW_SIZE.value = prev;
+    }
   });
 });

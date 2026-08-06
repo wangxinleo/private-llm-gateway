@@ -36,6 +36,7 @@ vi.mock("@/config", () => ({
   },
   PATH_PREFIX_OPTIONS: ["/v1/messages", "/v1/responses", "/v1beta"],
   HIGH_RISK_ASSETS: { domains: ["*.ccload.com", "*.gffunds.com"], emails: [], accounts: [] },
+  CONTEXT_WINDOW_SIZE: { value: 200 },
 }));
 
 vi.mock("fs", () => ({
@@ -99,10 +100,12 @@ describe("admin config and stats routes", () => {
           context_key_min_length: { value: 8, type: "number" },
           context_key_max_length: { value: 200, type: "number" },
           context_key_max_spaces: { value: 2, type: "number" },
+          context_window_size: { value: 200, type: "number" },
           high_risk_assets: { value: { domains: ["*.ccload.com", "*.gffunds.com"], emails: [], accounts: [] }, type: "json_array" },
         },
         constants: {
           contextKey: { minLength: 8, maxLength: 200, maxSpaces: 2 },
+          contextWindowSize: 200,
         },
         dbStats: {
           totalRecords: 100,

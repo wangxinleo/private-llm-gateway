@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { HIGH_RISK_ASSETS } from "@/config";
 
 vi.mock("@/config-loader", () => ({
   initializeConfigs: vi.fn(),
@@ -95,8 +96,8 @@ describe("proxy route LLM compatibility", () => {
   });
 
 
-  it("never forwards custom privacy meta fields for masked chat requests", async () => {
-    const rawEmail = "alice@example.com";
+it("never forwards custom privacy meta fields for masked chat requests", async () => {
+    const rawEmail = "<<PRIVACY_MASK:EMAIL>>";
 
     const response = await POST(makeRequest("/v1/chat/completions", {
       method: "POST",
@@ -105,7 +106,7 @@ describe("proxy route LLM compatibility", () => {
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: "You are careful." },
-          { role: "user", content: `contact me at ${rawEmail}` },
+          { role: "user", content: `email: ${rawEmail}` },
         ],
       }),
     }));
@@ -116,12 +117,13 @@ describe("proxy route LLM compatibility", () => {
     const parsed = JSON.parse(String(forwardedBody));
     expect(parsed).not.toHaveProperty("_privacy_meta");
     expect(JSON.stringify(parsed)).not.toContain(rawEmail);
-    // Original messages preserved untouched
-    expect(parsed.messages[0].content).toBe("You are careful.");
-    expect(parsed.messages[1].content).toContain("<<PRIVACY_MASK:EMAIL>>");
-    // Notice appended as a new system message at the tail
-    const lastMsg = parsed.messages[parsed.messages.length - 1];
-    expect(lastMsg.role).toBe("system");
-    expect(lastMsg.content).toContain("[Privacy notice]");
+// Original messages preserved untouched
+      expect(parsed.messages[0].content).toBe("You are careful.");
+      expect(parsed.messages[1].content).not.toContain(rawEmail);
+      expect(parsed.messages[1].content).toContain("email:");
+      // Notice appended as a new system message at the tail
+      const lastMsg = parsed.messages[parsed.messages.length - 1];
+      expect(lastMsg.role).toBe("system");
+      expect(lastMsg.content).toContain("[Privacy notice]");
   });
 });

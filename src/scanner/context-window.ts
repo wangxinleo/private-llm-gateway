@@ -4,13 +4,9 @@ import { scanContextKey, locateSensitiveHits } from "./context-key";
 import { scanPii } from "./pii";
 import { locateHighRiskAssets, type AssetHit } from "./high-risk-assets";
 import { buildMaskTag } from "./mask-tag";
-import { HIGH_RISK_ASSETS } from "@/config";
+import { HIGH_RISK_ASSETS, CONTEXT_WINDOW_SIZE } from "@/config";
 
-export const CONTEXT_WINDOW = 200;
-
-const KEYWORD_RE = /\b(token|basic|secret|password|api[ _-]?key|authorization|bearer|signing|credential|auth)\b/i;
-
-const PASSWORD_FLAG_RE = /\b(?:passwd|password|pwd|password_hash|pass|key)\s*[:=]\s*(\S+)/gi;
+export const CONTEXT_WINDOW = CONTEXT_WINDOW_SIZE.value;
 
 const CHAOS_TOKEN_RE = /\b[A-Za-z0-9_\-]{8,}\b/g;
 
@@ -41,36 +37,7 @@ export function scanChaosTokens(window: string): Finding[] {
   return findings;
 }
 
-export function hasStrongSecretSignal(window: string): boolean {
-  const flagRe = new RegExp(PASSWORD_FLAG_RE.source, PASSWORD_FLAG_RE.flags);
-  flagRe.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = flagRe.exec(window)) !== null) {
-    const val = m[1];
-    if (val && isChaosToken(val.replace(/^["']|["']$/g, ""), 6)) return true;
-  }
-
-  if (scanSecrets(window).length > 0) return true;
-
-  const chaosRe = new RegExp(CHAOS_TOKEN_RE.source, CHAOS_TOKEN_RE.flags);
-  chaosRe.lastIndex = 0;
-  while ((m = chaosRe.exec(window)) !== null) {
-    if (isChaosToken(m[0])) return true;
-  }
-
-  if (KEYWORD_RE.test(window)) {
-    if (scanSecrets(window).length > 0) return true;
-    const chaosSource = new RegExp(CHAOS_TOKEN_RE.source, CHAOS_TOKEN_RE.flags);
-    chaosSource.lastIndex = 0;
-    while ((m = chaosSource.exec(window)) !== null) {
-      if (isChaosToken(m[0], 6)) return true;
-    }
-  }
-
-  return false;
-}
-
-export function sliceWindow(text: string, hit: AssetHit, radius: number = CONTEXT_WINDOW): string {
+export function sliceWindow(text: string, hit: AssetHit, radius: number = CONTEXT_WINDOW_SIZE.value): string {
   return text.slice(Math.max(0, hit.start - radius), Math.min(text.length, hit.end + radius));
 }
 
@@ -103,36 +70,18 @@ export function scanContextWindows(
     }
   };
 
-  // PII 全文扫描:稳定格式,误报率低,用户确认保留
-  push(scanPii(text));
+  // 仅 PHONE/ID_CARD/BANK_CARD 全文扫描(用户确认保留);EMAIL 收窄到窗口锚点内
+  push(scanPii(text).filter((f) => f.category !== "EMAIL"));
 
-  // D5 内置高信号层:STRONG_RULES 前缀全局扫描,不可关闭,防漏报
-  // BASIC_AUTH 排除:真实 basic 凭证按用户决策不需隐藏(受窗口上下文裁决约束)
-  const globalSecrets = scanSecrets(text).filter((f) => f.category !== "BASIC_AUTH");
-  push(globalSecrets);
-
-  const sensitiveHits = locateSensitiveHits(text);
-  const sensitiveRanges: AssetHit[] = sensitiveHits.map((h) => ({ value: h.value, start: h.start, end: h.end }));
-  const globalSecretValues = new Set(globalSecrets.map((f) => f.matched));
-
-  const hits: AssetHit[] = [
-    ...locateHighRiskAssets(text, assets),
-    ...sensitiveRanges,
-  ];
+  // 窗口锚点:白名单资产(domains/emails/accounts)+ JSON 敏感键值对(key=value)
+  // 锚点命中后,窗口内一律严格扫描(secrets + context-key + chaos 全量),无额外门槛
+  const sensitiveRanges: AssetHit[] = locateSensitiveHits(text).map((h) => ({ value: h.value, start: h.start, end: h.end }));
+  const hits: AssetHit[] = [...sensitiveRanges, ...locateHighRiskAssets(text, assets)];
 
   for (const hit of hits) {
     const window = sliceWindow(text, hit);
-
-    const isSensitiveKeyHit = sensitiveRanges.some(
-      (r) => r.start === hit.start && r.end === hit.end
-    );
-    if (!isSensitiveKeyHit && !hasStrongSecretSignal(window)) continue;
-
-    // 窗口内 secrets:跳过全局已覆盖的值,避免重复扫描全文
-    const windowSecrets = scanSecrets(window).filter(
-      (f) => f.category !== "BASIC_AUTH" && !globalSecretValues.has(f.matched)
-    );
-    push(windowSecrets);
+    push(scanPii(window).filter((f) => f.category === "EMAIL"));
+    push(scanSecrets(window).filter((f) => f.category !== "BASIC_AUTH"));
     push(scanContextKey(window));
     push(scanChaosTokens(window));
   }

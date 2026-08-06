@@ -1,5 +1,5 @@
 import { getConfig, setConfig, getAllConfigs } from "@/audit";
-import { CONTEXT_KEY, PATH_PREFIX_OPTIONS, HIGH_RISK_ASSETS, DEFAULT_CONFIG_VALUES } from "@/config";
+import { CONTEXT_KEY, PATH_PREFIX_OPTIONS, HIGH_RISK_ASSETS, CONTEXT_WINDOW_SIZE, DEFAULT_CONFIG_VALUES } from "@/config";
 import type { EditableConfigType, HighRiskAssets } from "@/types";
 import { Logger } from "@/log";
 
@@ -34,6 +34,7 @@ export function initializeConfigs(): void {
     CONTEXT_KEY.MIN_LENGTH = loadOrInit("context_key_min_length", DEFAULT_CONFIG_VALUES.CONTEXT_KEY_MIN_LENGTH, "number", "Context key minimum length");
     CONTEXT_KEY.MAX_LENGTH = loadOrInit("context_key_max_length", DEFAULT_CONFIG_VALUES.CONTEXT_KEY_MAX_LENGTH, "number", "Context key maximum length");
     CONTEXT_KEY.MAX_SPACES = loadOrInit("context_key_max_spaces", DEFAULT_CONFIG_VALUES.CONTEXT_KEY_MAX_SPACES, "number", "Context key maximum spaces");
+    CONTEXT_WINDOW_SIZE.value = loadOrInit("context_window_size", DEFAULT_CONFIG_VALUES.CONTEXT_WINDOW_SIZE, "number", "Context scan window radius in characters");
     PATH_PREFIX_OPTIONS.length = 0;
     PATH_PREFIX_OPTIONS.push(...loadOrInit("path_prefix_options", DEFAULT_CONFIG_VALUES.PATH_PREFIX_OPTIONS, "json_array", "Path prefix options for bypass rules"));
 
@@ -65,6 +66,9 @@ export function refreshConfig(key: string): void {
       break;
     case "context_key_max_spaces":
       CONTEXT_KEY.MAX_SPACES = parseInt(config.value, 10);
+      break;
+    case "context_window_size":
+      CONTEXT_WINDOW_SIZE.value = parseInt(config.value, 10);
       break;
     case "high_risk_assets": {
       const loaded = JSON.parse(config.value) as Partial<HighRiskAssets>;

@@ -129,6 +129,8 @@ const IDENTITY_KEYS: ReadonlySet<string> = new Set([
   "projectid",
   "clientid",
   "clientemail",
+  "email",
+  "emailaddress",
   "login",
   "loginid",
   "sessionid",
@@ -254,6 +256,10 @@ function classifyKey(key: string): KeyGroup {
 
 function stripValue(value: string): string {
   return value.trim().replace(/^["'`]|["'`]$/g, "").replace(/[;,]+$/g, "");
+}
+
+function isEmailAddress(value: string): boolean {
+  return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(stripValue(value));
 }
 
 function tokenValue(value: string): string {
@@ -426,7 +432,7 @@ export function scanContextKey(text: string): Finding[] {
         seenValues.add(candidate.value);
         endpointHits.push(toFinding(candidate.value));
       }
-    } else if (group === "identity" && isSuspiciousSecretValue(candidate.value)) {
+    } else if (group === "identity" && !isEmailAddress(candidate.value) && isSuspiciousSecretValue(candidate.value)) {
       if (!seenValues.has(candidate.value)) {
         seenValues.add(candidate.value);
         identityHits.push(toFinding(candidate.value));

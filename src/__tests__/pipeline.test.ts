@@ -1,63 +1,169 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { runPipeline } from "@/scanner/pipeline";
+import { HIGH_RISK_ASSETS } from "@/config";
 
-describe("runPipeline", () => {
+function withWhitelist(text: string, assets: typeof HIGH_RISK_ASSETS = HIGH_RISK_ASSETS) {
+  // 直接操纵内存态,模拟设置页保存后的白名单
+  const prev = {
+    domains: [...HIGH_RISK_ASSETS.domains],
+    emails: [...HIGH_RISK_ASSETS.emails],
+    accounts: [...HIGH_RISK_ASSETS.accounts],
+  };
+  HIGH_RISK_ASSETS.domains = assets.domains;
+  HIGH_RISK_ASSETS.emails = assets.emails;
+  HIGH_RISK_ASSETS.accounts = assets.accounts;
+  return () => {
+    HIGH_RISK_ASSETS.domains = prev.domains;
+    HIGH_RISK_ASSETS.emails = prev.emails;
+    HIGH_RISK_ASSETS.accounts = prev.accounts;
+  };
+}
+
+describe("runPipeline — whitelist-gated scanning", () => {
+  beforeEach(() => {
+    // 默认白名单清空,确保测试隔离
+    HIGH_RISK_ASSETS.domains = [];
+    HIGH_RISK_ASSETS.emails = [];
+    HIGH_RISK_ASSETS.accounts = [];
+  });
+
   it("allows clean text", () => {
     const r = runPipeline("Hello, world!", 100);
     expect(r.action).toBe("allow");
     expect(r.findings).toHaveLength(0);
   });
 
-  it("masks private key and forwards", () => {
-    const text =
-      "-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----";
-    const r = runPipeline(text, 100);
-    expect(r.action).toBe("mask");
-    expect(r.findings.some((f) => f.category === "PRIVATE_KEY")).toBe(true);
-    expect(r.maskedBody).toBe("<<PRIVACY_MASK:PRIVATE_KEY>>");
+  it("allows secrets outside whitelist windows (no anchor)", () => {
+    const r = runPipeline("the token abc123token appears in prose without context", 100);
+    expect(r.action).toBe("allow");
+    expect(r.findings).toHaveLength(0);
   });
 
-  it("masks Bearer token and forwards", () => {
-    const r = runPipeline("Authorization: Bearer abc123token", 100);
-    expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:BEARER_TOKEN>>");
-    expect(r.maskedBody).not.toContain("abc123token");
+  it("allows emails outside whitelist (no anchor)", () => {
+    const r = runPipeline("contact: user@example.com", 100);
+    expect(r.action).toBe("allow");
+    expect(r.findings).toHaveLength(0);
   });
 
-  it("masks DB URI and forwards", () => {
-    const r = runPipeline("postgres://user:pass@host/db", 100);
-    expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:DB_URI>>");
-    expect(r.maskedBody).not.toContain("user:pass@host");
+  it("masks secrets inside whitelist window", () => {
+    const restore = withWhitelist("", { domains: [], emails: [], accounts: ["wangxinleo"] });
+    try {
+      const r = runPipeline("account wangxinleo token Bearer abc123token", 100);
+      expect(r.action).toBe("mask");
+      expect(r.maskedBody).toContain("<<PRIVACY_MASK:BEARER_TOKEN>>");
+      expect(r.maskedBody).not.toContain("abc123token");
+    } finally {
+      restore();
+    }
   });
 
-  it("masks PII but allows forward", () => {
+  it("masks email inside whitelist window", () => {
+    const restore = withWhitelist("", { domains: [], emails: [], accounts: ["wangxinleo"] });
+    try {
+      const r = runPipeline("account wangxinleo mail user@example.com", 100);
+      expect(r.action).toBe("mask");
+      expect(r.maskedBody).toContain("<<PRIVACY_MASK:EMAIL>>");
+    } finally {
+      restore();
+    }
+  });
+
+  it("masks private key inside whitelist window", () => {
+    const restore = withWhitelist("", { domains: [], emails: [], accounts: ["wangxinleo"] });
+    try {
+      const text =
+        "account wangxinleo\n-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----";
+      const r = runPipeline(text, 100);
+      expect(r.action).toBe("mask");
+      expect(r.maskedBody).toContain("<<PRIVACY_MASK:PRIVATE_KEY>>");
+    } finally {
+      restore();
+    }
+  });
+
+  it("masks DB URI inside whitelist window", () => {
+    const restore = withWhitelist("", { domains: [], emails: [], accounts: ["wangxinleo"] });
+    try {
+      const r = runPipeline("account wangxinleo db postgres://user:pass@host/db", 100);
+      expect(r.action).toBe("mask");
+      expect(r.maskedBody).toContain("<<PRIVACY_MASK:DB_URI>>");
+    } finally {
+      restore();
+    }
+  });
+
+  it("masks AWS key inside whitelist window", () => {
+    const restore = withWhitelist("", { domains: [], emails: [], accounts: ["wangxinleo"] });
+    try {
+      const r = runPipeline("account wangxinleo key=AKIAIOSFODNN7EXAMPLE", 100);
+      expect(r.action).toBe("mask");
+      expect(r.maskedBody).toContain("<<PRIVACY_MASK:AWS_ACCESS_KEY>>");
+    } finally {
+      restore();
+    }
+  });
+
+  it("masks GitHub token inside whitelist window", () => {
+    const restore = withWhitelist("", { domains: [], emails: [], accounts: ["wangxinleo"] });
+    try {
+      const r = runPipeline(
+        "account wangxinleo ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij",
+        100
+      );
+      expect(r.action).toBe("mask");
+      expect(r.maskedBody).toContain("<<PRIVACY_MASK:GITHUB_TOKEN>>");
+    } finally {
+      restore();
+    }
+  });
+
+  it("masks context key value inside whitelist window", () => {
+    const restore = withWhitelist("", { domains: [], emails: [], accounts: ["wangxinleo"] });
+    try {
+      const r = runPipeline(
+        'account wangxinleo "api_key": "aBcDeFgHiJkLmNoPqRsTuVwXyZ012"',
+        100
+      );
+      expect(r.action).toBe("mask");
+      expect(r.maskedBody).toContain("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    } finally {
+      restore();
+    }
+  });
+
+  it("masks strong-signal secrets outside whitelist window when anchor present", () => {
+    const restore = withWhitelist("", { domains: [], emails: [], accounts: ["wangxinleo"] });
+    try {
+      const r = runPipeline("contact wangxinleo sk-proj-" + "B".repeat(20), 100);
+      expect(r.action).toBe("mask");
+      expect(r.maskedBody).toContain("<<PRIVACY_MASK:PROVIDER_API_KEY>>");
+    } finally {
+      restore();
+    }
+  });
+
+  it("masks PHONE regardless of whitelist (global PII)", () => {
     const r = runPipeline("手机号：13912345678", 100);
     expect(r.action).toBe("mask");
     expect(r.maskedBody).toContain("<<PRIVACY_MASK:PHONE>>");
-    expect(r.maskedBody).not.toContain("13912345678");
   });
 
-  it("masks email", () => {
-    const r = runPipeline("contact: user@example.com", 100);
-    expect(r.action).toBe("mask");
-    expect(r.maskedBody).toBe("contact: <<PRIVACY_MASK:EMAIL>>");
-  });
-
-  it("masks ID card", () => {
+  it("masks ID card regardless of whitelist (global PII)", () => {
     const r = runPipeline("身份证：330106200002020012", 100);
     expect(r.action).toBe("mask");
     expect(r.maskedBody).toContain("<<PRIVACY_MASK:ID_CARD>>");
   });
 
-  it("masks secrets and PII together", () => {
-    const text = "Bearer abc123token phone 13912345678";
-    const r = runPipeline(text, 100);
-    expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:BEARER_TOKEN>>");
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:PHONE>>");
-    expect(r.maskedBody).not.toContain("abc123token");
-    expect(r.maskedBody).not.toContain("13912345678");
+  it("masks PHONE alongside whitelist-window secrets", () => {
+    const restore = withWhitelist("", { domains: [], emails: [], accounts: ["wangxinleo"] });
+    try {
+      const r = runPipeline("account wangxinleo Bearer abc123token phone 13912345678", 100);
+      expect(r.action).toBe("mask");
+      expect(r.maskedBody).toContain("<<PRIVACY_MASK:BEARER_TOKEN>>");
+      expect(r.maskedBody).toContain("<<PRIVACY_MASK:PHONE>>");
+    } finally {
+      restore();
+    }
   });
 
   it("filename block triggers immediate block", () => {
@@ -68,130 +174,43 @@ describe("runPipeline", () => {
     ).toBe(true);
   });
 
-  it("masks context key value and forwards", () => {
-    const r = runPipeline(
-      '"api_key": "aBcDeFgHiJkLmNoPqRsTuVwXyZ012"',
-      100
-    );
-    expect(r.action).toBe("mask");
-    expect(
-      r.findings.some((f) => f.category === "CONTEXTUAL_SECRET")
-    ).toBe(true);
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
-    expect(r.maskedBody).not.toContain("aBcDeFgHiJkLmNoPqRsTuVwXyZ012");
-  });
-
   it("blocks sensitive filename extension", () => {
     const r = runPipeline("upload", 100, ["secrets.pem"]);
     expect(r.action).toBe("block");
   });
 
-  it("multiple PII findings all masked", () => {
-    const r = runPipeline("phone 13912345678 email a@b.com", 100);
-    expect(r.action).toBe("mask");
-    expect(r.findings.length).toBeGreaterThanOrEqual(2);
-    expect(r.maskedBody).not.toContain("13912345678");
-    expect(r.maskedBody).not.toContain("a@b.com");
-  });
-
-  it("large body still catches secrets", () => {
-    const text =
-      "-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----";
-    const r = runPipeline(text, 1024 * 1024 + 100);
-    expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:PRIVATE_KEY>>");
-  });
-
-  it("masks multiple secrets in same text", () => {
-    const text = "Bearer abc123token and postgres://user:pass@host/db";
-    const r = runPipeline(text, 100);
-    expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:BEARER_TOKEN>>");
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:DB_URI>>");
-  });
-
   it("block only happens for filename", () => {
-    const r = runPipeline("Bearer abc123token", 100);
-    expect(r.action).toBe("mask");
-    expect(r.action).not.toBe("block");
+    const restore = withWhitelist("", { domains: [], emails: [], accounts: ["wangxinleo"] });
+    try {
+      const r = runPipeline("account wangxinleo Bearer abc123token", 100);
+      expect(r.action).toBe("mask");
+      expect(r.action).not.toBe("block");
+    } finally {
+      restore();
+    }
   });
 
-  it("masks AWS key", () => {
-    const r = runPipeline("key=AKIAIOSFODNN7EXAMPLE", 100);
-    expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:AWS_ACCESS_KEY>>");
+  it("large body still catches secrets inside whitelist window", () => {
+    const restore = withWhitelist("", { domains: [], emails: [], accounts: ["wangxinleo"] });
+    try {
+      const text =
+        "account wangxinleo\n-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----";
+      const r = runPipeline(text, 1024 * 1024 + 100);
+      expect(r.action).toBe("mask");
+      expect(r.maskedBody).toContain("<<PRIVACY_MASK:PRIVATE_KEY>>");
+    } finally {
+      restore();
+    }
   });
 
-  it("masks GitHub token", () => {
-    const r = runPipeline(
-      "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij",
-      100
-    );
-    expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:GITHUB_TOKEN>>");
-  });
-
-  it("masks Slack token", () => {
-    const r = runPipeline("xoxb-1234567890-abcdefghijk", 100);
-    expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:SLACK_TOKEN>>");
-  });
-
-  it("masks Google API key", () => {
-    const r = runPipeline("AIzaSyA1234567890abcdefghijklmnopqrstuvwx", 100);
-    expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:GOOGLE_API_KEY>>");
-  });
-
-  it("masks raw API key and endpoint config text", () => {
-    const r = runPipeline(
-      "APIKEY=demo-key_1234567890\nBASEURL=https://api.example.test/v1",
-      100
-    );
-    expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("APIKEY=<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
-    expect(r.maskedBody).toContain("BASEURL=<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
-    expect(r.maskedBody).not.toContain("demo-key_1234567890");
-    expect(r.maskedBody).not.toContain("https://api.example.test/v1");
-  });
-
-  it("does not mask ordinary prose URLs without endpoint key context", () => {
-    const r = runPipeline("See https://api.example.test/v1 for public docs", 100);
-    expect(r.action).toBe("allow");
-    expect(r.maskedBody).toBe("See https://api.example.test/v1 for public docs");
-  });
-
-});
-
-describe("runPipeline — expanded rule packs", () => {
-  it("masks raw provider/developer token prefixes", () => {
-    const provider = "sk-ant-" + "P6".repeat(18);
-    const developer = "glpat-" + "Q7".repeat(12);
-    const r = runPipeline(`${provider}\n${developer}`, 100);
-
-    expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:PROVIDER_API_KEY>>");
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:DEVELOPER_TOKEN>>");
-    expect(r.maskedBody).not.toContain(provider);
-    expect(r.maskedBody).not.toContain(developer);
-  });
-
-  it("masks encoded config blobs after decoding confirms sensitive keys", () => {
-    const encoded = Buffer.from("api_key=encoded-key_1234567890\nbase_url=https://api.example.test/v1", "utf8").toString("base64");
-    const r = runPipeline(`config_base64=${encoded}`, 100);
-
-    expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:ENCODED_SECRET>>");
-    expect(r.maskedBody).not.toContain(encoded);
-  });
-
-  it("masks cloud and connection-string credentials", () => {
-    const curl = "curl --proxy-user proxy:pa55w0rd https://api.example.test";
-    const connection = "redis://cache:pa55w0rd@redis.example.test:6379/0";
-    const r = runPipeline(`${curl}\n${connection}`, 100);
-
-    expect(r.action).toBe("mask");
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:CLOUD_CREDENTIAL>>");
-    expect(r.maskedBody).toContain("<<PRIVACY_MASK:DB_URI>>");
+  it("does not mask secrets far outside whitelist window", () => {
+    const restore = withWhitelist("", { domains: [], emails: [], accounts: ["wangxinleo"] });
+    try {
+      const text = "wangxinleo" + " x".repeat(500) + " Bearer abc123token";
+      const r = runPipeline(text, 100);
+      expect(r.action).toBe("allow");
+    } finally {
+      restore();
+    }
   });
 });

@@ -145,6 +145,7 @@ If the upstream service runs on the Docker host, `http://host.docker.internal:87
 | `PRIVACY_DISAMBIGUATION_MODE` | `auto` | Adds privacy-mask guidance for upstream LLMs by prepending notice text into standard prompt fields (`system` / `messages` / `prompt` / `input`). Values: `off`, `prefix`, `auto`. Legacy `json-meta` is treated as `auto` and no longer injects custom JSON fields. |
 | `PRIVACY_NOTICE_TEXT` | built-in notice | Custom notice text for masked-token handling. |
 | `PRIVACY_DEBUG_HEADERS` | `false` | Adds debug response headers for masked requests when enabled. |
+| `CONTEXT_WINDOW_SIZE` | `200` | Radius (in characters) around each anchor point within which secrets, contextual keys, and emails are scanned. Hot-reloadable via the `context_window_size` admin setting. |
 
 The admin settings page also manages hot-reloadable scanner settings stored in SQLite: contextual secret limits, bypass path options, and high-risk asset whitelists.
 
@@ -168,6 +169,15 @@ The admin settings page also manages hot-reloadable scanner settings stored in S
 | `block` | Reject the request with a deterministic JSON error. |
 
 Only sensitive uploaded filenames are currently hard-blocked. Secrets, contextual secrets, connection strings, provider tokens, and PII are masked and forwarded so code-review and debugging workflows can continue without exposing raw values upstream.
+
+### Windowed scanning
+
+Plain-text bodies are scanned around anchor points instead of across the whole body. Anchors come from two sources:
+
+- **High-risk asset whitelists** (domains, emails, accounts) configured in settings. When an asset appears in the body, the surrounding window (default 200 chars, configurable via `CONTEXT_WINDOW_SIZE` or the `context_window_size` setting) is scanned for secrets and contextual keys.
+- **Sensitive key-value pairs** such as `api_key=...`, `Authorization: ...`, or `email: ...`. A key name classified as secret/endpoint/identity anchors the window too, so JSON bodies and structured text are scanned even without a whitelist.
+
+Email addresses are masked only inside an anchored window; phone numbers, Chinese resident ID numbers, and bank card numbers are scanned across the whole body. Plain prose without any anchor is passed through unchanged.
 
 ### Masked categories
 

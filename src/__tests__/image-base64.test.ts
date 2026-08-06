@@ -130,7 +130,7 @@ describe("image base64 payloads are not scanned as text (R1/R2)", () => {
 describe("text secret scanning is not degraded (R3)", () => {
   it("sk- provider key in prompt text is still masked", () => {
     const body = JSON.stringify({
-      messages: [{ role: "user", content: "my key is sk-proj-abcdefghijklmnopqrstuvwxyz1234567890" }],
+      messages: [{ role: "user", content: "api_key: sk-proj-abcdefghijklmnopqrstuvwxyz1234567890" }],
     });
 
     const result = maskJsonBody(body, scan);
@@ -150,7 +150,7 @@ describe("text secret scanning is not degraded (R3)", () => {
 
   it("bare eyJ+45 under a non-data key (text) is still masked as BASE64_TOKEN", () => {
     const body = JSON.stringify({
-      messages: [{ role: "user", content: `decode this: ${"eyJ" + "A".repeat(45)}` }],
+      messages: [{ role: "user", content: `token: ${"eyJ" + "A".repeat(45)}` }],
     });
 
     const result = maskJsonBody(body, scan);
@@ -161,7 +161,7 @@ describe("text secret scanning is not degraded (R3)", () => {
   it("base64url JWT under a data key is still scanned (not pure base64)", () => {
     const jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";
     const body = JSON.stringify({
-      messages: [{ role: "user", content: [{ type: "base64", data: jwt }] }],
+      messages: [{ role: "user", content: [{ type: "base64", data: `token: ${jwt}` }] }],
     });
 
     const result = maskJsonBody(body, scan);

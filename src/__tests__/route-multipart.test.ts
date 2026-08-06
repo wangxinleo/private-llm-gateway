@@ -70,7 +70,7 @@ describe("proxy route multipart forwarding", () => {
   it("rebuilds a masked FormData for multipart mask, preserving the file", async () => {
     const rawKey = "sk-proj-" + "a".repeat(24);
     const request = makeMultipartRequest(
-      { message: `my api key is ${rawKey}` },
+      { message: `api_key: ${rawKey}` },
       { file: { content: "fake binary content 12345", filename: "test.png", type: "image/png" } }
     );
 

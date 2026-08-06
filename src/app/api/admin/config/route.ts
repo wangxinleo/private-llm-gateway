@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDbStats, getAllConfigs, setConfig } from "@/audit";
 import { checkAdminAuth } from "@/lib/admin-auth";
-import { UPSTREAM_URL, DB_PATH, DEBUG, CONTEXT_KEY, PATH_PREFIX_OPTIONS, HIGH_RISK_ASSETS } from "@/config";
+import { UPSTREAM_URL, DB_PATH, DEBUG, CONTEXT_KEY, PATH_PREFIX_OPTIONS, HIGH_RISK_ASSETS, CONTEXT_WINDOW_SIZE } from "@/config";
 import { initializeConfigs, refreshConfig } from "@/config-loader";
 import { Logger } from "@/log";
 import { statSync } from "fs";
@@ -38,6 +38,7 @@ export async function GET(request: Request) {
         context_key_min_length: { value: CONTEXT_KEY.MIN_LENGTH, type: "number", description: "Context key minimum length" },
         context_key_max_length: { value: CONTEXT_KEY.MAX_LENGTH, type: "number", description: "Context key maximum length" },
         context_key_max_spaces: { value: CONTEXT_KEY.MAX_SPACES, type: "number", description: "Context key maximum spaces" },
+        context_window_size: { value: CONTEXT_WINDOW_SIZE.value, type: "number", description: "Context scan window radius in characters" },
         high_risk_assets: { value: HIGH_RISK_ASSETS, type: "json_array", description: "High-risk asset whitelist (domains/emails/accounts) whose context windows are scanned" },
       },
       constants: {
@@ -46,6 +47,7 @@ export async function GET(request: Request) {
           maxLength: CONTEXT_KEY.MAX_LENGTH,
           maxSpaces: CONTEXT_KEY.MAX_SPACES,
         },
+        contextWindowSize: CONTEXT_WINDOW_SIZE.value,
       },
       dbStats: {
         totalRecords: dbStats.totalRecords,
@@ -78,6 +80,7 @@ export async function PUT(request: Request) {
       "context_key_min_length",
       "context_key_max_length",
       "context_key_max_spaces",
+      "context_window_size",
       "high_risk_assets",
     ];
 

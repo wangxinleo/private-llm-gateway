@@ -145,6 +145,7 @@ rm -rf ./data  # 清空整个挂载数据目录
 | `PRIVACY_DISAMBIGUATION_MODE` | `auto` | 通过标准提示词字段（`system` / `messages` / `prompt` / `input`）拼接隐私标记说明。可选值：`off`、`prefix`、`auto`。旧值 `json-meta` 会按 `auto` 处理，且不再注入自定义 JSON 字段。 |
 | `PRIVACY_NOTICE_TEXT` | 内置说明文本 | 自定义脱敏标记处理说明。 |
 | `PRIVACY_DEBUG_HEADERS` | `false` | 启用后，为被脱敏的请求增加调试响应头。 |
+| `CONTEXT_WINDOW_SIZE` | `200` | 每个锚点周围的扫描半径（字符数），在该窗口内扫描密钥、上下文键和邮箱。可通过管理后台的 `context_window_size` 设置热更新。 |
 
 后台设置页还可以管理写入 SQLite 的热更新配置：上下文密钥限制、bypass 路径选项和高风险资产白名单。
 
@@ -168,6 +169,15 @@ rm -rf ./data  # 清空整个挂载数据目录
 | `block` | 拒绝请求，并返回确定性的 JSON 错误。 |
 
 当前只有敏感上传文件名会被硬拦截。密钥、上下文密钥、连接串、provider token 和 PII 默认会脱敏后转发，这样代码审查和调试工作流可以继续进行，同时不把原始敏感值发送到上游。
+
+### 窗口化扫描
+
+纯文本请求体围绕锚点扫描，而不是全文扫描。锚点来自两个来源：
+
+- **高风险资产白名单**（域名、邮箱、账户名），在设置页配置。当请求体中出现白名单资产时，其周围窗口（默认 200 字符，可通过 `CONTEXT_WINDOW_SIZE` 或 `context_window_size` 设置调整）内会扫描密钥和上下文键。
+- **敏感键值对**，例如 `api_key=...`、`Authorization: ...`、`email: ...`。键名被分类为 secret/endpoint/identity 时也构成锚点，因此即使没有白名单，JSON 请求体和结构化文本也会被扫描。
+
+邮箱只在锚点窗口内脱敏；手机号、中国居民身份证号和银行卡号仍全文扫描。没有任何锚点的纯散文文本原样放行。
 
 ### 脱敏类别
 
