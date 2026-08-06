@@ -4,7 +4,6 @@ export { scanPii, applyMasks } from "./pii";
 export type { MaskResult } from "./pii";
 export { scanFilename, scanFilenames } from "./filename";
 export { runPipeline, getSizeTier } from "./pipeline";
-export { applyExclusions } from "./exclusions";
 export { isJsonContentType, maskJsonBody } from "./json-mask";
 export {
   parseMultipart,

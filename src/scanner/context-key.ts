@@ -168,6 +168,16 @@ const ENCODED_KEYS: ReadonlySet<string> = new Set([
   "kubeconfigbase64",
 ]);
 
+// 单遍敏感键名正则:由各分类键名集合生成,键名内分隔符可任意(归一化匹配)
+// 用于窗口定位器,避免对全文跑多遍 KV 提取正则
+function buildSensitiveKeyRegex(): RegExp {
+  const allKeys = [...SECRET_KEYS, ...ENDPOINT_KEYS, ...IDENTITY_KEYS, ...ENCODED_KEYS];
+  const alts = allKeys.map((k) => k.split("").join("[\\s_.-]*"));
+  return new RegExp(`(?<![A-Za-z0-9])(?:${alts.join("|")})["']?\\s*[:=]`, "gi");
+}
+
+const SENSITIVE_KEY_RE = buildSensitiveKeyRegex();
+
 interface KeyPattern {
   name: string;
   pattern: RegExp;
@@ -434,4 +444,35 @@ export function scanContextKey(text: string): Finding[] {
   }
 
   return [...endpointHits, ...encodedHits];
+}
+
+export interface SensitiveHit {
+  key: string;
+  value: string;
+  start: number;
+  end: number;
+}
+
+// 供窗口定位器复用:返回敏感键值对的位置(值区间),键名分类为 secret/endpoint/identity/encoded 均视为敏感区域
+export function locateSensitiveHits(text: string): SensitiveHit[] {
+  const hits: SensitiveHit[] = [];
+  const re = SENSITIVE_KEY_RE;
+  re.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    const rawKey = match[0].replace(/\s*[:=]\s*$/, "");
+    const key = rawKey.replace(/^["']|["']$/g, "");
+    const group = classifyKey(key);
+    if (group === "unknown") continue;
+
+    const after = text.slice(re.lastIndex);
+    const valueMatch = after.match(/^\s*["']?([^"',}\]]+)/);
+    const value = valueMatch ? valueMatch[1].trim() : "";
+    if (!value) continue;
+
+    const start = re.lastIndex;
+    hits.push({ key, value, start, end: start + value.length });
+  }
+
+  return hits;
 }
