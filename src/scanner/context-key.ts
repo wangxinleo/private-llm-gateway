@@ -170,10 +170,10 @@ const ENCODED_KEYS: ReadonlySet<string> = new Set([
   "kubeconfigbase64",
 ]);
 
-// 单遍敏感键名正则:由各分类键名集合生成,键名内分隔符可任意(归一化匹配)
-// 用于窗口定位器,避免对全文跑多遍 KV 提取正则
+// 窗口定位正则:SECRET_KEYS + ENCODED_KEYS + email 相关 IDENTITY_KEYS 触发窗口
+// ENDPOINT_KEYS(url/host/server)和其余 IDENTITY_KEYS(session/auth/account)过于常见,不触发窗口
 function buildSensitiveKeyRegex(): RegExp {
-  const allKeys = [...SECRET_KEYS, ...ENDPOINT_KEYS, ...IDENTITY_KEYS, ...ENCODED_KEYS];
+  const allKeys = [...SECRET_KEYS, ...ENCODED_KEYS, "email", "emailaddress"];
   const alts = allKeys.map((k) => k.split("").join("[\\s_.-]*"));
   return new RegExp(`(?<![A-Za-z0-9])(?:${alts.join("|")})["']?\\s*[:=]`, "gi");
 }

@@ -79,7 +79,7 @@ describe("sliceWindow", () => {
 
 describe("scanContextWindows", () => {
   it("扫描白名单命中值窗口内的疑似密钥", () => {
-    const text = "account wangxinleo secret aB3x9K2mQwe7";
+    const text = "account wangxinleo Bearer abc123token";
     const findings = scanContextWindows(text, {
       domains: [],
       emails: [],
@@ -118,24 +118,22 @@ describe("scanContextWindows", () => {
     expect(findings).not.toContainEqual(expect.objectContaining({ category: "EMAIL" }));
   });
 
-  it("窗口边界:窗内 chaos 命中,窗外不误报", () => {
-    // 窗内:白名单锚点命中后,无序形似密钥的 chaos token 无条件脱敏
-    const inside = "wangxinleo aB3x9K2mQwe7";
+  it("窗口边界:窗内 secrets 命中,窗外不扫描", () => {
+    const inside = "wangxinleo Bearer abc123token";
     const insideFindings = scanContextWindows(inside, {
       domains: [],
       emails: [],
       accounts: ["wangxinleo"],
     });
-    expect(insideFindings.some((f) => f.category === "CONTEXTUAL_SECRET")).toBe(true);
-    // 窗外:chaos 距锚点超过窗口半径,不扫
+    expect(insideFindings.some((f) => f.category === "BEARER_TOKEN")).toBe(true);
     const outside =
-      "wangxinleo" + " ".repeat(CONTEXT_WINDOW * 2) + "aB3x9K2mQwe7";
+      "wangxinleo" + " ".repeat(CONTEXT_WINDOW * 2) + "Bearer abc123token";
     const outsideFindings = scanContextWindows(outside, {
       domains: [],
       emails: [],
       accounts: ["wangxinleo"],
     });
-    expect(outsideFindings.some((f) => f.category === "CONTEXTUAL_SECRET")).toBe(false);
+    expect(outsideFindings.some((f) => f.category === "BEARER_TOKEN")).toBe(false);
   });
 
   it("白名单窗口内 EMAIL 被扫描", () => {
@@ -172,13 +170,13 @@ describe("scanContextWindows", () => {
     const prev = CONTEXT_WINDOW_SIZE.value;
     CONTEXT_WINDOW_SIZE.value = 50;
     try {
-      const text = "wangxinleo" + " x".repeat(100) + " aB3x9K2mQwe7";
+      const text = "wangxinleo" + " x".repeat(100) + " Bearer abc123token";
       const findings = scanContextWindows(text, {
         domains: [],
         emails: [],
         accounts: ["wangxinleo"],
       });
-      // 100 字符中间隔超过 50 半径,chaos token 不应命中
+      // 100 字符间隔超过 50 半径,Bearer token 不应命中
       expect(findings.length).toBe(0);
     } finally {
       CONTEXT_WINDOW_SIZE.value = prev;

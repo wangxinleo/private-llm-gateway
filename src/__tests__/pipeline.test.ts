@@ -149,7 +149,7 @@ describe("runPipeline — whitelist-gated scanning", () => {
   });
 
   it("masks ID card regardless of whitelist (global PII)", () => {
-    const r = runPipeline("身份证：330106200002020012", 100);
+    const r = runPipeline("身份证：330106200002020010", 100);
     expect(r.action).toBe("mask");
     expect(r.maskedBody).toContain("<<PRIVACY_MASK:ID_CARD>>");
   });

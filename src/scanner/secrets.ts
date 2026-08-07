@@ -48,6 +48,7 @@ const CURL_USER_CREDENTIAL_RE = /(?<!\S)(?:-u|--user|--proxy-user)\s+[^\s:'"]+:[
 const BASE64_TOKEN_RE = /eyJ[A-Za-z0-9_-]{40,}/g;
 const STRIPE_KEY_RE = /sk_(?:live|test)_[A-Za-z0-9]{24,}/g;
 const SENDGRID_KEY_RE = /SG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}/g;
+const PRIVACY_MASK_TOKEN_RE = /<<PRIVACY_MASK:[A-Z_]+>>/g;
 
 interface Rule {
   category: Finding["category"];
@@ -87,6 +88,7 @@ const STRONG_RULES: Rule[] = [
   { category: "BASE64_TOKEN", pattern: BASE64_TOKEN_RE },
   { category: "STRIPE_KEY", pattern: STRIPE_KEY_RE },
   { category: "SENDGRID_KEY", pattern: SENDGRID_KEY_RE },
+  { category: "CONTEXTUAL_SECRET", pattern: PRIVACY_MASK_TOKEN_RE },
 ];
 
 interface IndexedFinding {

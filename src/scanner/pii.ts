@@ -6,6 +6,20 @@ const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const ID_CARD_RE = /\d{17}[\dXx]/g;
 const BANK_CARD_RE = /\d{16,19}/g;
 
+function idCardCheck(num: string): boolean {
+  if (num.length !== 18) return false;
+  const weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
+  const checkCodes = ["1", "0", "X", "9", "8", "7", "6", "5", "4", "3", "2"];
+  let sum = 0;
+  for (let i = 0; i < 17; i++) {
+    const d = parseInt(num[i] ?? "", 10);
+    if (Number.isNaN(d)) return false;
+    sum += d * (weights[i] ?? 0);
+  }
+  const expected = checkCodes[sum % 11];
+  return expected?.toUpperCase() === (num[17] ?? "").toUpperCase();
+}
+
 function luhnCheck(num: string): boolean {
   let sum = 0;
   let alt = false;
@@ -31,7 +45,7 @@ interface PiiRule {
 const PII_RULES: PiiRule[] = [
   { category: "PHONE", pattern: PHONE_RE },
   { category: "EMAIL", pattern: EMAIL_RE },
-  { category: "ID_CARD", pattern: ID_CARD_RE },
+  { category: "ID_CARD", pattern: ID_CARD_RE, validate: idCardCheck },
   { category: "BANK_CARD", pattern: BANK_CARD_RE, validate: luhnCheck },
 ];
 

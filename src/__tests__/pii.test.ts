@@ -16,7 +16,7 @@ describe("scanPii", () => {
   });
 
   it("detects ID card", () => {
-    const f = scanPii("ID: 110101199003073456");
+    const f = scanPii("ID: 110101199003073458");
     expect(f.some((x) => x.category === "ID_CARD")).toBe(true);
     expect(f.find((x) => x.category === "ID_CARD")?.maskTag).toBe("<<PRIVACY_MASK:ID_CARD>>");
   });
