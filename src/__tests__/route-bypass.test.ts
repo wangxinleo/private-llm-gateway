@@ -56,7 +56,7 @@ describe("route bypass", () => {
 
     const body = JSON.stringify({
       model: "gpt-4o-mini",
-      messages: [{ role: "user", content: "Authorization: Bearer abc123token" }],
+      messages: [{ role: "user", content: "Authorization: Bearer abc123token4567890xyz" }],
     });
 
     const response = await POST(makeRequest("/v1/chat/completions", body));
@@ -91,7 +91,7 @@ describe("route bypass", () => {
 
     const body = JSON.stringify({
       model: "gpt-4o-mini",
-      messages: [{ role: "user", content: "Authorization: Bearer abc123token" }],
+      messages: [{ role: "user", content: "Authorization: Bearer abc123token4567890xyz" }],
     });
 
     const response = await POST(makeRequest("/v1/chat/completions", body));

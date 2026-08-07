@@ -151,7 +151,7 @@ describe("scanSecrets — mask rules", () => {
 
   it("returns multiple findings for multi-secret text", () => {
     const text = `
-      key1: Bearer abc123token
+      key1: Bearer abc123token4567890xyz
       key2: postgres://u:p@host/db
     `;
     const f = scanSecrets(text);
@@ -160,13 +160,13 @@ describe("scanSecrets — mask rules", () => {
   });
 
   it("stores actual matched text for masking", () => {
-    const text = "Authorization: Bearer abc123token";
+    const text = "Authorization: Bearer abc123token4567890xyz";
     const f = scanSecrets(text);
-    expect(f[0].matched).toBe("Bearer abc123token");
+    expect(f[0].matched).toBe("Bearer abc123token4567890xyz");
   });
 
   it("all findings have action mask", () => {
-    const text = "Bearer abc123token postgres://u:p@host/db";
+    const text = "Bearer abc123token4567890xyz postgres://u:p@host/db";
     const f = scanSecrets(text);
     for (const finding of f) {
       expect(finding.action).toBe("mask");

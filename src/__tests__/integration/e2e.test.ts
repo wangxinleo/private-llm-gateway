@@ -218,7 +218,7 @@ describe("Integration: Privacy Proxy + Dashboard", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        auth: "Bearer abc123token",
+        auth: "Bearer abc123token4567890xyz",
       }),
     });
 

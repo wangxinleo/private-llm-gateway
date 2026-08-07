@@ -79,7 +79,7 @@ describe("sliceWindow", () => {
 
 describe("scanContextWindows", () => {
   it("扫描白名单命中值窗口内的疑似密钥", () => {
-    const text = "account wangxinleo Bearer abc123token";
+    const text = "account wangxinleo Bearer abc123token4567890xyz";
     const findings = scanContextWindows(text, {
       domains: [],
       emails: [],
@@ -119,7 +119,7 @@ describe("scanContextWindows", () => {
   });
 
   it("窗口边界:窗内 secrets 命中,窗外不扫描", () => {
-    const inside = "wangxinleo Bearer abc123token";
+    const inside = "wangxinleo Bearer abc123token4567890xyz";
     const insideFindings = scanContextWindows(inside, {
       domains: [],
       emails: [],
@@ -127,7 +127,7 @@ describe("scanContextWindows", () => {
     });
     expect(insideFindings.some((f) => f.category === "BEARER_TOKEN")).toBe(true);
     const outside =
-      "wangxinleo" + " ".repeat(CONTEXT_WINDOW * 2) + "Bearer abc123token";
+      "wangxinleo" + " ".repeat(CONTEXT_WINDOW * 2) + "Bearer abc123token4567890xyz";
     const outsideFindings = scanContextWindows(outside, {
       domains: [],
       emails: [],
@@ -170,7 +170,7 @@ describe("scanContextWindows", () => {
     const prev = CONTEXT_WINDOW_SIZE.value;
     CONTEXT_WINDOW_SIZE.value = 50;
     try {
-      const text = "wangxinleo" + " x".repeat(100) + " Bearer abc123token";
+      const text = "wangxinleo" + " x".repeat(100) + " Bearer abc123token4567890xyz";
       const findings = scanContextWindows(text, {
         domains: [],
         emails: [],

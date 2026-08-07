@@ -48,7 +48,7 @@ describe("runPipeline — whitelist-gated scanning", () => {
   it("masks secrets inside whitelist window", () => {
     const restore = withWhitelist("", { domains: [], emails: [], accounts: ["wangxinleo"] });
     try {
-      const r = runPipeline("account wangxinleo token Bearer abc123token", 100);
+      const r = runPipeline("account wangxinleo token Bearer abc123token4567890xyz", 100);
       expect(r.action).toBe("mask");
       expect(r.maskedBody).toContain("<<PRIVACY_MASK:BEARER_TOKEN>>");
       expect(r.maskedBody).not.toContain("abc123token");
@@ -157,7 +157,7 @@ describe("runPipeline — whitelist-gated scanning", () => {
   it("masks PHONE alongside whitelist-window secrets", () => {
     const restore = withWhitelist("", { domains: [], emails: [], accounts: ["wangxinleo"] });
     try {
-      const r = runPipeline("account wangxinleo Bearer abc123token phone 13912345678", 100);
+      const r = runPipeline("account wangxinleo Bearer abc123token4567890xyz phone 13912345678", 100);
       expect(r.action).toBe("mask");
       expect(r.maskedBody).toContain("<<PRIVACY_MASK:BEARER_TOKEN>>");
       expect(r.maskedBody).toContain("<<PRIVACY_MASK:PHONE>>");
@@ -182,7 +182,7 @@ describe("runPipeline — whitelist-gated scanning", () => {
   it("block only happens for filename", () => {
     const restore = withWhitelist("", { domains: [], emails: [], accounts: ["wangxinleo"] });
     try {
-      const r = runPipeline("account wangxinleo Bearer abc123token", 100);
+      const r = runPipeline("account wangxinleo Bearer abc123token4567890xyz", 100);
       expect(r.action).toBe("mask");
       expect(r.action).not.toBe("block");
     } finally {
@@ -206,7 +206,7 @@ describe("runPipeline — whitelist-gated scanning", () => {
   it("does not mask secrets far outside whitelist window", () => {
     const restore = withWhitelist("", { domains: [], emails: [], accounts: ["wangxinleo"] });
     try {
-      const text = "wangxinleo" + " x".repeat(500) + " Bearer abc123token";
+      const text = "wangxinleo" + " x".repeat(500) + " Bearer abc123token4567890xyz";
       const r = runPipeline(text, 100);
       expect(r.action).toBe("allow");
     } finally {

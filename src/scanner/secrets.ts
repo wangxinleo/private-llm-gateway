@@ -7,7 +7,7 @@ const log = new Logger("scanner");
 const PRIVATE_KEY_RE =
   /-----BEGIN\s+(?:RSA\s+|OPENSSH\s+|EC\s+|DSA\s+)?PRIVATE\s+KEY-----[\s\S]*?-----END\s+(?:RSA\s+|OPENSSH\s+|EC\s+|DSA\s+)?PRIVATE\s+KEY-----/g;
 
-const BEARER_TOKEN_RE = /Bearer\s+[A-Za-z0-9._~-]+/gi;
+const BEARER_TOKEN_RE = /Bearer\s+[A-Za-z0-9._~-]{20,}/gi;
 const BASIC_AUTH_RE = /Basic\s+[A-Za-z0-9+/]+=*/gi;
 
 const JWT_RE = /eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
