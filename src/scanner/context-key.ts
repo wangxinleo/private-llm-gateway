@@ -297,7 +297,7 @@ function shannonEntropy(value: string): number {
 }
 
 function hasAllowedSecretChars(value: string): boolean {
-  return /^[A-Za-z0-9._=+\-:~!@#$%^*\/]+$/.test(value);
+  return /^[A-Za-z0-9._=+\-:~!@#$%^*\/()]+$/.test(value);
 }
 
 function isHighEntropySecretValue(value: string): boolean {
