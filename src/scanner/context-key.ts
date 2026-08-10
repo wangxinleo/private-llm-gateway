@@ -312,7 +312,7 @@ function isSuspiciousSecretValue(value: string): boolean {
   if (!hasAllowedSecretChars(value)) return false;
   if (/^\d+$/.test(value)) return false;
 
-  const hasDigitOrSymbol = /[0-9._=+\-:~!@#$%^*\/]/.test(value);
+  const hasDigitOrSymbol = /[0-9._=+\-:~!@#$%^*\/()]/.test(value);
   if (hasDigitOrSymbol && !/^[A-Za-z]+$/.test(value)) return true;
 
   return isHighEntropySecretValue(value);

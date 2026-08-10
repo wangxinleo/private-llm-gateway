@@ -39,6 +39,17 @@ describe("scanContextKey — SECRET_KEYS solo-trigger", () => {
     expect(f).toHaveLength(1);
   });
 
+  it("detects wrapped ENC(...) value with pure letters", () => {
+    const f = scanContextKey(`password=ENC(abcdefgh)`);
+    expect(f).toHaveLength(1);
+    expect(f[0].category).toBe("CONTEXTUAL_SECRET");
+  });
+
+  it("detects arbitrary abc(xxx) wrapped value", () => {
+    const f = scanContextKey(`token=base64(secret)`);
+    expect(f).toHaveLength(1);
+  });
+
   it("detects access_token field", () => {
     const f = scanContextKey(`access_token=${suspiciousValue}`);
     expect(f).toHaveLength(1);
