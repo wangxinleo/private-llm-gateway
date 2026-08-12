@@ -29,6 +29,23 @@ describe("scanPii", () => {
   it("returns empty for clean text", () => {
     expect(scanPii("Hello world, no PII here.")).toHaveLength(0);
   });
+
+  // 真实请求的工具输出含长 base64/token 串,EMAIL 正则 local part 贪婪匹配失败
+  // 曾触发 O(n²) 回溯(scanPii 1062ms);lookbehind 边界修复后必须保持有界。
+  it("completes on base64/token 长文本 within bounded time", () => {
+    const chunks: string[] = [];
+    for (let i = 0; i < 200; i++) {
+      chunks.push(`token_${"A".repeat(120)}${i} ${"B".repeat(90)}${i} `);
+    }
+    const text = chunks.join("");
+
+    const start = performance.now();
+    const f = scanPii(text);
+    const elapsed = performance.now() - start;
+
+    expect(f).toHaveLength(0);
+    expect(elapsed).toBeLessThan(200);
+  });
 });
 
 describe("applyMasks", () => {

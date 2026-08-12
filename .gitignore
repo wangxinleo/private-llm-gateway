@@ -52,4 +52,7 @@ next-env.d.ts
 *.sqlite-*
 *.db
 *.db-*
+
+# sensitive capture fixtures (real user data, never commit)
+/真实请求.md
 .ace-tool/

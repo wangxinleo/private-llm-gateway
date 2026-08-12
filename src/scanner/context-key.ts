@@ -197,7 +197,9 @@ const KEY_PATTERNS: KeyPattern[] = [
   { name: "QUOTED_KV", pattern: /["']?([A-Za-z0-9_.-]+)["']?\s*[:=]\s*(["'])([^"'\r\n]+)\2/g, valueGroup: 3 },
   { name: "BARE_KV", pattern: /(?:^|[?&\s,{])(["']?[A-Za-z0-9_.-]+["']?)\s*[:=]\s*([^\s"',}\]]+)/g, valueGroup: 2 },
   { name: "QUERY_PARAM", pattern: /[?&]([A-Za-z0-9_.-]+)=([^&\s"',}\]]+)/g, valueGroup: 2 },
-  { name: "BRACKET", pattern: /([A-Za-z0-9_.-]+)\s*\[\s*["']?([^"'\]]+)["']?\s*\]/g, valueGroup: 2 },
+  // BRACKET: 字典/数组访问 key[value]。组1收紧为标识符形态(字母/下划线开头,最长64),
+  // 避免 base64/ANSI/长随机串触发 O(n²) 灾难回溯;lookbehind 排除 `- [ ]` 等非标识符前缀
+  { name: "BRACKET", pattern: /(?<![A-Za-z0-9_.-])([A-Za-z_][A-Za-z0-9_.-]{0,63})\s*\[\s*["']?([^"'\]]+)["']?\s*\]/g, valueGroup: 2 },
   { name: "DICT_ACCESS", pattern: /\[\s*["']([A-Za-z0-9_.-]+)["']\s*\]\s*[:=]\s*["']?([^\s"'&]+)["']?/g, valueGroup: 2 },
   { name: "XML", pattern: /<([A-Za-z0-9_.-]+)>([^<]+)<\/\1>/g, valueGroup: 2 },
   { name: "DOT", pattern: /\.([A-Za-z0-9_.-]+)\s*[:=]\s*["']?([^\s"'&]+)["']?/g, valueGroup: 2 },

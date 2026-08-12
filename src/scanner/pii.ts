@@ -1,10 +1,12 @@
 import type { Finding } from "@/types";
 import { buildMaskTag } from "./mask-tag";
 
-const PHONE_RE = /1[3-9]\d{9}/g;
-const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
-const ID_CARD_RE = /\d{17}[\dXx]/g;
-const BANK_CARD_RE = /\d{16,19}/g;
+// PII 正则都加边界前缀,避免长串(base64/token/时间戳)内子串误匹配,
+// 同时消除贪婪匹配失败的 O(n²) 回溯(真实 1.18MB 请求 scanPii 1062ms 的根因)
+const PHONE_RE = /(?<!\d)1[3-9]\d{9}/g;
+const EMAIL_RE = /(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+const ID_CARD_RE = /(?<!\d)\d{17}[\dXx]/g;
+const BANK_CARD_RE = /(?<!\d)\d{16,19}/g;
 
 function idCardCheck(num: string): boolean {
   if (num.length !== 18) return false;

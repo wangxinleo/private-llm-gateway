@@ -327,3 +327,36 @@ describe("scanContextKey — expanded provider/cloud/config coverage", () => {
     expect(f).toContainEqual(expect.objectContaining({ category: "ENCODED_SECRET", matched: encoded }));
   });
 });
+
+describe("scanContextKey — BRACKET 灾难回溯回归", () => {
+  // 真实请求(工具输出含 base64/ANSI/markdown)曾触发 BRACKET 正则 O(n²) 回溯,
+  // scanContextKey 耗时 2526ms。修复后必须保持有界。
+  it("completes on base64/ANSI/markdown 混合长文本 within bounded time", () => {
+    const chunks: string[] = [];
+    for (let i = 0; i < 200; i++) {
+      chunks.push(
+        `\u001b[0;34mANSI${i}\u001b[0m ` +
+        `- [ ] task item ${i}\n` +
+        `base64token_${"A".repeat(80)}${i}\n` +
+        `[**bold section ${i}**] markdown\n` +
+        `data[${i}] = ${i}\n`
+      );
+    }
+    const text = chunks.join("");
+
+    const start = performance.now();
+    const f = scanContextKey(text);
+    const elapsed = performance.now() - start;
+
+    // ANSI 码和列表项不应被 BRACKET 当作 key 命中
+    expect(f.length).toBeLessThan(10);
+    // 有界时间:修复前此输入会触发灾难回溯(>1s),修复后应 <200ms
+    expect(elapsed).toBeLessThan(200);
+  });
+
+  it("still detects real bracket access forms", () => {
+    const f = scanContextKey(`password[q5BW236ytM56HrV74n-1]\nconfig["api_key"]=K9`.repeat(3));
+    expect(f.length).toBeGreaterThan(0);
+    expect(f.some((x) => x.matched === "q5BW236ytM56HrV74n-1")).toBe(true);
+  });
+});
