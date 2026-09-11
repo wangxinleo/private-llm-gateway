@@ -241,7 +241,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </nav>
 
         <main id="main-content" className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-[1200px] p-4 md:p-6">{children}</div>
+          <div className="mx-auto h-full w-full max-w-[1200px] p-4 md:p-6">{children}</div>
         </main>
       </div>
     </div>

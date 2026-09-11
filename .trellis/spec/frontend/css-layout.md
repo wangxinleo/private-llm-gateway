@@ -379,3 +379,11 @@ module.exports = {
 5. **Mobile First**: Build up from smallest screens
 6. **Consistent Z-Index**: Use a defined scale
 7. **Respect Accessibility**: Honor motion preferences
+
+## Page-Internal Scrolling & Sticky Table Headers (audit-table pattern)
+
+When a page must keep its toolbar visible while a long list scrolls ("list scrolls, controls stay"):
+
+1. **Height chain**: shell content wrapper needs `h-full` (`dashboard-shell.tsx`), page root uses `flex h-full min-h-0 flex-col`, fixed sections get `shrink-0`, the list area gets `min-h-0 flex-1` (see `audit-table.tsx`).
+2. **Sticky breaks inside overflow wrappers**: `ui/table.tsx`'s `Table` renders its own `overflow-auto` wrapper div — any non-visible overflow between the sticky header and the intended scroll container kills `position: sticky`. Pass `wrapperClassName="max-h-full"` so the Table's own wrapper is the scroll container, then put `sticky top-0 z-10 bg-card` on `TableHeader`. The wrapper must be the nearest scrollport of the thead.
+3. **Sticky header needs an opaque bg** (`bg-card`) or scrolled rows show through; keep `z-10` above row backgrounds (`bg-destructive/5` etc.).

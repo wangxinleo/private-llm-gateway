@@ -45,7 +45,7 @@ import { maskMatchedValue } from "@/lib/matched-values";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import type { ActionType, AdminConfigResponse, FindingCategory } from "@/types";
 
-type TimeRangePreset = "today" | "last3days" | "thisWeek" | "thisMonth" | "last3months" | "last6months";
+type TimeRangePreset = "all" | "today" | "last3days" | "thisWeek" | "thisMonth" | "last3months" | "last6months";
 
 interface AuditRow {
   id: number;
@@ -203,7 +203,7 @@ function subtractMonths(date: Date, months: number): Date {
   return startOfDay(next);
 }
 
-function getTimeRangeBounds(range: TimeRangePreset): { from: Date; to: Date } {
+function getTimeRangeBounds(range: Exclude<TimeRangePreset, "all">): { from: Date; to: Date } {
   const now = new Date();
   switch (range) {
     case "today":
@@ -226,6 +226,7 @@ export function AuditTable() {
   const { adminKey, authedFetch } = useAdminAuth();
   const [data, setData] = useState<AuditResponse>({ rows: [], total: 0, page: 1, limit: 50 });
   const [loading, setLoading] = useState(true);
+  const [allTotal, setAllTotal] = useState<number | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deleteDialog, setDeleteDialog] = useState<{
@@ -253,7 +254,7 @@ export function AuditTable() {
   const [method, setMethod] = useState("");
   const [finding, setFinding] = useState("");
   const [query, setQuery] = useState("");
-  const [timeRange, setTimeRange] = useState<TimeRangePreset>("today");
+  const [timeRange, setTimeRange] = useState<TimeRangePreset>("all");
   const [pathPrefixOptions, setPathPrefixOptions] = useState<string[]>([]);
   const [sseConnected, setSseConnected] = useState(false);
   const streamAbortRef = useRef<AbortController | null>(null);
@@ -283,6 +284,7 @@ export function AuditTable() {
   ];
 
   const TIME_RANGE_OPTIONS: { value: TimeRangePreset; label: string }[] = [
+    { value: "all", label: t("audit.filter.range.all") },
     { value: "today", label: t("audit.filter.range.today") },
     { value: "last3days", label: t("audit.filter.range.last3days") },
     { value: "thisWeek", label: t("audit.filter.range.thisWeek") },
@@ -294,15 +296,17 @@ export function AuditTable() {
   const buildUrl = useCallback(
     (page: number) => {
       const params = new URLSearchParams();
-      const { from, to } = getTimeRangeBounds(timeRange);
       params.set("page", String(page));
       params.set("limit", "50");
       if (action) params.set("action", action);
       if (method) params.set("method", method);
       if (finding) params.set("finding", finding);
       if (query) params.set("q", query);
-      params.set("from", from.toISOString());
-      params.set("to", to.toISOString());
+      if (timeRange !== "all") {
+        const { from, to } = getTimeRangeBounds(timeRange);
+        params.set("from", from.toISOString());
+        params.set("to", to.toISOString());
+      }
       return `/api/admin/audit?${params.toString()}`;
     },
     [action, method, finding, query, timeRange]
@@ -316,6 +320,12 @@ export function AuditTable() {
         if (res.ok) {
           const json: AuditResponse = await res.json();
           setData(json);
+          if (json.total === 0) {
+            const allRes = await authedFetch("/api/admin/audit?page=1&limit=1");
+            if (allRes.ok) setAllTotal((await allRes.json() as AuditResponse).total);
+          } else {
+            setAllTotal(null);
+          }
         }
       } finally {
         setLoading(false);
@@ -369,7 +379,7 @@ export function AuditTable() {
       try {
         const row: AuditRow = JSON.parse(dataText);
         const f = filtersRef.current;
-        const hasFilters = f.action || f.method || f.finding || f.query || f.timeRange !== "today";
+        const hasFilters = f.action || f.method || f.finding || f.query || f.timeRange !== "all";
         if (f.page !== 1 || hasFilters) {
           void fetchDataRef.current(f.page);
           return;
@@ -534,7 +544,15 @@ export function AuditTable() {
   };
 
   const totalPages = Math.ceil(data.total / data.limit);
-  const hasFilters = action || method || finding || query || timeRange !== "today";
+  const hasFilters = action || method || finding || query || timeRange !== "all";
+
+  const resetFilters = () => {
+    setAction("");
+    setMethod("");
+    setFinding("");
+    setQuery("");
+    setTimeRange("all");
+  };
 
   const formatTime = (iso: string) => new Date(iso).toLocaleString(locale === "zh" ? "zh-CN" : "en-US", {
     year: "numeric", month: "2-digit", day: "2-digit",
@@ -542,9 +560,9 @@ export function AuditTable() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="flex h-full min-h-0 flex-col gap-4">
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         <select
           value={action}
           onChange={(e) => setAction(e.target.value)}
@@ -591,7 +609,7 @@ export function AuditTable() {
             variant="ghost"
             size="sm"
             className="text-muted-foreground hover:text-foreground"
-            onClick={() => { setAction(""); setMethod(""); setFinding(""); setQuery(""); setTimeRange("today"); }}
+            onClick={resetFilters}
           >
             <X />{t("audit.filter.clear")}
           </Button>
@@ -599,7 +617,7 @@ export function AuditTable() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex shrink-0 items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
             <>
@@ -644,8 +662,8 @@ export function AuditTable() {
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border bg-card shadow-card">
-        <Table className="table-fixed">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-xl border bg-card shadow-card">
+        <Table className="table-fixed" wrapperClassName="max-h-full">
           <colgroup>
             <col className="w-10" />
             <col className="w-8" />
@@ -659,7 +677,7 @@ export function AuditTable() {
             <col className="w-24" />
             <col className="w-28" />
           </colgroup>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10 bg-card">
             <TableRow className="hover:bg-transparent">
               <TableHead className="w-10"><Checkbox checked={data.rows.length > 0 && selectedIds.size === data.rows.length} onCheckedChange={toggleSelectAll} /></TableHead>
               <TableHead className="w-8" />
@@ -679,7 +697,19 @@ export function AuditTable() {
               <TableRow><TableCell colSpan={11} className="h-40 text-center text-sm text-muted-foreground">{t("audit.loading")}</TableCell></TableRow>
             )}
             {!loading && data.rows.length === 0 && (
-              <TableRow><TableCell colSpan={11} className="h-40 text-center text-sm text-muted-foreground">{t("audit.noRecords")}</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={11} className="text-center text-sm text-muted-foreground">
+                  <div className="flex flex-col items-center justify-center gap-2 py-14">
+                    <span>{t("audit.noRecords")}</span>
+                    {allTotal != null && allTotal > 0 && (
+                      <>
+                        <span className="text-xs">{t("audit.emptyFilteredHint", { count: allTotal })}</span>
+                        <Button variant="outline" size="sm" onClick={resetFilters}>{t("audit.viewAll")}</Button>
+                      </>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
             )}
             {data.rows.map((row) => {
               const expanded = expandedIds.has(row.id);
@@ -817,7 +847,7 @@ export function AuditTable() {
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between">
+      <div className="flex shrink-0 items-center justify-between">
         <p className="font-mono text-xs text-muted-foreground">
           {data.total.toLocaleString()} {t("audit.records")} — {t("audit.page")} {data.page} {t("audit.pageOf")} {totalPages || 1}
         </p>
