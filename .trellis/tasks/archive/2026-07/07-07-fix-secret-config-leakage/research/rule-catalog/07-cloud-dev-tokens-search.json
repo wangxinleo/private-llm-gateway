@@ -1,0 +1,73 @@
+{
+  "ok": true,
+  "query": "secret scanning cloud credentials AWS Azure GCP Alibaba Tencent database URI SSH private key npm pypi token",
+  "search_type": "neural",
+  "results": [
+    {
+      "id": "https://github.com/Gourav094/secret-scan",
+      "title": "Gourav094/secret-scan",
+      "url": "https://github.com/Gourav094/secret-scan",
+      "publishedDate": null,
+      "author": "",
+      "score": 1
+    },
+    {
+      "id": "https://pypi.org/project/secret-scanner-cli/",
+      "title": "secret-scanner-cli v1.0.0",
+      "url": "https://pypi.org/project/secret-scanner-cli/",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.8571428571428572
+    },
+    {
+      "id": "https://pypi.org/project/secret-scan/",
+      "title": "secret-scan v0.4.2",
+      "url": "https://pypi.org/project/secret-scan/",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.7142857142857143
+    },
+    {
+      "id": "https://github.com/ToluGIT/credscan",
+      "title": "ToluGIT/credscan",
+      "url": "https://github.com/ToluGIT/credscan",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.5714285714285714
+    },
+    {
+      "id": "https://github.com/aquasecurity/trivy/blob/main/docs/guide/scanner/secret.md",
+      "title": "docs/guide/scanner/secret.md at main · aquasecurity/trivy",
+      "url": "https://github.com/aquasecurity/trivy/blob/main/docs/guide/scanner/secret.md",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.4285714285714286
+    },
+    {
+      "id": "https://github.com/ykzird/secrets-scan",
+      "title": "ykzird/secrets-scan",
+      "url": "https://github.com/ykzird/secrets-scan",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.2857142857142857
+    },
+    {
+      "id": "https://www.aimcp.info/en/skills/fef8404f-e482-42b3-94e9-0685c7646958",
+      "title": "secret-scanner - Claude Skill | MCP Hub | Model Context Protocol Hub",
+      "url": "https://www.aimcp.info/en/skills/fef8404f-e482-42b3-94e9-0685c7646958",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.1428571428571429
+    },
+    {
+      "id": "https://github.com/Manavarya09/secretscan",
+      "title": "Manavarya09/secretscan",
+      "url": "https://github.com/Manavarya09/secretscan",
+      "publishedDate": "2026-04-05T00:00:00.000Z",
+      "author": "",
+      "score": 0
+    }
+  ],
+  "total": 8,
+  "elapsed_ms": 1975.62
+}

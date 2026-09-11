@@ -1,0 +1,29 @@
+{
+  "id": "scan-latency-investigation",
+  "name": "scan-latency-investigation",
+  "title": "排查大请求扫描管线性能问题(14-18秒延迟)",
+  "description": "",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "wangxin",
+  "assignee": "wangxin",
+  "createdAt": "2026-08-12",
+  "completedAt": "2026-09-10",
+  "branch": null,
+  "base_branch": "master",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "08-12-fix-scan-pipeline-perf",
+    "08-14-scanner-span-pipeline-architecture"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "Force-archived on 2026-09-10 by user request; child 08-12-fix-scan-pipeline-perf archived 2026-08-17, child 08-14 archived unimplemented.",
+  "meta": {}
+}

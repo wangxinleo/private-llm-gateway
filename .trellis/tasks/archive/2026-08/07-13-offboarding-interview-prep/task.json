@@ -1,0 +1,28 @@
+{
+  "id": "offboarding-interview-prep",
+  "name": "offboarding-interview-prep",
+  "title": "离职资料合规整理与面试准备",
+  "description": "",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "wangxin",
+  "assignee": "wangxin",
+  "createdAt": "2026-07-13",
+  "completedAt": "2026-08-06",
+  "branch": null,
+  "base_branch": "master",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "07-13-private-llm-gateway-dossier"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

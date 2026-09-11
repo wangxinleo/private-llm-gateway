@@ -1,0 +1,5 @@
+{"file":".trellis/spec/backend/reverse-proxy.md","reason":"Check block-original-body, synthetic-context, binary-exemption, and raw-value logging contracts."}
+{"file":".trellis/spec/backend/quality.md","reason":"Check the focused/full test, type-check, build, and sensitive-logging quality gates."}
+{"file":".trellis/spec/guides/regex-performance-guide.md","reason":"Check that regex regression evidence covers untrusted bulk text and no-match backtracking."}
+{"file":".trellis/tasks/archive/2026-08/08-12-fix-scan-pipeline-perf/research/2026-08-13-cha-yin-payload-follow-up.md","reason":"Check that local follow-up timings are not reported as production-resolution proof."}
+{"file":".omo/ulw-research/20260814-1120-scanner-comparison/SYNTHESIS.md","reason":"Check that deferred span-based masking and cache work are not counted as implemented."}

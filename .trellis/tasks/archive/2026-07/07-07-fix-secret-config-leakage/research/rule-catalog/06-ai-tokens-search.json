@@ -1,0 +1,73 @@
+{
+  "ok": true,
+  "query": "secret scanning AI API keys OpenAI Anthropic Gemini Hugging Face Replicate Cohere Mistral token regex",
+  "search_type": "neural",
+  "results": [
+    {
+      "id": "https://crates.io/crates/sf-keyaudit",
+      "title": "sf-keyaudit",
+      "url": "https://crates.io/crates/sf-keyaudit",
+      "publishedDate": null,
+      "author": "",
+      "score": 1
+    },
+    {
+      "id": "https://github.com/github/docs/blob/main/content/code-security/responsible-use/responsible-ai-regex-generator.md",
+      "title": "content/code-security/responsible-use/responsible-ai-regex-generator.md at main · github/docs",
+      "url": "https://github.com/github/docs/blob/main/content/code-security/responsible-use/responsible-ai-regex-generator.md",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.8571428571428572
+    },
+    {
+      "id": "https://docs.github.com/en/rest/secret-scanning/secret-scanning?apiVersion=2026-03-10",
+      "title": "REST API endpoints for secret scanning",
+      "url": "https://docs.github.com/en/rest/secret-scanning/secret-scanning?apiVersion=2026-03-10",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.7142857142857143
+    },
+    {
+      "id": "https://github.com/shjee-afridi/Ultimate-openai-gemini-claude-api-key-scraper/tree/main",
+      "title": "GitHub - shjee-afridi/Ultimate-openai-gemini-claude-api-key-scraper: 🔑 Enterprise-grade async API key scanner for GitHub/GitLab. Detects OpenAI, Claude, Gemini keys with 15x performance boost. Perfect for security engineers, DevSecOps, and bug bounty hunters. Openai api key scraping, Gemini api key scraping, Claude api key scraping · GitHub",
+      "url": "https://github.com/shjee-afridi/Ultimate-openai-gemini-claude-api-key-scraper/tree/main",
+      "publishedDate": "2025-07-11T00:00:00.000Z",
+      "author": "shjee-afridi",
+      "score": 0.5714285714285714
+    },
+    {
+      "id": "https://github.com/Aakashbhardwaj27/ai-scanner",
+      "title": "Aakashbhardwaj27/ai-scanner",
+      "url": "https://github.com/Aakashbhardwaj27/ai-scanner",
+      "publishedDate": "2026-03-21T00:00:00.000Z",
+      "author": "",
+      "score": 0.4285714285714286
+    },
+    {
+      "id": "https://github.com/haxshadow/secret_detector",
+      "title": "haxshadow/secret_detector",
+      "url": "https://github.com/haxshadow/secret_detector",
+      "publishedDate": "2025-04-12T00:00:00.000Z",
+      "author": "",
+      "score": 0.2857142857142857
+    },
+    {
+      "id": "https://docs.github.com/en/code-security/tutorials/secret-scanning-partner-program",
+      "title": "",
+      "url": "https://docs.github.com/en/code-security/tutorials/secret-scanning-partner-program",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.1428571428571429
+    },
+    {
+      "id": "https://github.com/Manavarya09/secretscan",
+      "title": "Manavarya09/secretscan",
+      "url": "https://github.com/Manavarya09/secretscan",
+      "publishedDate": "2026-04-05T00:00:00.000Z",
+      "author": "",
+      "score": 0
+    }
+  ],
+  "total": 8,
+  "elapsed_ms": 1312.17
+}

@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "扫描语义契约: maskJsonBody 只脱敏原始值、不注入合成文本;窗口扫描不得破坏该契约。Contextual Secret Config Scanner 的 key 归一化是 accounts 匹配的参考。"}
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "Scenario: Expanded Secret Rule Packs 的 balanced/strict 模式、placeholder 拒绝是内置高信号基础层防漏报的边界参考。"}
+{"file": ".trellis/spec/backend/performance.md", "reason": "窗口扫描的批量/分块模式参考;性能对比基准(合并性能任务)方法论。"}
+{"file": ".trellis/spec/backend/quality.md", "reason": "提交前检查: 类型安全、无 console.log、结构化日志。"}

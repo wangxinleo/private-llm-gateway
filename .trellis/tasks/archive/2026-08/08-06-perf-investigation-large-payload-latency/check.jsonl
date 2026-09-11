@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "验收核对: 原型 maskJsonBodyBatch 必须满足 JSON 扫描契约(只脱敏原始值、不注入合成文本、findings 语义等价)。"}
+{"file": ".trellis/spec/backend/quality.md", "reason": "验收核对: 新增文件无类型错误、无 console.log、符合日志规范; benchmark 不污染生产 audit 库。"}

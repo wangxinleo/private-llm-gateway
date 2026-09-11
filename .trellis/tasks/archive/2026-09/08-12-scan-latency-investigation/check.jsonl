@@ -1,0 +1,4 @@
+{"file":".trellis/spec/backend/reverse-proxy.md","reason":"Check that artifact conclusions preserve proxy masking, block-original-body, binary exemption, and raw-value logging contracts."}
+{"file":".trellis/spec/backend/quality.md","reason":"Check the documented validation and sensitive-data logging requirements before reporting task completion."}
+{"file":".trellis/tasks/archive/2026-08/08-12-fix-scan-pipeline-perf/research/2026-08-13-cha-yin-payload-follow-up.md","reason":"Check that local replay evidence is not overstated as production resolution."}
+{"file":".omo/ulw-research/20260814-1120-scanner-comparison/SYNTHESIS.md","reason":"Check that the new architecture remains separated from the historical P0 implementation."}

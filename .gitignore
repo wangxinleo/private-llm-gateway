@@ -44,8 +44,8 @@ next-env.d.ts
 .agents
 .claude
 .codex
-.trellis
-.omo
+.qoder
+
 
 # sqlite
 *.sqlite

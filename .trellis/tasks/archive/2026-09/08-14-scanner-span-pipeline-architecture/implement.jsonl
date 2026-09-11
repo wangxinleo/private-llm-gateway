@@ -1,0 +1,8 @@
+{"file":".trellis/spec/backend/reverse-proxy.md","reason":"Preserve JSON masking, block-original-body, binary-payload, audit-value, and synthetic-context contracts."}
+{"file":".trellis/spec/backend/performance.md","reason":"Guide stage measurement, repeated-work reduction, benchmarking, and deferred caching decisions."}
+{"file":".trellis/spec/backend/quality.md","reason":"Provide the required test, type-check, build, logging, and sensitive-data quality gates."}
+{"file":".trellis/spec/shared/code-quality.md","reason":"Apply shared code-quality rules when the TypeScript implementation begins."}
+{"file":".trellis/spec/guides/pre-implementation-checklist.md","reason":"Require pattern search, regression-first design, and cross-layer contract checks before source edits."}
+{"file":".trellis/spec/guides/regex-performance-guide.md","reason":"Preserve the incident-specific no-match and greedy-regex performance safeguards."}
+{"file":".trellis/tasks/archive/2026-08/08-12-fix-scan-pipeline-perf/research/2026-08-13-cha-yin-payload-follow-up.md","reason":"Provide the current local replay and the limitation that it does not prove production resolution."}
+{"file":".omo/ulw-research/20260814-1120-scanner-comparison/SYNTHESIS.md","reason":"Provide the Oracle-reviewed architecture comparison, target pipeline, security constraints, and phased priorities."}

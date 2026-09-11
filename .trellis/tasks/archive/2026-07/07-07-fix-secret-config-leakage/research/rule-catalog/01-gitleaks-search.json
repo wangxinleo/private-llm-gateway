@@ -1,0 +1,73 @@
+{
+  "ok": true,
+  "query": "Gitleaks default rules secret scanning keywords entropy secretGroup config",
+  "search_type": "neural",
+  "results": [
+    {
+      "id": "https://openaitx.github.io/projects/gitleaks/gitleaks/README-en.html",
+      "title": "gitleaks - Read gitleaks documentation in English. This project has 21046 stars on GitHub.",
+      "url": "https://openaitx.github.io/projects/gitleaks/gitleaks/README-en.html",
+      "publishedDate": "2025-09-16T00:00:00.000Z",
+      "author": "OpenAiTx",
+      "score": 1
+    },
+    {
+      "id": "https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml",
+      "title": "config/gitleaks.toml at master · gitleaks/gitleaks",
+      "url": "https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.8571428571428572
+    },
+    {
+      "id": "https://github.com/gitleaks/gitleaks/blob/4fb43823/cmd/generate/config/rules/config.tmpl",
+      "title": "cmd/generate/config/rules/config.tmpl at 4fb43823 · gitleaks/gitleaks",
+      "url": "https://github.com/gitleaks/gitleaks/blob/4fb43823/cmd/generate/config/rules/config.tmpl",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.7142857142857143
+    },
+    {
+      "id": "https://github.com/zricethezav/gitleaks/blob/1b3f10cb79e2d87bb5098f9b6a10b3c36eb48f6e/config/gitleaks.toml",
+      "title": "config/gitleaks.toml at 1b3f10cb79e2d87bb5098f9b6a10b3c36eb48f6e · gitleaks/gitleaks",
+      "url": "https://github.com/zricethezav/gitleaks/blob/1b3f10cb79e2d87bb5098f9b6a10b3c36eb48f6e/config/gitleaks.toml",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.5714285714285714
+    },
+    {
+      "id": "https://github.com/zricethezav/gitleaks/blob/065b6216049d71e7f3c28dec3f4e93a24b304033/gitleaks.toml",
+      "title": "gitleaks.toml at 065b6216049d71e7f3c28dec3f4e93a24b304033 · gitleaks/gitleaks",
+      "url": "https://github.com/zricethezav/gitleaks/blob/065b6216049d71e7f3c28dec3f4e93a24b304033/gitleaks.toml",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.4285714285714286
+    },
+    {
+      "id": "https://github.com/zricethezav/gitleaks/blob/v7.6.1/config/gitleaks.toml",
+      "title": "config/gitleaks.toml at v7.6.1 · gitleaks/gitleaks",
+      "url": "https://github.com/zricethezav/gitleaks/blob/v7.6.1/config/gitleaks.toml",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.2857142857142857
+    },
+    {
+      "id": "https://github.com/flipt-io/flipt/blob/a486a1c3384de76d7bdca4ea429bb70ef75db489/.gitleaks.toml",
+      "title": ".gitleaks.toml at a486a1c3384de76d7bdca4ea429bb70ef75db489 · flipt-io/flipt",
+      "url": "https://github.com/flipt-io/flipt/blob/a486a1c3384de76d7bdca4ea429bb70ef75db489/.gitleaks.toml",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.1428571428571429
+    },
+    {
+      "id": "https://github.com/gitleaks/gitleaks/blob/4fb43823/config/config.go",
+      "title": "config/config.go at 4fb43823 · gitleaks/gitleaks",
+      "url": "https://github.com/gitleaks/gitleaks/blob/4fb43823/config/config.go",
+      "publishedDate": null,
+      "author": "",
+      "score": 0
+    }
+  ],
+  "total": 8,
+  "elapsed_ms": 1497.85
+}

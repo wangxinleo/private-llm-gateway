@@ -1,0 +1,52 @@
+{
+  "id": "fix-secret-config-leakage",
+  "name": "fix-secret-config-leakage",
+  "title": "Fix secret configuration leakage",
+  "description": "Expanded security fix: Stage A contextual config leak is complete; user approved completing Stage B/C/D provider, developer/cloud/config-file, and generic/encoded secret detection with tests.",
+  "status": "completed",
+  "dev_type": "security_fix",
+  "scope": "backend-scanner",
+  "package": "single-repo",
+  "priority": "P1",
+  "creator": "wangxin",
+  "assignee": "wangxin",
+  "createdAt": "2026-07-07",
+  "completedAt": "2026-07-07",
+  "branch": null,
+  "base_branch": "master",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "src/__tests__/context-key.test.ts",
+    "src/__tests__/json-mask.test.ts",
+    "src/__tests__/pipeline.test.ts",
+    "src/components/audit-table.tsx",
+    "src/config.ts",
+    "src/i18n/dict.ts",
+    "src/scanner/context-key.ts",
+    "src/scanner/json-mask.ts",
+    "src/scanner/pipeline.ts",
+    "src/scanner/secrets.ts",
+    "src/types.ts"
+  ],
+  "notes": "Scope expanded by user approval on 2026-07-07: implement Stage B/C/D rule packs in addition to completed Stage A; no live secret verification.",
+  "meta": {
+    "stage": "Stage A-D expanded security fix",
+    "researchArtifacts": [
+      "research/secret-scanning-approach.md",
+      "research/supplemental-secret-rule-catalog.md",
+      "rule-expansion-backlog.md"
+    ],
+    "deferredStages": [],
+    "completedStages": [
+      "Stage A immediate critical fix",
+      "Stage B LLM gateway provider pack",
+      "Stage C developer/cloud/config-file credential pack",
+      "Stage D generic/encoded detector pack"
+    ]
+  }
+}

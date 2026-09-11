@@ -1,0 +1,6 @@
+{"file":".trellis/spec/backend/reverse-proxy.md","reason":"Preserve JSON masking, binary-payload exemptions, audit-value handling, and proxy forwarding contracts during scanner revalidation."}
+{"file":".trellis/spec/backend/performance.md","reason":"Apply the project's performance measurement and caching guidance to the recorded scanner benchmarks and future work."}
+{"file":".trellis/spec/backend/quality.md","reason":"Use the backend quality gate for tests, build, logging, and sensitive-data handling."}
+{"file":".trellis/spec/guides/regex-performance-guide.md","reason":"Provide the incident-specific catastrophic-backtracking rules and required no-match benchmark checks."}
+{"file":".trellis/tasks/archive/2026-08/08-12-fix-scan-pipeline-perf/research/2026-08-13-cha-yin-payload-follow-up.md","reason":"Qualify the available local replay and the pre-audit duration measurement boundary."}
+{"file":".omo/ulw-research/20260814-1120-scanner-comparison/SYNTHESIS.md","reason":"Separate the completed P0 fix from the unimplemented span-based architecture and later cache/engine options."}

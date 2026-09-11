@@ -1,0 +1,73 @@
+{
+  "ok": true,
+  "query": "GitHub secret scanning supported patterns token list push protection",
+  "search_type": "neural",
+  "results": [
+    {
+      "id": "https://github.com/github/docs/blob/main/content/code-security/reference/secret-security/supported-secret-scanning-patterns.md",
+      "title": "content/code-security/reference/secret-security/supported-secret-scanning-patterns.md at main · github/docs",
+      "url": "https://github.com/github/docs/blob/main/content/code-security/reference/secret-security/supported-secret-scanning-patterns.md",
+      "publishedDate": null,
+      "author": "",
+      "score": 1
+    },
+    {
+      "id": "https://docs.github.com/en/code-security/reference/secret-security/supported-secret-scanning-patterns",
+      "title": "",
+      "url": "https://docs.github.com/en/code-security/reference/secret-security/supported-secret-scanning-patterns",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.8571428571428572
+    },
+    {
+      "id": "https://docs.github.com/en/enterprise-server@3.15/code-security/secret-scanning/introduction/supported-secret-scanning-patterns",
+      "title": "Supported secret scanning patterns",
+      "url": "https://docs.github.com/en/enterprise-server@3.15/code-security/secret-scanning/introduction/supported-secret-scanning-patterns",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.7142857142857143
+    },
+    {
+      "id": "https://learn.microsoft.com/en-us/azure/devops/repos/security/github-advanced-security-secret-scan-patterns?view=azure-devops",
+      "title": "Secret scanning patterns for GitHub Advanced Security for Azure DevOps - Azure Repos | Microsoft Learn",
+      "url": "https://learn.microsoft.com/en-us/azure/devops/repos/security/github-advanced-security-secret-scan-patterns?view=azure-devops",
+      "publishedDate": null,
+      "author": "laurajjiang",
+      "score": 0.5714285714285714
+    },
+    {
+      "id": "https://github.blog/changelog/2026-06-17-secret-scanning-updates-june-2026/",
+      "title": "Secret scanning updates - June 2026 - GitHub Changelog",
+      "url": "https://github.blog/changelog/2026-06-17-secret-scanning-updates-june-2026/",
+      "publishedDate": "2026-06-17T00:00:00.000Z",
+      "author": "",
+      "score": 0.4285714285714286
+    },
+    {
+      "id": "https://docs.github.com/en/rest/secret-scanning/secret-scanning?apiVersion=2026-03-10",
+      "title": "REST API endpoints for secret scanning",
+      "url": "https://docs.github.com/en/rest/secret-scanning/secret-scanning?apiVersion=2026-03-10",
+      "publishedDate": null,
+      "author": "",
+      "score": 0.2857142857142857
+    },
+    {
+      "id": "https://github.blog/changelog/2025-04-14-secret-scanning-expands-default-pattern-and-push-protection-support/",
+      "title": "Secret scanning expands default pattern and push protection support - GitHub Changelog",
+      "url": "https://github.blog/changelog/2025-04-14-secret-scanning-expands-default-pattern-and-push-protection-support/",
+      "publishedDate": "2025-04-14T00:00:00.000Z",
+      "author": "",
+      "score": 0.1428571428571429
+    },
+    {
+      "id": "https://github.blog/changelog/2025-01-09-secret-scanning-expands-default-pattern-support/",
+      "title": "Secret scanning expands default pattern support - GitHub Changelog",
+      "url": "https://github.blog/changelog/2025-01-09-secret-scanning-expands-default-pattern-support/",
+      "publishedDate": "2025-01-09T00:00:00.000Z",
+      "author": "",
+      "score": 0
+    }
+  ],
+  "total": 8,
+  "elapsed_ms": 1228.0
+}

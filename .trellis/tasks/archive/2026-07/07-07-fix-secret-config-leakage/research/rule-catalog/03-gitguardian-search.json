@@ -1,0 +1,73 @@
+{
+  "ok": true,
+  "query": "GitGuardian detectors secrets detection generic high entropy sensitive variable keywords",
+  "search_type": "neural",
+  "results": [
+    {
+      "id": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/generics/generic_high_entropy_secret",
+      "title": "Generic high entropy secret | GitGuardian documentation",
+      "url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/generics/generic_high_entropy_secret",
+      "publishedDate": "2026-04-15T00:00:00.000Z",
+      "author": "",
+      "score": 1
+    },
+    {
+      "id": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/generics/base64_generic_high_entropy_secret",
+      "title": "Base64 Generic high entropy secret | GitGuardian documentation",
+      "url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/generics/base64_generic_high_entropy_secret",
+      "publishedDate": "2026-04-15T00:00:00.000Z",
+      "author": "",
+      "score": 0.8571428571428572
+    },
+    {
+      "id": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/quick_start",
+      "title": "Secrets Detection Engine | GitGuardian documentation",
+      "url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/quick_start",
+      "publishedDate": "2026-06-16T00:00:00.000Z",
+      "author": "",
+      "score": 0.7142857142857143
+    },
+    {
+      "id": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/generics/generic_terraform_variable",
+      "title": "Generic Terraform Variable Secret | GitGuardian documentation",
+      "url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/generics/generic_terraform_variable",
+      "publishedDate": "2026-06-17T00:00:00.000Z",
+      "author": "",
+      "score": 0.5714285714285714
+    },
+    {
+      "id": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/machine_learning",
+      "title": "Machine learning | GitGuardian documentation",
+      "url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/machine_learning",
+      "publishedDate": "2026-03-22T00:00:00.000Z",
+      "author": "",
+      "score": 0.4285714285714286
+    },
+    {
+      "id": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/introduction",
+      "title": "Introduction | GitGuardian documentation",
+      "url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/introduction",
+      "publishedDate": "2026-04-17T00:00:00.000Z",
+      "author": "",
+      "score": 0.2857142857142857
+    },
+    {
+      "id": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/generics/generic_password",
+      "title": "Generic password | GitGuardian documentation",
+      "url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/generics/generic_password",
+      "publishedDate": "2026-06-17T00:00:00.000Z",
+      "author": "",
+      "score": 0.1428571428571429
+    },
+    {
+      "id": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/generics/generic_cli_secret",
+      "title": "Generic CLI Secret | GitGuardian documentation",
+      "url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/generics/generic_cli_secret",
+      "publishedDate": "2026-06-17T00:00:00.000Z",
+      "author": "",
+      "score": 0
+    }
+  ],
+  "total": 8,
+  "elapsed_ms": 1349.54
+}

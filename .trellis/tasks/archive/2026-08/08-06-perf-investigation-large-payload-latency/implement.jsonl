@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "JSON 代理路径契约: maskJsonBody 扫描语义、转发 body 只含原始字段+脱敏值、request.clone() 拆分扫描与转发。基准与原型必须保持这些语义不漂移。"}
+{"file": ".trellis/spec/backend/performance.md", "reason": "性能模式参考: 批处理/分块/并行执行模式。原型批量扫描设计可对照 chunked processing 模式。"}
+{"file": ".trellis/spec/backend/quality.md", "reason": "提交前检查清单: 类型安全、无 console.log、结构化日志、性能项。基准脚本与原型需满足。"}
+{"file": ".trellis/spec/guides/pre-implementation-checklist.md", "reason": "写代码前检查: 搜索已有模式、思考边界、文档假设。基准/原型开发前对照。"}

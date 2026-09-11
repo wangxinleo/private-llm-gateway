@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "Proxy/forwarding/SSE conventions for touching route.ts, streaming.ts and restore wiring"}
+{"file": ".trellis/spec/backend/performance.md", "reason": "Streaming/performance constraints for the incremental SSE restorer (no end-to-end buffering)"}
+{"file": ".trellis/spec/guides/regex-performance-guide.md", "reason": "Tag matcher regex must avoid catastrophic backtracking (fake-tag flood scenario)"}
+{"file": ".trellis/tasks/09-10-downstream-restore/research/grok-design-analysis.md", "reason": "Deep-analysis subtask output: mapping lifecycle, raw-text vs frame-level decision, risk list"}
+{"file": ".trellis/tasks/09-10-downstream-restore/research/gemini-prd-supplement.md", "reason": "Text subtask output: user stories, acceptance criteria, edge-case inventory feeding AC1-AC7"}
+{"file": ".trellis/tasks/09-10-downstream-restore/research/maskit-reference.md", "reason": "Production-proven sibling gateway (AGPL, ideas only): random consonant suffix anti-oracle, hex-arithmetic distortion evidence, channelized SSE restore, loose brace-repair with degraded counter"}

@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "验收核对: 窗口扫描不破坏 JSON 扫描契约(只脱敏原始值);reverse-proxy gotcha 关于 base64 豁免需保持。"}
+{"file": ".trellis/spec/backend/quality.md", "reason": "验收核对: 新增文件无类型错误、无 console.log;测试覆盖通配匹配/窗口扫描/漏报防护。"}
