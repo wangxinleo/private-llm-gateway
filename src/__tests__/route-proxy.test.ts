@@ -86,7 +86,7 @@ describe("proxy route LLM compatibility", () => {
     expect(response.status).toBe(200);
     const forwardedBody = mockForward.mock.calls[0]?.[2];
     expect(typeof forwardedBody).toBe("string");
-    expect(forwardedBody).toContain("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(forwardedBody).toMatch(/\{\{SECRET_[bcdfghjkmnpqrstvwxz]{5}\}\}/);
     expect(forwardedBody).not.toContain(rawSecret);
     expect(mockForward).toHaveBeenCalledWith(
       "/v1/chat/completions",

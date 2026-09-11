@@ -82,7 +82,7 @@ describe("proxy route multipart forwarding", () => {
     expect(call?.[2]).toBeInstanceOf(FormData);
     const forwarded = call?.[2] as FormData;
     const maskedMessage = String(forwarded.get("message"));
-    expect(maskedMessage).toContain("<<PRIVACY_MASK:PROVIDER_API_KEY>>");
+    expect(maskedMessage).toMatch(/\{\{API_KEY_[bcdfghjkmnpqrstvwxz]{5}\}\}/);
     expect(maskedMessage).not.toContain(rawKey);
     const file = forwarded.get("file");
     expect(file).toBeInstanceOf(File);

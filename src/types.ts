@@ -1,3 +1,5 @@
+import type { MaskRegistry } from "@/scanner/mask-registry";
+
 export type FindingCategory =
   | "PRIVATE_KEY"
   | "BEARER_TOKEN"
@@ -79,6 +81,7 @@ export interface ScanResult {
   maskedBody: string;
   action: ActionType;
   maskSummary: MaskSummary;
+  registry?: MaskRegistry;
 }
 
 export interface MaskSummary {

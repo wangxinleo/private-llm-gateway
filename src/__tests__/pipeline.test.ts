@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { runPipeline } from "@/scanner/pipeline";
+import { MaskRegistry } from "@/scanner/mask-registry";
 import { HIGH_RISK_ASSETS } from "@/config";
 
 function withWhitelist(text: string, assets: typeof HIGH_RISK_ASSETS = HIGH_RISK_ASSETS) {
@@ -212,5 +213,25 @@ describe("runPipeline — whitelist-gated scanning", () => {
     } finally {
       restore();
     }
+  });
+});
+
+describe("runPipeline — registry threading", () => {
+  it("carries the registry and uses instance tags when provided", () => {
+    const registry = new MaskRegistry();
+    const r = runPipeline("手机号：13912345678", 100, [], registry);
+    expect(r.action).toBe("mask");
+    expect(r.registry).toBe(registry);
+    expect(r.maskedBody).toMatch(/\{\{PHONE_[bcdfghjkmnpqrstvwxz]{5}\}\}/);
+    expect(r.maskedBody).not.toContain("13912345678");
+    expect(registry.size).toBe(1);
+    const [tag] = [...registry.tagToValue.keys()];
+    expect(registry.tagToValue.get(tag!)).toBe("13912345678");
+  });
+
+  it("defaults to template tags and no registry when omitted", () => {
+    const r = runPipeline("手机号：13912345678", 100);
+    expect(r.registry).toBeUndefined();
+    expect(r.maskedBody).toContain("<<PRIVACY_MASK:PHONE>>");
   });
 });

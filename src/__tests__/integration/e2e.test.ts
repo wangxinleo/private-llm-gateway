@@ -44,6 +44,8 @@ function removeTestDb(): void {
   } catch {}
 }
 
+const capturedUpstreamBodies: string[] = [];
+
 function getErrorCode(error: unknown): string | undefined {
   if (!(error instanceof Error) || !("code" in error)) return undefined;
   const code = (error as Error & { code?: unknown }).code;
@@ -77,6 +79,7 @@ function listen(server: http.Server, port: number): Promise<void> {
 function waitForDevServer(child: ChildProcess): Promise<void> {
   return new Promise((resolve, reject) => {
     let stderr = "";
+    let output = "";
 
     const cleanup = () => {
       clearTimeout(timeout);
@@ -86,7 +89,9 @@ function waitForDevServer(child: ChildProcess): Promise<void> {
       child.off("error", onError);
     };
     const onStdout = (data: Buffer) => {
-      if (data.toString().includes("Ready")) {
+      const text = data.toString();
+      output += text;
+      if (text.includes("Ready")) {
         cleanup();
         resolve();
       }
@@ -94,11 +99,12 @@ function waitForDevServer(child: ChildProcess): Promise<void> {
     const onStderr = (data: Buffer) => {
       const text = data.toString();
       stderr += text;
+      output += text;
       console.error("Server stderr:", text);
     };
     const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
       cleanup();
-      reject(new Error(`Server exited before ready (code=${code ?? "null"}, signal=${signal ?? "null"}): ${stderr.trim()}`));
+      reject(new Error(`Server exited before ready (code=${code ?? "null"}, signal=${signal ?? "null"}): ${(stderr || output).trim()}`));
     };
     const onError = (error: Error) => {
       cleanup();
@@ -106,7 +112,7 @@ function waitForDevServer(child: ChildProcess): Promise<void> {
     };
     const timeout = setTimeout(() => {
       cleanup();
-      reject(new Error(`Server start timeout: ${stderr.trim()}`));
+      reject(new Error(`Server start timeout: ${(stderr || output).trim()}`));
     }, 30000);
 
     child.stdout?.on("data", onStdout);
@@ -127,11 +133,13 @@ describe("Integration: Privacy Proxy + Dashboard", () => {
 
   beforeAll(async () => {
     removeTestDb();
+    capturedUpstreamBodies.length = 0;
 
     const upstreamServer = http.createServer((req, res) => {
       let body = "";
       req.on("data", (chunk) => { body += chunk; });
       req.on("end", () => {
+        capturedUpstreamBodies.push(body);
         res.setHeader("Content-Type", "application/json");
         res.setHeader("X-Received-Method", req.method ?? "");
         res.setHeader("X-Received-Path", req.url ?? "/");
@@ -177,6 +185,14 @@ describe("Integration: Privacy Proxy + Dashboard", () => {
     }
 
     await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    try {
+      await fetch(`${TEST_BASE_URL}/`, { signal: AbortSignal.timeout(5000) });
+    } catch (error) {
+      skipReason = `dev server not reachable on ${TEST_HOST}:${TEST_PORT} (${getErrorCode(error) ?? "unknown"})`;
+      child.kill("SIGTERM");
+      return;
+    }
   }, 40000);
 
   afterAll(async () => {
@@ -225,6 +241,53 @@ describe("Integration: Privacy Proxy + Dashboard", () => {
     expect(res.ok).toBe(true);
 
     await new Promise((resolve) => setTimeout(resolve, 1500));
+  }, 20000);
+
+  it("restores placeholders roundtrip, never leaks raw values upstream, injects exactly one instruction", async (context) => {
+    skipIfUnavailable(context);
+
+    const rawPhone = "13912345678";
+    const res = await fetch(`${TEST_BASE_URL}/api/post`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: `call me at ${rawPhone} today` }],
+      }),
+    });
+
+    expect(res.ok).toBe(true);
+    const responseText = await res.text();
+    // 响应侧还原 roundtrip:客户端拿回原始值,占位符不留痕(AC2)
+    expect(responseText).toContain(rawPhone);
+    expect(responseText).not.toMatch(/\{\{PHONE_[bcdfghjkmnpqrstvwxz]{5}\}\}/);
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // 上游零泄漏:上游收到的载荷中原始值出现次数为 0,占位符 + 恰好一条指令(AC9/AC8)
+    const masked = capturedUpstreamBodies.at(-1);
+    expect(masked).toBeDefined();
+    expect(masked).not.toContain(rawPhone);
+    expect(masked).toMatch(/\{\{PHONE_[bcdfghjkmnpqrstvwxz]{5}\}\}/);
+    expect((masked?.match(/\[Privacy notice\]/g) ?? []).length).toBe(1);
+  }, 20000);
+
+  it("never injects instructions into clean (unmasked) requests", async (context) => {
+    skipIfUnavailable(context);
+
+    const res = await fetch(`${TEST_BASE_URL}/api/post`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "hello world", number: 42 }),
+    });
+    expect(res.ok).toBe(true);
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    const clean = capturedUpstreamBodies.at(-1);
+    expect(clean).toBeDefined();
+    expect(clean).not.toContain("[Privacy notice]");
+    expect(clean).toContain("hello world");
   }, 20000);
 
   it("dashboard API returns audit records with auth", async (context) => {

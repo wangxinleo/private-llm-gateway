@@ -1,5 +1,6 @@
 import type { Finding } from "@/types";
-import { buildMaskTag } from "./mask-tag";
+import { buildMaskTag, TAG_RE } from "./mask-tag";
+import type { MaskRegistry } from "./mask-registry";
 
 // PII 正则都加边界前缀,避免长串(base64/token/时间戳)内子串误匹配,
 // 同时消除贪婪匹配失败的 O(n²) 回溯(真实 1.18MB 请求 scanPii 1062ms 的根因)
@@ -72,25 +73,33 @@ export function scanPii(text: string): Finding[] {
 export interface MaskResult {
   masked: string;
   replacementCount: number;
+  registry?: MaskRegistry;
 }
 
-export function applyMasks(text: string, findings: Finding[]): MaskResult {
+const PLACEHOLDER_SPLIT_RE = new RegExp(`(${TAG_RE.source})`);
+
+export function applyMasks(text: string, findings: Finding[], registry?: MaskRegistry): MaskResult {
   let result = text;
   let replacementCount = 0;
   const maskFindings = findings.filter((f) => f.action === "mask" && f.maskTag);
   for (const f of maskFindings) {
-    if (f.maskTag) {
-      const before = result;
-      result = result.replaceAll(f.matched, f.maskTag);
-      if (result !== before) {
-        const count = (before.match(new RegExp(escapeRegex(f.matched), "g")) || []).length;
-        replacementCount += count;
-      }
-    }
+    if (!f.maskTag || !result.includes(f.matched)) continue;
+    const tag = registry ? registry.tagFor(f.category, f.matched) : f.maskTag;
+    const applied = replaceOutsidePlaceholders(result, f.matched, tag);
+    result = applied.text;
+    replacementCount += applied.count;
   }
-  return { masked: result, replacementCount };
+  return { masked: result, replacementCount, registry };
 }
 
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function replaceOutsidePlaceholders(text: string, matched: string, tag: string): { text: string; count: number } {
+  const segments = text.split(PLACEHOLDER_SPLIT_RE);
+  let count = 0;
+  for (let i = 0; i < segments.length; i += 2) {
+    const segment = segments[i]!;
+    if (!segment.includes(matched)) continue;
+    count += segment.split(matched).length - 1;
+    segments[i] = segment.replaceAll(matched, tag);
+  }
+  return { text: segments.join(""), count };
 }

@@ -3,6 +3,7 @@ import { isBlockCategory } from "@/types";
 import { scanFilename } from "./filename";
 import { scanContextWindows } from "./context-window";
 import { applyMasks } from "./pii";
+import type { MaskRegistry } from "./mask-registry";
 import { Logger } from "@/log";
 
 const log = new Logger("pipeline");
@@ -16,7 +17,8 @@ function scanText(text: string): Finding[] {
 export function runPipeline(
   text: string,
   bodySize: number,
-  filenames: string[] = []
+  filenames: string[] = [],
+  registry?: MaskRegistry
 ): ScanResult {
   log.debug(`scan start | size: ${bodySize} bytes | filenames: [${filenames.join(", ")}]`);
   log.debug(`body preview (first 200 chars): ${text.slice(0, 200)}`);
@@ -32,6 +34,7 @@ export function runPipeline(
       maskedBody: text,
       action: "block",
       maskSummary: { applied: false, categories: [], replacementCount: 0 },
+      registry,
     };
   }
 
@@ -47,7 +50,7 @@ export function runPipeline(
 
   if (hasMask) {
     log.debug("decision: MASK (脱敏后转发)");
-    const maskResult = applyMasks(text, allFindings);
+    const maskResult = applyMasks(text, allFindings, registry);
     const maskCategories = [...new Set(allFindings.filter((f) => f.action === "mask").map((f) => f.category))];
     return {
       findings: allFindings,
@@ -58,6 +61,7 @@ export function runPipeline(
         categories: maskCategories,
         replacementCount: maskResult.replacementCount,
       },
+      registry,
     };
   }
 
@@ -67,5 +71,6 @@ export function runPipeline(
     maskedBody: text,
     action: "allow",
     maskSummary: { applied: false, categories: [], replacementCount: 0 },
+    registry,
   };
 }

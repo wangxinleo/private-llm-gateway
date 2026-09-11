@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { applyDisambiguation } from "@/proxy/disambiguation";
+import { MaskRegistry } from "@/scanner/mask-registry";
 import type { ScanResult, FindingCategory } from "@/types";
 
 function makeMaskResult(categories: FindingCategory[], maskedBody: string): ScanResult {
+  const registry = new MaskRegistry();
+  for (const category of categories) registry.tagFor(category, "test");
   return {
     findings: categories.map((c) => ({
       category: c,
@@ -17,6 +20,7 @@ function makeMaskResult(categories: FindingCategory[], maskedBody: string): Scan
       categories,
       replacementCount: categories.length,
     },
+    registry,
   };
 }
 
@@ -62,6 +66,35 @@ describe("applyDisambiguation", () => {
       scanResult: result,
     });
     expect(output).toBe("hello");
+  });
+
+  it("skips injection when scanResult carries no populated registry (legacy/no-restore mode)", () => {
+    const result: ScanResult = {
+      findings: [
+        { category: "EMAIL", action: "mask", matched: "test", maskTag: "<<PRIVACY_MASK:EMAIL>>" },
+      ],
+      maskedBody: "hello",
+      action: "mask",
+      maskSummary: { applied: true, categories: ["EMAIL"], replacementCount: 1 },
+    };
+    const output = applyDisambiguation({
+      contentType: "text/plain",
+      maskedBody: "hello",
+      scanResult: result,
+    });
+    expect(output).toBe("hello");
+  });
+
+  it("injects a single-line preservation instruction without raw values", () => {
+    const result = makeMaskResult(["EMAIL"], "Contact {{EMAIL_trwmq}} now");
+    const output = applyDisambiguation({
+      contentType: "text/plain",
+      maskedBody: result.maskedBody,
+      scanResult: result,
+    });
+    const notice = output.slice(output.indexOf("[Privacy notice]"));
+    expect(notice).toContain("never invent, guess, expand, rewrite, translate, or remove them");
+    expect(notice.split("\n").filter(Boolean).length).toBeLessThanOrEqual(2);
   });
 
   it("appends notice as suffix for plain text content type", () => {

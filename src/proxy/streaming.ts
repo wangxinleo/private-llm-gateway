@@ -1,4 +1,6 @@
-export function createStreamingResponse(upstream: Response): Response {
+import type { SseChannelRestorer } from "./restore";
+
+export function createStreamingResponse(upstream: Response, restorer?: SseChannelRestorer): Response {
   const headers = new Headers(upstream.headers);
   headers.delete("content-encoding");
   headers.delete("content-length");
@@ -8,15 +10,34 @@ export function createStreamingResponse(upstream: Response): Response {
     return new Response(null, { status: upstream.status, headers });
   }
 
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+
   const stream = new ReadableStream({
     async pull(controller) {
       try {
-        const { done, value } = await reader.read();
-        if (done) {
-          controller.close();
-          return;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) {
+            if (restorer) {
+              const tail = restorer.flush();
+              if (tail) controller.enqueue(encoder.encode(tail));
+            }
+            controller.close();
+            return;
+          }
+          if (!restorer) {
+            controller.enqueue(value);
+            return;
+          }
+          const decoded = decoder.decode(value, { stream: true });
+          if (!decoded) continue;
+          const frames = restorer.pushBytes(decoded);
+          if (frames) {
+            controller.enqueue(encoder.encode(frames));
+            return;
+          }
         }
-        controller.enqueue(value);
       } catch (err) {
         controller.error(err);
       }

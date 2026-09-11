@@ -1,16 +1,18 @@
 import { NextRequest } from "next/server";
-import type { Finding } from "@/types";
+import type { Finding, MaskSummary } from "@/types";
 import { runPipeline } from "@/scanner/pipeline";
+import { MaskRegistry } from "@/scanner/mask-registry";
 import { isJsonContentType, maskJsonBody } from "@/scanner/json-mask";
 import { parseMultipart, collectMultipartText, collectFilenames } from "@/scanner/multipart";
 import { applyMasks } from "@/scanner/pii";
 import { blockedResponse } from "@/engine/policy";
 import { forwardRequest } from "@/proxy/forwarder";
 import { createStreamingResponse } from "@/proxy/streaming";
+import { SseChannelRestorer, restoreText } from "@/proxy/restore";
 import { applyDisambiguation } from "@/proxy/disambiguation";
 import { logAudit } from "@/audit/logger";
 import { Logger } from "@/log";
-import { PRIVACY_DEBUG_HEADERS } from "@/config";
+import { PRIVACY_DEBUG_HEADERS, PRIVACY_MASK_FORMAT } from "@/config";
 import { initializeConfigs } from "@/config-loader";
 import { findMatchingBypassRule } from "@/bypass/store";
 import { extractRequestModel } from "@/bypass/rules";
@@ -55,18 +57,44 @@ async function extractBodyText(
 
 async function rebuildMaskedMultipart(
   request: NextRequest,
-  findings: Finding[]
+  findings: Finding[],
+  registry?: MaskRegistry
 ): Promise<FormData> {
   const formData = await request.clone().formData();
   const rebuilt = new FormData();
   for (const [key, value] of formData.entries()) {
     if (typeof value === "string") {
-      rebuilt.append(key, applyMasks(value, findings).masked);
+      rebuilt.append(key, applyMasks(value, findings, registry).masked);
     } else {
       rebuilt.append(key, value);
     }
   }
   return rebuilt;
+}
+
+function isBinaryContentType(contentType: string): boolean {
+  return /^(?:image|audio|video)\//.test(contentType) || contentType.includes("application/octet-stream");
+}
+
+async function finalizeUpstream(
+  upstream: Response,
+  registry: MaskRegistry | undefined,
+  maskSummary: MaskSummary
+): Promise<Response> {
+  if (!registry || registry.size === 0) return upstream;
+  const contentType = upstream.headers.get("content-type") ?? "";
+  if (contentType.includes("text/event-stream")) {
+    return createStreamingResponse(upstream, new SseChannelRestorer(registry));
+  }
+  if (!upstream.body || isBinaryContentType(contentType)) return upstream;
+  const restored = restoreText(await upstream.text(), registry);
+  const headers = new Headers(upstream.headers);
+  headers.delete("content-length");
+  if (PRIVACY_DEBUG_HEADERS && maskSummary.applied) {
+    headers.set("X-Privacy-Masked", "true");
+    headers.set("X-Privacy-Mask-Types", maskSummary.categories.join(","));
+  }
+  return new Response(restored, { status: upstream.status, statusText: upstream.statusText, headers });
 }
 
 export async function POST(request: NextRequest) {
@@ -96,6 +124,8 @@ async function handleRequest(request: NextRequest): Promise<Response> {
   const method = request.method;
   const contentType = request.headers.get("content-type") ?? "";
   const multipart = isMultipart(contentType);
+  // legacy 格式歧义不可还原(R7):不分配实例映射,连带禁用响应还原与指令注入
+  const registry = PRIVACY_MASK_FORMAT === "legacy" ? undefined : new MaskRegistry();
 
   const hasBody = method !== "GET" && method !== "HEAD";
   let bodyText = "";
@@ -182,7 +212,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
 
   log.debug(`${method} ${path} | contentType: ${contentType} | bodySize: ${bodySize}`);
 
-  const scanFn = (text: string, size: number) => runPipeline(text, size, filenames);
+  const scanFn = (text: string, size: number) => runPipeline(text, size, filenames, registry);
   if (hasBody && multipart) {
     const extracted = await extractBodyText(request);
     bodyText = extracted.text;
@@ -191,8 +221,8 @@ async function handleRequest(request: NextRequest): Promise<Response> {
   }
 
   const result = isJsonContentType(contentType) && !multipart
-    ? maskJsonBody(bodyText, scanFn)
-    : runPipeline(bodyText, bodySize, filenames);
+    ? maskJsonBody(bodyText, scanFn, registry)
+    : runPipeline(bodyText, bodySize, filenames, registry);
 
   const hitCategories = result.findings.map(f => f.category).join(", ");
   const durationMs = performance.now() - startTime;
@@ -225,7 +255,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
       // 原始流转发需要 duplex 选项且易出问题;统一用 FormData 重建,
       // 内容完整(字段+文件),fetch 自动生成新 boundary
       forwardBody = result.action === "mask"
-        ? await rebuildMaskedMultipart(request, result.findings)
+        ? await rebuildMaskedMultipart(request, result.findings, registry)
         : await request.formData();
     } else {
       forwardBody = result.action === "mask"
@@ -239,19 +269,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
       forwardBody
     );
 
-    const upstreamContentType = upstream.headers.get("content-type") ?? "";
-    if (upstreamContentType.includes("text/event-stream")) {
-      return createStreamingResponse(upstream);
-    }
-
-    if (PRIVACY_DEBUG_HEADERS && result.maskSummary.applied) {
-      const headers = new Headers(upstream.headers);
-      headers.set("X-Privacy-Masked", "true");
-      headers.set("X-Privacy-Mask-Types", result.maskSummary.categories.join(","));
-      return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers });
-    }
-
-    return upstream;
+    return finalizeUpstream(upstream, registry, result.maskSummary);
   } catch (err) {
     const cause = err instanceof Error && "cause" in err ? (err.cause as Error) : undefined;
     const code = cause && "code" in cause ? (cause as { code: string }).code : undefined;

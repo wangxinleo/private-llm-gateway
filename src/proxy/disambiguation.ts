@@ -308,14 +308,11 @@ export function applyDisambiguation(context: DisambiguationContext): string {
 
   if (PRIVACY_DISAMBIGUATION_MODE === "off") return maskedBody;
   if (scanResult.action !== "mask" || !scanResult.maskSummary.applied) return maskedBody;
+  if (!scanResult.registry || scanResult.registry.size === 0) return maskedBody;
   if (isMultipartContentType(contentType)) return maskedBody;
 
   const notice = buildNotice(scanResult);
   const noticeText = buildNoticeText(notice);
-
-  if (PRIVACY_DISAMBIGUATION_MODE === "prefix") {
-    return `${NOTICE_PREFIX} ${notice}\n\n${maskedBody}`;
-  }
 
   if (isJsonContentType(contentType)) {
     return injectJsonPromptNotice(maskedBody, noticeText) ?? injectTextSuffix(maskedBody, noticeText);

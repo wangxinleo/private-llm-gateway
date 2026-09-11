@@ -1,7 +1,9 @@
 import type { Finding, ScanResult } from "@/types";
 import { isBlockCategory } from "@/types";
+import type { MaskRegistry } from "@/scanner/mask-registry";
+import { applyMasks } from "./pii";
 
-type ScanFn = (text: string, size: number) => ScanResult;
+type ScanFn = (text: string, size: number, registry?: MaskRegistry) => ScanResult;
 
 const PATH_SEPARATOR = ".";
 
@@ -49,14 +51,8 @@ function appendFindings(target: Finding[], additions: Finding[]): void {
   }
 }
 
-function maskStringValue(value: string, findings: Finding[]): string {
-  let masked = value;
-  for (const finding of findings) {
-    if (finding.action === "mask" && finding.maskTag && masked.includes(finding.matched)) {
-      masked = masked.replaceAll(finding.matched, finding.maskTag);
-    }
-  }
-  return masked;
+function maskStringValue(value: string, findings: Finding[], registry?: MaskRegistry): string {
+  return applyMasks(value, findings, registry).masked;
 }
 
 function findingsForValue(value: string, findings: Finding[]): Finding[] {
@@ -97,7 +93,8 @@ function scanValue(
   scan: ScanFn,
   findings: Finding[],
   path: string[] = [],
-  siblingFindings: Finding[] = []
+  siblingFindings: Finding[] = [],
+  registry?: MaskRegistry
 ): unknown {
   if (typeof value === "string") {
     if (isBinaryPayload(value, path.at(-1))) {
@@ -112,11 +109,11 @@ function scanValue(
     }
 
     const localFindings = [...siblingFindings, ...result.findings];
-    return maskStringValue(value, findingsForValue(value, localFindings));
+    return maskStringValue(value, findingsForValue(value, localFindings), registry);
   }
 
   if (Array.isArray(value)) {
-    return value.map((item, index) => scanValue(item, scan, findings, [...path, String(index)]));
+    return value.map((item, index) => scanValue(item, scan, findings, [...path, String(index)], [], registry));
   }
 
   if (value !== null && typeof value === "object") {
@@ -126,7 +123,7 @@ function scanValue(
     for (const key of Object.keys(obj)) {
       const child = obj[key];
       const childSiblingFindings = typeof child === "string" ? localFindings : [];
-      result[key] = scanValue(child, scan, findings, [...path, key], childSiblingFindings);
+      result[key] = scanValue(child, scan, findings, [...path, key], childSiblingFindings, registry);
     }
     return result;
   }
@@ -134,19 +131,19 @@ function scanValue(
   return value;
 }
 
-export function maskJsonBody(body: string, scan: ScanFn): ScanResult {
+export function maskJsonBody(body: string, scan: ScanFn, registry?: MaskRegistry): ScanResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(body);
   } catch {
-    return scan(body, byteLength(body));
+    return scan(body, byteLength(body), registry);
   }
 
   const findings: Finding[] = [];
-  const masked = scanValue(parsed, scan, findings);
+  const masked = scanValue(parsed, scan, findings, [], [], registry);
 
   if (findings.some((finding) => isBlockCategory(finding.category))) {
-    return { findings, maskedBody: body, action: "block", maskSummary: { applied: false, categories: [], replacementCount: 0 } };
+    return { findings, maskedBody: body, action: "block", maskSummary: { applied: false, categories: [], replacementCount: 0 }, registry };
   }
 
   if (findings.length > 0) {
@@ -160,8 +157,9 @@ export function maskJsonBody(body: string, scan: ScanFn): ScanResult {
         categories: [...new Set(maskFindings.map((finding) => finding.category))],
         replacementCount: maskFindings.length,
       },
+      registry,
     };
   }
 
-  return { findings, maskedBody: JSON.stringify(masked), action: "allow", maskSummary: { applied: false, categories: [], replacementCount: 0 } };
+  return { findings, maskedBody: JSON.stringify(masked), action: "allow", maskSummary: { applied: false, categories: [], replacementCount: 0 }, registry };
 }

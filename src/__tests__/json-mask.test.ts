@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { isJsonContentType, maskJsonBody } from "@/scanner/json-mask";
 import { runPipeline } from "@/scanner/pipeline";
+import { MaskRegistry } from "@/scanner/mask-registry";
 
 describe("isJsonContentType", () => {
   it("returns true for application/json", () => {
@@ -324,5 +325,48 @@ describe("maskJsonBody — expanded compound config masking", () => {
     expect(parsed.auths["registry.example.test"].auth).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
     expect(parsed.auths["registry.example.test"].identitytoken).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
     expect(parsed.users[0].user.token).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+  });
+});
+
+describe("maskJsonBody — registry threading", () => {
+  const scan = (text: string) => runPipeline(text, text.length);
+
+  it("masks JSON strings with instance tags from the shared registry", () => {
+    const registry = new MaskRegistry();
+    const body = JSON.stringify({
+      messages: [
+        { role: "user", content: "phone 13912345678" },
+        { role: "user", content: "again 13912345678" },
+      ],
+    });
+
+    const result = maskJsonBody(body, scan, registry);
+    expect(result.registry).toBe(registry);
+
+    const parsed = JSON.parse(result.maskedBody);
+    const tag = parsed.messages[0].content.replace("phone ", "");
+    expect(tag).toMatch(/^\{\{PHONE_[bcdfghjkmnpqrstvwxz]{5}\}\}$/);
+    expect(parsed.messages[1].content).toBe(`again ${tag}`);
+    expect(registry.tagToValue.get(tag)).toBe("13912345678");
+    expect(registry.size).toBe(1);
+    expect(result.maskedBody).not.toContain("13912345678");
+  });
+
+  it("threads registry through the flat-scan fallback for invalid JSON", () => {
+    const registry = new MaskRegistry();
+    const scanFn = (text: string, size: number, reg?: MaskRegistry) => runPipeline(text, size, [], reg);
+    const result = maskJsonBody("phone 13912345678", scanFn, registry);
+
+    expect(result.registry).toBe(registry);
+    expect(result.maskedBody).toMatch(/\{\{PHONE_[bcdfghjkmnpqrstvwxz]{5}\}\}/);
+    expect(registry.size).toBe(1);
+  });
+
+  it("returns no registry when omitted (template tags unchanged)", () => {
+    const body = JSON.stringify({ message: "phone 13912345678" });
+    const result = maskJsonBody(body, scan);
+    expect(result.registry).toBeUndefined();
+    const parsed = JSON.parse(result.maskedBody);
+    expect(parsed.message).toContain("<<PRIVACY_MASK:PHONE>>");
   });
 });

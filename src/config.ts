@@ -41,26 +41,18 @@ export const HIGH_RISK_ASSETS: HighRiskAssets = {
   accounts: [],
 };
 
-const PRIVACY_MASK_FORMAT = (process.env.PRIVACY_MASK_FORMAT ?? "explicit") as "legacy" | "explicit";
-export type PrivacyDisambiguationMode = "off" | "prefix" | "auto";
+const PRIVACY_MASK_FORMAT = process.env.PRIVACY_MASK_FORMAT === "legacy" ? "legacy" : "semantic";
+export type PrivacyDisambiguationMode = "off" | "auto";
 
 function resolveDisambiguationMode(raw: string | undefined): PrivacyDisambiguationMode {
-  // legacy "json-meta" used to inject custom top-level fields; map it to safe prompt injection.
-  if (raw === "off" || raw === "prefix" || raw === "auto") return raw;
-  if (raw === "json-meta") return "auto";
+  // v3 收敛为 auto|off;旧值 prefix/json-meta 归一为 auto(前缀污染与自定义字段已废弃)
+  if (raw === "off") return "off";
   return "auto";
 }
 
 const PRIVACY_DISAMBIGUATION_MODE = resolveDisambiguationMode(process.env.PRIVACY_DISAMBIGUATION_MODE);
 const PRIVACY_NOTICE_TEXT = process.env.PRIVACY_NOTICE_TEXT ??
-  `Tokens like <<PRIVACY_MASK:EMAIL>> were inserted by the privacy proxy and are not original source text.\n` +
-  `When file content contains <<PRIVACY_MASK:xxx>> tokens:\n` +
-  `- These tokens replaced hidden original content and may represent one or multiple original lines.\n` +
-  `- Do not modify masked tokens or the original content they represent.\n` +
-  `- Do not rely on line numbers after a masked token; line numbers may no longer match the original file.\n` +
-  `- Only perform automatic edits when you can anchor the change to exact, unmasked surrounding text that is visible in the current file.\n` +
-  `- Do not rewrite entire files that contain masked tokens.\n` +
-  `- If a required change touches a masked region, depends on exact line numbers after a masked region, or cannot be anchored to visible unmasked text, output a "Manual Modification Guide" with the file path, approximate location, intended change, and reason.`;
+  `Anonymized placeholders like {{EMAIL_trwmq}} or <<PRIVACY_MASK:EMAIL>> were injected by a privacy proxy: never invent, guess, expand, rewrite, translate, or remove them; keep every placeholder exactly as-is where the original value belongs.`;
 const PRIVACY_DEBUG_HEADERS = process.env.PRIVACY_DEBUG_HEADERS === "true";
 
 export { UPSTREAM_URL, DB_PATH, DEBUG, SECRET_SCANNER_MODE, PRIVACY_MASK_FORMAT, PRIVACY_DISAMBIGUATION_MODE, PRIVACY_NOTICE_TEXT, PRIVACY_DEBUG_HEADERS };

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { applyMasks } from "@/scanner/pii";
+import { MaskRegistry } from "@/scanner/mask-registry";
 import type { Finding } from "@/types";
 
 function mask(text: string, findings: Finding[]): string {
@@ -240,5 +241,62 @@ describe("applyMasks — mixed findings", () => {
   it("returns original text when no mask findings", () => {
     const text = "hello world";
     expect(mask(text, [])).toBe(text);
+  });
+});
+
+describe("applyMasks — registry mode", () => {
+  const phoneFinding: Finding = {
+    category: "PHONE",
+    action: "mask",
+    matched: "13912345678",
+    maskTag: "<<PRIVACY_MASK:PHONE>>",
+  };
+
+  it("assigns instance tags via registry and records the mapping", () => {
+    const registry = new MaskRegistry();
+    const result = applyMasks("call 13912345678 now", [phoneFinding], registry);
+    expect(result.registry).toBe(registry);
+    expect(result.masked).toMatch(/\{\{PHONE_[bcdfghjkmnpqrstvwxz]{5}\}\}/);
+    expect(result.masked).not.toContain("13912345678");
+    expect(registry.size).toBe(1);
+    expect(registry.tagToValue.get(result.masked.replace("call ", "").replace(" now", ""))).toBe("13912345678");
+  });
+
+  it("dedupes repeated values to one tag and counts each replacement", () => {
+    const registry = new MaskRegistry();
+    const result = applyMasks("a@x.com and a@x.com", [
+      { category: "EMAIL", action: "mask", matched: "a@x.com", maskTag: "<<PRIVACY_MASK:EMAIL>>" },
+    ], registry);
+    const [first, second] = result.masked.split(" and ");
+    expect(first).toBe(second);
+    expect(first).toMatch(/^\{\{EMAIL_[bcdfghjkmnpqrstvwxz]{5}\}\}$/);
+    expect(registry.size).toBe(1);
+    expect(result.replacementCount).toBe(2);
+  });
+
+  it("protects already-formed placeholders from later replacements", () => {
+    const registry = new MaskRegistry();
+    const result = applyMasks("keep {{PHONE_TRWMQ}} intact, phone 13912345678", [
+      { category: "CONTEXTUAL_SECRET", action: "mask", matched: "PHONE_TRWMQ", maskTag: "<<PRIVACY_MASK:CONTEXTUAL_SECRET>>" },
+      phoneFinding,
+    ], registry);
+    expect(result.masked).toContain("{{PHONE_TRWMQ}}");
+    expect(result.masked).not.toContain("13912345678");
+    expect(result.masked).toMatch(/\{\{PHONE_[bcdfghjkmnpqrstvwxz]{5}\}\}/);
+  });
+
+  it("segment protection also works without a registry (template tags)", () => {
+    const result = applyMasks("keep {{PHONE_TRWMQ}} intact, phone 13912345678", [
+      { category: "CONTEXTUAL_SECRET", action: "mask", matched: "PHONE_TRWMQ", maskTag: "<<PRIVACY_MASK:CONTEXTUAL_SECRET>>" },
+      phoneFinding,
+    ]);
+    expect(result.masked).toContain("{{PHONE_TRWMQ}}");
+    expect(result.masked).toContain("<<PRIVACY_MASK:PHONE>>");
+  });
+
+  it("does not register mappings for values absent from the text", () => {
+    const registry = new MaskRegistry();
+    applyMasks("nothing to see here", [phoneFinding], registry);
+    expect(registry.size).toBe(0);
   });
 });

@@ -100,6 +100,6 @@ describe("route bypass", () => {
     expect(mockForward).toHaveBeenCalled();
     const forwardedBody = mockForward.mock.calls[0]?.[2];
     expect(typeof forwardedBody).toBe("string");
-    expect(forwardedBody).toContain("<<PRIVACY_MASK:BEARER_TOKEN>>");
+    expect(forwardedBody).toMatch(/\{\{BEARER_[bcdfghjkmnpqrstvwxz]{5}\}\}/);
   });
 });
