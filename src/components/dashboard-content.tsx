@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 
 function StatCard({ title, value, icon: Icon, color }: { title: string; value: number; icon: React.ComponentType<{ className?: string }>; color: string }) {
   return (
-    <Card className="group transition-[border-color,transform,box-shadow] duration-200 hover:-translate-y-1 hover:border-primary/25 hover:shadow-[0_22px_70px_oklch(0.07_0.02_175/0.34)] motion-reduce:hover:translate-y-0">
+    <Card className="group transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-card-hover motion-reduce:hover:translate-y-0">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         <Icon className={`h-4 w-4 transition-transform duration-200 group-hover:scale-110 ${color}`} />
@@ -74,11 +74,6 @@ export function DashboardContent() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold leading-tight tracking-[-0.035em]">{t("overview.title")}</h1>
-        <p className="mt-1 max-w-[65ch] text-sm leading-6 text-muted-foreground">{t("overview.desc")}</p>
-      </div>
-
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title={t("overview.totalRequests")} value={stats.total} icon={Activity} color="text-muted-foreground" />
         <StatCard title={t("overview.blocked")} value={stats.blocked} icon={ShieldAlert} color="text-destructive" />
@@ -88,7 +83,7 @@ export function DashboardContent() {
 
       <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between gap-4">
-          <CardTitle className="font-mono text-sm font-semibold tracking-wide">
+          <CardTitle className="text-sm font-semibold">
             {t("overview.recentIncidents")}
           </CardTitle>
           <Link
@@ -100,16 +95,16 @@ export function DashboardContent() {
         </CardHeader>
         <CardContent className="min-w-0">
           {recentBlocked.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 px-4 py-8 text-center">
+            <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-8 text-center">
               <p className="text-sm font-medium text-foreground">{t("overview.noIncidents")}</p>
               <p className="mx-auto mt-1 max-w-[48ch] text-xs leading-5 text-muted-foreground">{t("overview.noIncidentsHint")}</p>
             </div>
           ) : (
-            <div className="min-w-0 divide-y divide-border/50">
+            <div className="min-w-0 divide-y divide-border">
               {recentBlocked.map((row) => {
                 const findingSummaries = summarizeItems(row.findings);
                 return (
-                  <div key={row.id} className="flex min-w-0 items-center gap-3 py-3 transition-colors hover:bg-muted/20 sm:px-2">
+                  <div key={row.id} className="flex min-w-0 items-center gap-3 py-3 transition-colors hover:bg-muted/50 sm:px-2">
                     <Badge variant={row.action === "block" ? "destructive" : "warning"} className="shrink-0 font-mono text-xs">
                       {t(`action.${row.action}`)}
                     </Badge>

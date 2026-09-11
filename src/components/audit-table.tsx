@@ -544,92 +544,107 @@ export function AuditTable() {
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1">
-          <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.filter.action")}</label>
-          <select value={action} onChange={(e) => setAction(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-            {ACTION_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.filter.method")}</label>
-          <select value={method} onChange={(e) => setMethod(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-            {METHOD_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.filter.finding")}</label>
-          <select value={finding} onChange={(e) => setFinding(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-            <option value="">{t("audit.filter.allCategories")}</option>
-            {FINDING_CATEGORIES.map((c) => (<option key={c} value={c}>{c}</option>))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.filter.path")}</label>
-          <select value={query} onChange={(e) => setQuery(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-            {PATH_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.filter.timeRange")}</label>
-          <select value={timeRange} onChange={(e) => setTimeRange(e.target.value as TimeRangePreset)} className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-            {TIME_RANGE_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
-          </select>
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={action}
+          onChange={(e) => setAction(e.target.value)}
+          aria-label={t("audit.filter.action")}
+          className="h-8 w-[110px] rounded-md border border-input bg-card px-2.5 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          {ACTION_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+        </select>
+        <select
+          value={method}
+          onChange={(e) => setMethod(e.target.value)}
+          aria-label={t("audit.filter.method")}
+          className="h-8 w-[110px] rounded-md border border-input bg-card px-2.5 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          {METHOD_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+        </select>
+        <select
+          value={finding}
+          onChange={(e) => setFinding(e.target.value)}
+          aria-label={t("audit.filter.finding")}
+          className="h-8 w-[150px] rounded-md border border-input bg-card px-2.5 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="">{t("audit.filter.allCategories")}</option>
+          {FINDING_CATEGORIES.map((c) => (<option key={c} value={c}>{c}</option>))}
+        </select>
+        <select
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label={t("audit.filter.path")}
+          className="h-8 w-[160px] rounded-md border border-input bg-card px-2.5 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          {PATH_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+        </select>
+        <select
+          value={timeRange}
+          onChange={(e) => setTimeRange(e.target.value as TimeRangePreset)}
+          aria-label={t("audit.filter.timeRange")}
+          className="h-8 w-[115px] rounded-md border border-input bg-card px-2.5 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          {TIME_RANGE_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+        </select>
         {hasFilters && (
-          <Button variant="ghost" size="sm" className="h-9 shrink-0 self-end px-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setAction(""); setMethod(""); setFinding(""); setQuery(""); setTimeRange("today"); }}>
-            <X className="mr-1 h-3 w-3" />{t("audit.filter.clear")}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => { setAction(""); setMethod(""); setFinding(""); setQuery(""); setTimeRange("today"); }}
+          >
+            <X />{t("audit.filter.clear")}
           </Button>
         )}
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
             <>
               <span className="font-mono text-xs text-muted-foreground">{selectedIds.size} {t("audit.selected")}</span>
-              <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={() => handleDeleteByIds(Array.from(selectedIds))}>
-                <Trash2 className="mr-1 h-3 w-3" />{t("audit.deleteSelected")}
+              <Button variant="destructive" size="sm" onClick={() => handleDeleteByIds(Array.from(selectedIds))}>
+                <Trash2 />{t("audit.deleteSelected")}
               </Button>
-              <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => setSelectedIds(new Set())}>
+              <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setSelectedIds(new Set())}>
                 {t("audit.clearSelection")}
               </Button>
               <Separator orientation="vertical" className="h-5" />
             </>
           )}
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleCleanByFilter(new Date(Date.now() - 30 * 86400000).toISOString(), "allow")}>
-            <Clock className="mr-1 h-3 w-3" />{t("audit.clean30d")}
+          <Button variant="outline" size="sm" onClick={() => handleCleanByFilter(new Date(Date.now() - 30 * 86400000).toISOString(), "allow")}>
+            <Clock />{t("audit.clean30d")}
           </Button>
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleCleanByFilter(new Date(Date.now() - 7 * 86400000).toISOString(), "allow")}>
-            <Clock className="mr-1 h-3 w-3" />{t("audit.clean7d")}
+          <Button variant="outline" size="sm" onClick={() => handleCleanByFilter(new Date(Date.now() - 7 * 86400000).toISOString(), "allow")}>
+            <Clock />{t("audit.clean7d")}
           </Button>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div className={cn("flex items-center gap-1.5 font-mono text-xs", sseConnected ? "text-success" : "text-muted-foreground")}>
-            <span className={cn("inline-block h-1.5 w-1.5 rounded-full", sseConnected ? "bg-success animate-pulse-glow" : "bg-muted-foreground")} />
+            <span className={cn("inline-block h-2 w-2 rounded-full", sseConnected ? "bg-success animate-pulse-glow" : "bg-muted-foreground")} />
             {sseConnected ? t("audit.live") : t("audit.offline")}
           </div>
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleExportCsv}>
-            <Download className="mr-1 h-3 w-3" />{t("audit.exportCsv")}
+          <Button variant="outline" size="sm" onClick={handleExportCsv}>
+            <Download />{t("audit.exportCsv")}
           </Button>
           {revealAuthed && revealExpiry ? (
-            <Button variant="outline" size="sm" className="h-7 text-xs text-warning" onClick={() => { setRevealAuthed(false); setRevealExpiry(null); fetchData(data.page); }}>
-              <EyeOff className="mr-1 h-3 w-3" />{t("audit.revealValuesActive")} [{formatCountdown(revealExpiry - Date.now())}]
+            <Button variant="outline" size="sm" className="text-warning" onClick={() => { setRevealAuthed(false); setRevealExpiry(null); fetchData(data.page); }}>
+              <EyeOff />{t("audit.revealValuesActive")} [{formatCountdown(revealExpiry - Date.now())}]
             </Button>
           ) : (
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setRevealError(false); setRevealDialog({ open: true, password: "" }); }}>
-              <Eye className="mr-1 h-3 w-3" />{t("audit.revealValues")}
+            <Button variant="outline" size="sm" onClick={() => { setRevealError(false); setRevealDialog({ open: true, password: "" }); }}>
+              <Eye />{t("audit.revealValues")}
             </Button>
           )}
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => fetchData(data.page)}>
-            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+          <Button variant="ghost" size="icon-sm" onClick={() => fetchData(data.page)} title={t("audit.refresh") || "Refresh"}>
+            <RefreshCw className={cn(loading && "animate-spin")} />
           </Button>
         </div>
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-lg border border-border/50">
+      <div className="overflow-hidden rounded-xl border bg-card shadow-card">
         <Table className="table-fixed">
           <colgroup>
             <col className="w-10" />
@@ -648,15 +663,15 @@ export function AuditTable() {
             <TableRow className="hover:bg-transparent">
               <TableHead className="w-10"><Checkbox checked={data.rows.length > 0 && selectedIds.size === data.rows.length} onCheckedChange={toggleSelectAll} /></TableHead>
               <TableHead className="w-8" />
-              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.time")}</TableHead>
-              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.method")}</TableHead>
-              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.path")}</TableHead>
-              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.type")}</TableHead>
-              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.size")}</TableHead>
-              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.model")}</TableHead>
-              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.findings")}</TableHead>
-              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.duration")}</TableHead>
-              <TableHead className="truncate whitespace-nowrap font-mono text-sm uppercase tracking-wider">{t("audit.col.action")}</TableHead>
+              <TableHead >{t("audit.col.time")}</TableHead>
+              <TableHead >{t("audit.col.method")}</TableHead>
+              <TableHead >{t("audit.col.path")}</TableHead>
+              <TableHead >{t("audit.col.type")}</TableHead>
+              <TableHead >{t("audit.col.size")}</TableHead>
+              <TableHead >{t("audit.col.model")}</TableHead>
+              <TableHead >{t("audit.col.findings")}</TableHead>
+              <TableHead >{t("audit.col.duration")}</TableHead>
+              <TableHead >{t("audit.col.action")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -699,20 +714,20 @@ export function AuditTable() {
                   {expanded && (
                     <TableRow className="hover:bg-transparent">
                       <TableCell colSpan={11} className="overflow-hidden p-0">
-                        <div className="max-w-full overflow-hidden border-b border-border/50 bg-card/80 px-4 py-3">
+                        <div className="max-w-full overflow-hidden border-b bg-muted/30 px-4 py-3">
                           <div className="mb-3 flex min-w-0 items-center justify-between gap-3 rounded-md border border-border/40 bg-muted/20 px-2.5 py-2">
                             <div className="flex min-w-0 flex-wrap items-center gap-2">
-                              <code className="shrink-0 rounded-md bg-background/70 px-2 py-1 font-mono text-xs text-muted-foreground">#{row.id}</code>
-                              <Badge variant="outline" className="shrink-0 whitespace-nowrap bg-background/70 font-mono text-xs">{row.method}</Badge>
+                              <code className="shrink-0 rounded-md bg-background px-2 py-1 font-mono text-xs text-muted-foreground">#{row.id}</code>
+                              <Badge variant="outline" className="shrink-0 whitespace-nowrap bg-background font-mono text-xs">{row.method}</Badge>
                               <SubtleActionBadge action={row.action} label={row.bypassApplied ? t("audit.bypassAllowed") : t(`action.${row.action}`)} />
                             </div>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 shrink-0 border border-destructive/20 px-2 text-xs text-destructive hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                              className="shrink-0 border border-destructive/20 text-destructive hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
                               onClick={() => handleDeleteSingle(row.id)}
                             >
-                              <Trash2 className="mr-1 h-3 w-3" />{t("audit.delete")}
+                              <Trash2 />{t("audit.delete")}
                             </Button>
                           </div>
                           <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
@@ -725,7 +740,7 @@ export function AuditTable() {
                           </div>
                           {row.findings.length > 0 && (
                             <div className="mt-3 min-w-0">
-                              <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.findingsLabel")}</p>
+                              <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t("audit.findingsLabel")}</p>
                               <div className="flex max-h-24 min-w-0 flex-wrap gap-1.5 overflow-y-auto overflow-x-hidden rounded-md border border-border/40 bg-muted/20 p-2">
                                 {findingSummaries.map((summary) => (
                                   <Badge key={summary.item} variant={getFindingVariant(summary.item)} className="shrink-0 whitespace-nowrap font-mono text-xs">
@@ -737,13 +752,13 @@ export function AuditTable() {
                           )}
                           {revealAuthed && row.matchedValues && Object.keys(row.matchedValues).length > 0 && (
                             <div className="mt-3 min-w-0">
-                              <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.matchedValuesLabel")}</p>
+                              <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t("audit.matchedValuesLabel")}</p>
                               <div className="max-h-96 min-w-0 overflow-y-auto overflow-x-hidden pr-1">
                                 <div className="grid min-w-0 gap-2 md:grid-cols-2 xl:grid-cols-4">
                                   {Object.entries(row.matchedValues).map(([category, values]) => {
                                     const valueSummaries = summarizeItems(values);
                                     return (
-                                      <div key={category} className="min-w-0 overflow-hidden rounded-md border border-border/50 bg-background/60">
+                                      <div key={category} className="min-w-0 overflow-hidden rounded-md border bg-card">
                                         <div className="flex min-w-0 items-center justify-between gap-2 border-b border-border/40 bg-muted/30 px-2 py-1.5">
                                           <Badge variant="outline" className="min-w-0 truncate whitespace-nowrap font-mono text-xs">{category}</Badge>
                                           <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
@@ -780,13 +795,13 @@ export function AuditTable() {
                           )}
                           {!revealAuthed && row.findings.length > 0 && (
                             <div className="mt-3">
-                              <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.matchedValuesLabel")}</p>
+                              <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t("audit.matchedValuesLabel")}</p>
                               <p className="truncate whitespace-nowrap text-xs italic text-muted-foreground">{t("audit.revealRequired")}</p>
                             </div>
                           )}
                           {row.filenames.length > 0 && (
                             <div className="mt-3 min-w-0">
-                              <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("audit.filenamesLabel")}</p>
+                              <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t("audit.filenamesLabel")}</p>
                               <OverflowBadges items={row.filenames} />
                             </div>
                           )}
@@ -803,12 +818,12 @@ export function AuditTable() {
 
       {/* Pagination */}
       <div className="flex items-center justify-between">
-        <p className="font-mono text-sm text-muted-foreground">
+        <p className="font-mono text-xs text-muted-foreground">
           {data.total.toLocaleString()} {t("audit.records")} — {t("audit.page")} {data.page} {t("audit.pageOf")} {totalPages || 1}
         </p>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-7 text-xs" disabled={data.page <= 1} onClick={() => fetchData(data.page - 1)}>{t("audit.prev")}</Button>
-          <Button variant="outline" size="sm" className="h-7 text-xs" disabled={data.page >= totalPages} onClick={() => fetchData(data.page + 1)}>{t("audit.next")}</Button>
+          <Button variant="outline" size="sm" disabled={data.page <= 1} onClick={() => fetchData(data.page - 1)}>{t("audit.prev")}</Button>
+          <Button variant="outline" size="sm" disabled={data.page >= totalPages} onClick={() => fetchData(data.page + 1)}>{t("audit.next")}</Button>
         </div>
       </div>
 
@@ -858,7 +873,7 @@ export function AuditTable() {
             value={revealDialog.password}
             onChange={(e) => setRevealDialog((d) => ({ ...d, password: e.target.value }))}
             placeholder={t("audit.revealPasswordPlaceholder")}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="h-9 rounded-md border border-input bg-card px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" size="sm" onClick={() => { setRevealError(false); setRevealDialog({ open: false, password: "" }); }}>{t("audit.cancel")}</Button>

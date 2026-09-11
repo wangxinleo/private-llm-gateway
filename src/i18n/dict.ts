@@ -7,6 +7,8 @@ const zh: Record<string, string> = {
   "nav.rules": "临时放行规则",
   "nav.settings": "系统配置",
   "nav.version": "v0.1.0 — 内部",
+  "status.online": "在线",
+  "status.offline": "离线",
 
   // Dashboard overview
   "overview.title": "总览",
@@ -218,6 +220,8 @@ const en: Record<string, string> = {
   "nav.rules": "Bypass Rules",
   "nav.settings": "Settings",
   "nav.version": "v0.1.0 — internal",
+  "status.online": "Online",
+  "status.offline": "Offline",
 
   // Dashboard overview
   "overview.title": "Overview",

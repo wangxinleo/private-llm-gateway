@@ -176,24 +176,19 @@ export default function RulesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold leading-tight tracking-[-0.035em]">{t("rules.title")}</h1>
-        <p className="mt-1 max-w-[65ch] text-sm leading-6 text-muted-foreground">{t("rules.desc")}</p>
-      </div>
-
-      <Card className="border-border/50">
+      <Card>
         <CardHeader>
-          <CardTitle className="font-mono text-sm tracking-wide">{t("rules.bypassCreateTitle")}</CardTitle>
+          <CardTitle>{t("rules.bypassCreateTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={handleCreate}>
             <div className="grid gap-4 md:grid-cols-2">
-              <label className="space-y-2 text-sm">
-                <span className="text-muted-foreground">{t("rules.bypassPathPrefix")}</span>
+              <label className="space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground">{t("rules.bypassPathPrefix")}</span>
                 <select
                   value={form.pathPrefix}
                   onChange={(e) => setForm((prev) => ({ ...prev, pathPrefix: e.target.value }))}
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   {pathPrefixOptions.length === 0 ? (
                     <option value="">No options configured</option>
@@ -204,49 +199,48 @@ export default function RulesPage() {
                   )}
                 </select>
               </label>
-              <label className="space-y-2 text-sm">
-                <span className="text-muted-foreground">{t("rules.bypassModel")}</span>
+              <label className="space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground">{t("rules.bypassModel")}</span>
                 <Input
                   value={form.modelName}
                   onChange={(e) => setForm((prev) => ({ ...prev, modelName: e.target.value }))}
                   placeholder="gpt-4o-mini"
                 />
               </label>
-              <label className="space-y-2 text-sm">
-                <span className="text-muted-foreground">{t("rules.bypassDuration")}</span>
+              <label className="space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground">{t("rules.bypassDuration")}</span>
                 <select
                   value={form.duration}
                   onChange={(e) => setForm((prev) => ({ ...prev, duration: Number(e.target.value) }))}
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value={4}>{t("rules.bypassDuration4h")}</option>
                   <option value={8}>{t("rules.bypassDuration8h")}</option>
                   <option value={24}>{t("rules.bypassDuration1d")}</option>
                 </select>
               </label>
+              <label className="space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground">{t("rules.bypassNote")}</span>
+                <Input
+                  value={form.note}
+                  onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
+                  placeholder={t("rules.bypassNotePlaceholder")}
+                />
+              </label>
             </div>
 
-            <label className="space-y-2 text-sm">
-              <span className="text-muted-foreground">{t("rules.bypassNote")}</span>
-              <Input
-                value={form.note}
-                onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
-                placeholder={t("rules.bypassNotePlaceholder")}
-              />
-            </label>
-
-            <label className="flex items-center gap-3 text-sm">
+            <label className="flex items-center gap-2.5">
               <Checkbox
                 checked={form.enabled}
                 onCheckedChange={(checked) => setForm((prev) => ({ ...prev, enabled: checked === true }))}
               />
-              <span className="text-muted-foreground">{t("rules.bypassEnabled")}</span>
+              <span className="text-xs text-muted-foreground">{t("rules.bypassEnabled")}</span>
             </label>
 
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            {error ? <p className="text-xs text-destructive">{error}</p> : null}
 
             <div className="flex items-center gap-3">
-              <Button type="submit" disabled={submitting || !form.pathPrefix.trim() || !form.modelName.trim()}>
+              <Button type="submit" size="sm" disabled={submitting || !form.pathPrefix.trim() || !form.modelName.trim()}>
                 {submitting ? t("rules.bypassSubmitting") : t("rules.bypassCreateAction")}
               </Button>
               <p className="text-xs text-muted-foreground">{t("rules.bypassHint")}</p>
@@ -255,9 +249,9 @@ export default function RulesPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-border/50">
+      <Card>
         <CardHeader>
-          <CardTitle className="font-mono text-sm tracking-wide">{t("rules.bypassListTitle")}</CardTitle>
+          <CardTitle>{t("rules.bypassListTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -267,7 +261,7 @@ export default function RulesPage() {
               <div className="h-9 animate-pulse rounded-md bg-muted/30" />
             </div>
           ) : rules.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 px-4 py-8 text-center">
+            <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-8 text-center">
               <p className="text-sm font-medium text-foreground">{t("rules.bypassEmpty")}</p>
               <p className="mx-auto mt-1 max-w-[48ch] text-xs leading-5 text-muted-foreground">{t("rules.bypassEmptyHint")}</p>
             </div>

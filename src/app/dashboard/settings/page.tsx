@@ -186,10 +186,6 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold leading-tight tracking-[-0.035em]">{t("settings.title")}</h1>
-          <p className="mt-1 max-w-[65ch] text-sm leading-6 text-muted-foreground">{t("settings.desc")}</p>
-        </div>
         <Card>
           <CardContent className="space-y-3 pt-6">
             <div className="h-4 w-48 animate-pulse rounded bg-muted/60" />
@@ -203,21 +199,16 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold leading-tight tracking-[-0.035em]">{t("settings.title")}</h1>
-        <p className="mt-1 max-w-[65ch] text-sm leading-6 text-muted-foreground">{t("settings.desc")}</p>
-      </div>
-
       {message && (
-        <div role="status" className={`fixed right-4 top-20 z-50 rounded-lg border px-4 py-2 text-sm shadow-[0_18px_50px_oklch(0.07_0.02_175/0.32)] backdrop-blur-xl md:top-4 ${message.type === "success" ? "border-success/35 bg-success/12 text-success" : "border-destructive/35 bg-destructive/12 text-destructive"}`}>
+        <div role="status" className={`fixed right-4 top-20 z-50 rounded-lg border px-4 py-2 text-sm shadow-lg md:top-[68px] ${message.type === "success" ? "border-success/30 bg-card text-success" : "border-destructive/30 bg-card text-destructive"}`}>
           {message.text}
         </div>
       )}
 
       {/* Path Prefix Configuration */}
-      <Card className="border-border/50">
+      <Card>
         <CardHeader>
-          <CardTitle className="font-mono text-sm tracking-wide">{t("settings.pathPrefixConfig")}</CardTitle>
+          <CardTitle>{t("settings.pathPrefixConfig")}</CardTitle>
           <p className="text-xs text-muted-foreground">{t("settings.pathPrefixDesc")}</p>
         </CardHeader>
         <CardContent>
@@ -226,7 +217,7 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground">{t("settings.pathPrefixEmpty")}</p>
             ) : (
               pathPrefixes.map((prefix, index) => (
-                <div key={index} className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
+                <div key={index} className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
                   <code className="font-mono text-sm">{prefix}</code>
                   <button
                     onClick={() => removePathPrefix(index)}
@@ -257,8 +248,8 @@ export default function SettingsPage() {
       </Card>
 
       {/* Environment Variables (Read-only) */}
-      <Card className="border-border/50">
-        <CardHeader><CardTitle className="font-mono text-sm tracking-wide">{t("settings.envVars")}</CardTitle></CardHeader>
+      <Card>
+        <CardHeader><CardTitle>{t("settings.envVars")}</CardTitle></CardHeader>
         <CardContent>
           <div className="space-y-2">
             {[
@@ -268,7 +259,7 @@ export default function SettingsPage() {
               { key: "NODE_ENV", value: runtimeEnv.nodeEnv },
               { key: "PORT", value: runtimeEnv.port },
             ].map(({ key, value }) => (
-              <div key={key} className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
+              <div key={key} className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
                 <code className="font-mono text-xs text-primary">{key}</code>
                 <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs">{value}</code>
               </div>
@@ -278,8 +269,8 @@ export default function SettingsPage() {
       </Card>
 
       {/* Context Key Configuration (Editable) */}
-      <Card className="border-border/50">
-        <CardHeader><CardTitle className="font-mono text-sm tracking-wide">{t("settings.contextKeyConfig")}</CardTitle></CardHeader>
+      <Card>
+        <CardHeader><CardTitle>{t("settings.contextKeyConfig")}</CardTitle></CardHeader>
         <CardContent>
           <div className="space-y-2">
             {[
@@ -293,7 +284,7 @@ export default function SettingsPage() {
               const value = typeof config.value === "number" ? config.value : 0;
 
               return (
-                <div key={key} className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
+                <div key={key} className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
                   <code className="font-mono text-xs text-primary">CONTEXT_KEY.{label}</code>
                   {isEditing ? (
                     <div className="flex items-center gap-2">
@@ -326,8 +317,8 @@ export default function SettingsPage() {
       </Card>
 
       {/* Context Window Size (Editable) */}
-      <Card className="border-border/50">
-        <CardHeader><CardTitle className="font-mono text-sm tracking-wide">{t("settings.contextWindowConfig")}</CardTitle></CardHeader>
+      <Card>
+        <CardHeader><CardTitle>{t("settings.contextWindowConfig")}</CardTitle></CardHeader>
         <CardContent>
           <div className="space-y-2">
             {[
@@ -339,7 +330,7 @@ export default function SettingsPage() {
               const value = typeof config.value === "number" ? config.value : 0;
 
               return (
-                <div key={key} className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
+                <div key={key} className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
                   <code className="font-mono text-xs text-primary">CONTEXT_WINDOW.{label}</code>
                   {isEditing ? (
                     <div className="flex items-center gap-2">
@@ -372,9 +363,9 @@ export default function SettingsPage() {
       </Card>
 
       {/* High-risk assets */}
-      <Card className="border-border/50">
+      <Card>
         <CardHeader>
-          <CardTitle className="font-mono text-sm tracking-wide">{t("settings.highRiskAssets")}</CardTitle>
+          <CardTitle>{t("settings.highRiskAssets")}</CardTitle>
           <p className="text-xs text-muted-foreground">{t("settings.highRiskAssetsDesc")}</p>
         </CardHeader>
         <CardContent>
@@ -423,28 +414,28 @@ export default function SettingsPage() {
       </Card>
 
       {/* Database Statistics (Read-only) */}
-      <Card className="border-border/50">
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-mono text-sm tracking-wide">
+          <CardTitle className="flex items-center gap-2">
             {t("settings.dbStats")}
-            <Badge variant="outline" className="font-mono text-xs">{formatBytes(dbStats.dbFileSize)}</Badge>
+            <Badge variant="outline" className="font-mono">{formatBytes(dbStats.dbFileSize)}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <div className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
+            <div className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
               <span className="text-sm text-muted-foreground">{t("settings.totalRecords")}</span>
               <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs tabular-nums">{dbStats.totalRecords.toLocaleString()}</code>
             </div>
-            <div className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
+            <div className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
               <span className="text-sm text-muted-foreground">{t("settings.earliestRecord")}</span>
               <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs">{fmt(dbStats.earliestRecord)}</code>
             </div>
-            <div className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
+            <div className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
               <span className="text-sm text-muted-foreground">{t("settings.latestRecord")}</span>
               <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs">{fmt(dbStats.latestRecord)}</code>
             </div>
-            <div className="flex items-center justify-between rounded-md border border-border/30 px-3 py-2">
+            <div className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
               <span className="text-sm text-muted-foreground">{t("settings.dbFileSize")}</span>
               <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs">{formatBytes(dbStats.dbFileSize)}</code>
             </div>
