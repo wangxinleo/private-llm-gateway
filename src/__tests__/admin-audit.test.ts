@@ -127,6 +127,7 @@ describe("admin audit routes", () => {
         action: "block",
         bypassApplied: false,
         duration: 5.23,
+        maskApplied: false,
       });
     });
 

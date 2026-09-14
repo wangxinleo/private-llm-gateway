@@ -21,6 +21,9 @@ interface AdminAuditResponseRow {
   action: string;
   bypassApplied: boolean;
   duration?: number;
+  maskApplied?: boolean;
+  maskCategories?: string[];
+  maskCount?: number;
 }
 
 export async function GET(request: NextRequest) {
@@ -57,6 +60,9 @@ export async function GET(request: NextRequest) {
         action: r.action,
         bypassApplied: r.bypass_applied === 1,
         duration: r.duration != null ? r.duration : undefined,
+        maskApplied: r.mask_applied === 1,
+        maskCategories: r.mask_categories ? (JSON.parse(r.mask_categories) as string[]) : undefined,
+        maskCount: r.mask_count != null ? r.mask_count : undefined,
       };
 
       if (isRevealed) {
