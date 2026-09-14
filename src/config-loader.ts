@@ -1,6 +1,6 @@
 import { getConfig, setConfig, getAllConfigs } from "@/audit";
-import { CONTEXT_KEY, PATH_PREFIX_OPTIONS, HIGH_RISK_ASSETS, CONTEXT_WINDOW_SIZE, DEFAULT_CONFIG_VALUES, SCANNER_RULES, RUNTIME } from "@/config";
-import type { EditableConfigType, HighRiskAssets, Severity, FindingCategory } from "@/types";
+import { CONTEXT_KEY, PATH_PREFIX_OPTIONS, CONTEXT_WINDOW_SIZE, DEFAULT_CONFIG_VALUES, SCANNER_RULES, RUNTIME } from "@/config";
+import type { EditableConfigType, Severity, FindingCategory } from "@/types";
 import { Logger } from "@/log";
 
 let configsInitialized = false;
@@ -37,11 +37,6 @@ export function initializeConfigs(): void {
     CONTEXT_WINDOW_SIZE.value = loadOrInit("context_window_size", DEFAULT_CONFIG_VALUES.CONTEXT_WINDOW_SIZE, "number", "Context scan window radius in characters");
     PATH_PREFIX_OPTIONS.length = 0;
     PATH_PREFIX_OPTIONS.push(...loadOrInit("path_prefix_options", DEFAULT_CONFIG_VALUES.PATH_PREFIX_OPTIONS, "json_array", "Path prefix options for bypass rules"));
-
-    const loadedAssets = loadOrInit("high_risk_assets", DEFAULT_CONFIG_VALUES.HIGH_RISK_ASSETS, "json_array", "High-risk asset whitelist (domains/emails/accounts) whose context windows are scanned");
-    HIGH_RISK_ASSETS.domains = Array.isArray(loadedAssets.domains) ? loadedAssets.domains : [];
-    HIGH_RISK_ASSETS.emails = Array.isArray(loadedAssets.emails) ? loadedAssets.emails : [];
-    HIGH_RISK_ASSETS.accounts = Array.isArray(loadedAssets.accounts) ? loadedAssets.accounts : [];
 
     const loadedToggles = loadOrInit(
       "rule_toggles",
@@ -92,13 +87,6 @@ export function refreshConfig(key: string): void {
     case "context_window_size":
       CONTEXT_WINDOW_SIZE.value = parseInt(config.value, 10);
       break;
-    case "high_risk_assets": {
-      const loaded = JSON.parse(config.value) as Partial<HighRiskAssets>;
-      HIGH_RISK_ASSETS.domains = Array.isArray(loaded.domains) ? loaded.domains : HIGH_RISK_ASSETS.domains;
-      HIGH_RISK_ASSETS.emails = Array.isArray(loaded.emails) ? loaded.emails : HIGH_RISK_ASSETS.emails;
-      HIGH_RISK_ASSETS.accounts = Array.isArray(loaded.accounts) ? loaded.accounts : HIGH_RISK_ASSETS.accounts;
-      break;
-    }
     case "rule_toggles": {
       const loaded = JSON.parse(config.value) as Record<string, boolean>;
       for (const [key, value] of Object.entries(loaded)) {

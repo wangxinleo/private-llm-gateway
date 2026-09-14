@@ -4,63 +4,10 @@ import {
   scanContextWindows,
   CONTEXT_WINDOW,
 } from "@/scanner/context-window";
-import { globToRegExp, locateHighRiskAssets } from "@/scanner/high-risk-assets";
 import { CONTEXT_WINDOW_SIZE } from "@/config";
 
-describe("globToRegExp", () => {
-  it("matches wildcard * as any sequence", () => {
-    expect(globToRegExp("*.ccload.com").test("app.ccload.com")).toBe(true);
-    expect(globToRegExp("*.ccload.com").test("deep.app.ccload.com")).toBe(true);
-    expect(globToRegExp("*.ccload.com").test("ccload.com")).toBe(false);
-    expect(globToRegExp("*.ccload.com").test("app.gffunds.com")).toBe(false);
-  });
-
-  it("escapes regex special chars", () => {
-    expect(globToRegExp("a.b.c").test("aXbXc")).toBe(false);
-    expect(globToRegExp("a.b.c").test("a.b.c")).toBe(true);
-  });
-
-  it("email and account patterns", () => {
-    expect(globToRegExp("*@*.ccload.com").test("user@app.ccload.com")).toBe(true);
-    expect(globToRegExp("ft-*").test("ft-gateway")).toBe(true);
-    expect(globToRegExp("ft-*").test("wangxinleo")).toBe(false);
-  });
-});
-
-describe("locateHighRiskAssets", () => {
-  const assets = {
-    domains: ["*.ccload.com", "*.gffunds.com"],
-    emails: ["*@*.ccload.com"],
-    accounts: ["wangxinleo"],
-  };
-
-  it("locates whitelisted domain URLs", () => {
-    const text = "See https://app.ccload.com/v1 and https://api.gffunds.com/x";
-    const hits = locateHighRiskAssets(text, assets);
-    expect(hits.map((h) => h.value)).toEqual([
-      "https://app.ccload.com/v1",
-      "https://api.gffunds.com/x",
-    ]);
-  });
-
-  it("does not locate foreign domains", () => {
-    const text = "See https://api.example.test/v1 for docs";
-    const hits = locateHighRiskAssets(text, assets);
-    expect(hits).toHaveLength(0);
-  });
-
-  it("locates whitelisted emails", () => {
-    const text = "contact user@svc.ccload.com or other@example.com";
-    const hits = locateHighRiskAssets(text, assets);
-    expect(hits.map((h) => h.value)).toEqual(["user@svc.ccload.com"]);
-  });
-
-  it("locates account names as literal occurrences", () => {
-    const text = "login wangxinleo configured";
-    const hits = locateHighRiskAssets(text, assets);
-    expect(hits.map((h) => h.value)).toEqual(["wangxinleo"]);
-  });
-});
+// 高风险资产白名单已下线:窗口锚点仅剩敏感键值对(api_key=/password: 等四类键)
+const ANCHOR = 'api_key = aBcDeFgHiJkLmNoPqRsTuVwXyZ01234';
 
 describe("sliceWindow", () => {
   it("cuts ±200 chars around hit", () => {
@@ -77,107 +24,54 @@ describe("sliceWindow", () => {
   });
 });
 
-describe("scanContextWindows", () => {
-  it("扫描白名单命中值窗口内的疑似密钥", () => {
-    const text = "account wangxinleo Bearer abc123token4567890xyz";
-    const findings = scanContextWindows(text, {
-      domains: [],
-      emails: [],
-      accounts: ["wangxinleo"],
-    });
-    expect(findings.length).toBeGreaterThan(0);
+describe("scanContextWindows — sensitive key-value anchors", () => {
+  it("锚点窗口内的疑似密钥被扫描", () => {
+    const text = `${ANCHOR} Bearer abc123token4567890xyz`;
+    const findings = scanContextWindows(text);
+    expect(findings.some((f) => f.category === "BEARER_TOKEN")).toBe(true);
   });
 
-  it("白名单外完全不扫描", () => {
-    const text = "prose URL https://api.example.test/v1 with commit abcdef1234567890";
-    const findings = scanContextWindows(text, {
-      domains: [],
-      emails: [],
-      accounts: [],
-    });
-    expect(findings.length).toBe(0);
-  });
-
-  it("无白名单时 secrets 不扫描", () => {
+  it("无锚点时 secrets 不扫描", () => {
     const text = "the token abc123token appears in prose without context";
-    const findings = scanContextWindows(text, {
-      domains: [],
-      emails: [],
-      accounts: [],
-    });
+    const findings = scanContextWindows(text);
     expect(findings.length).toBe(0);
   });
 
-  it("无白名单时 email 不扫描", () => {
+  it("无锚点时 email 不扫描", () => {
     const text = "contact: user@example.com";
-    const findings = scanContextWindows(text, {
-      domains: [],
-      emails: [],
-      accounts: [],
-    });
+    const findings = scanContextWindows(text);
     expect(findings).not.toContainEqual(expect.objectContaining({ category: "EMAIL" }));
   });
 
   it("窗口边界:窗内 secrets 命中,窗外不扫描", () => {
-    const inside = "wangxinleo Bearer abc123token4567890xyz";
-    const insideFindings = scanContextWindows(inside, {
-      domains: [],
-      emails: [],
-      accounts: ["wangxinleo"],
-    });
-    expect(insideFindings.some((f) => f.category === "BEARER_TOKEN")).toBe(true);
-    const outside =
-      "wangxinleo" + " ".repeat(CONTEXT_WINDOW * 2) + "Bearer abc123token4567890xyz";
-    const outsideFindings = scanContextWindows(outside, {
-      domains: [],
-      emails: [],
-      accounts: ["wangxinleo"],
-    });
-    expect(outsideFindings.some((f) => f.category === "BEARER_TOKEN")).toBe(false);
+    const inside = `${ANCHOR} Bearer abc123token4567890xyz`;
+    expect(scanContextWindows(inside).some((f) => f.category === "BEARER_TOKEN")).toBe(true);
+    const outside = ANCHOR + " ".repeat(CONTEXT_WINDOW * 2) + "Bearer abc123token4567890xyz";
+    expect(scanContextWindows(outside).some((f) => f.category === "BEARER_TOKEN")).toBe(false);
   });
 
-  it("白名单窗口内 EMAIL 被扫描", () => {
-    const text = "contact wangxinleo mail user@example.com";
-    const findings = scanContextWindows(text, {
-      domains: [],
-      emails: [],
-      accounts: ["wangxinleo"],
-    });
-    expect(findings.some((f) => f.category === "EMAIL")).toBe(true);
+  it("锚点窗口内 EMAIL 被扫描", () => {
+    const text = `${ANCHOR} mail user@example.com`;
+    expect(scanContextWindows(text).some((f) => f.category === "EMAIL")).toBe(true);
   });
 
-  it("白名单窗口外 EMAIL 不扫描", () => {
-    const text = "wangxinleo" + " x".repeat(500) + " mail user@example.com";
-    const findings = scanContextWindows(text, {
-      domains: [],
-      emails: [],
-      accounts: ["wangxinleo"],
-    });
-    expect(findings.some((f) => f.category === "EMAIL")).toBe(false);
+  it("锚点窗口外 EMAIL 不扫描", () => {
+    const text = ANCHOR + " x".repeat(500) + " mail user@example.com";
+    expect(scanContextWindows(text).some((f) => f.category === "EMAIL")).toBe(false);
   });
 
-  it("PHONE 全文扫描不受白名单限制", () => {
+  it("PHONE 全文扫描不受锚点限制", () => {
     const text = "phone 13912345678";
-    const findings = scanContextWindows(text, {
-      domains: [],
-      emails: [],
-      accounts: [],
-    });
-    expect(findings.some((f) => f.category === "PHONE")).toBe(true);
+    expect(scanContextWindows(text).some((f) => f.category === "PHONE")).toBe(true);
   });
 
   it("窗口大小热更新后生效", () => {
     const prev = CONTEXT_WINDOW_SIZE.value;
     CONTEXT_WINDOW_SIZE.value = 50;
     try {
-      const text = "wangxinleo" + " x".repeat(100) + " Bearer abc123token4567890xyz";
-      const findings = scanContextWindows(text, {
-        domains: [],
-        emails: [],
-        accounts: ["wangxinleo"],
-      });
-      // 100 字符间隔超过 50 半径,Bearer token 不应命中
-      expect(findings.length).toBe(0);
+      const text = ANCHOR + " x".repeat(100) + " Bearer abc123token4567890xyz";
+      // 100 字符间隔超过 50 半径,Bearer token 不应命中(锚点自身值仍在窗口内,属预期)
+      expect(scanContextWindows(text).some((f) => f.category === "BEARER_TOKEN")).toBe(false);
     } finally {
       CONTEXT_WINDOW_SIZE.value = prev;
     }

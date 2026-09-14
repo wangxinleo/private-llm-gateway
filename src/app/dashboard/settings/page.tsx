@@ -9,10 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useLocale } from "@/i18n";
-import { getErrorText, isHighRiskAssets, isStringArrayConfigValue } from "@/lib/admin-config";
+import { getErrorText, isStringArrayConfigValue } from "@/lib/admin-config";
 import { useAdminAuth } from "@/lib/admin-auth-context";
-import { JsonEditor } from "@/components/json-editor";
-import type { AdminConfigResponse, EditableConfig, EditableConfigValue, FindingCategory } from "@/types";
+import type { AdminConfigResponse, EditableConfig, EditableConfigValue } from "@/types";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -61,18 +60,9 @@ export default function SettingsPage() {
   const [newPathPrefix, setNewPathPrefix] = useState("");
   const [pathPrefixes, setPathPrefixes] = useState<string[]>([]);
 
-  // Secret prefixes state
-  const [newSecretPrefix, setNewSecretPrefix] = useState("");
-  const [secretPrefixes, setSecretPrefixes] = useState<string[]>([]);
-  const [ruleToggles, setRuleToggles] = useState<Record<string, boolean>>({});
-
   // Editable number config state
   const [editingConfig, setEditingConfig] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-
-  // High-risk assets state
-  const [exclDraft, setExclDraft] = useState("");
-  const [exclEditing, setExclEditing] = useState(false);
 
   useEffect(() => {
     loadConfig();
@@ -90,15 +80,7 @@ export default function SettingsPage() {
       if (data.editableConfigs) {
         setEditableConfigs(data.editableConfigs);
         const prefixValue = data.editableConfigs.path_prefix_options?.value;
-        const assetsValue = data.editableConfigs.high_risk_assets?.value;
-        const togglesValue = data.editableConfigs.rule_toggles?.value;
-        const secretPrefixValue = data.editableConfigs.secret_prefixes?.value;
         setPathPrefixes(isStringArrayConfigValue(prefixValue) ? prefixValue : []);
-        setSecretPrefixes(isStringArrayConfigValue(secretPrefixValue) ? secretPrefixValue : []);
-        if (togglesValue && typeof togglesValue === "object" && !Array.isArray(togglesValue)) {
-          setRuleToggles(togglesValue as unknown as Record<string, boolean>);
-        }
-        setExclDraft(JSON.stringify(isHighRiskAssets(assetsValue) ? assetsValue : { domains: [], emails: [], accounts: [] }, null, 2));
       }
     } catch (err) {
       console.error("Failed to load config:", err);
@@ -152,44 +134,6 @@ export default function SettingsPage() {
   async function removePathPrefix(index: number) {
     const newList = pathPrefixes.filter((_, i) => i !== index);
     await updateConfig("path_prefix_options", newList);
-  }
-
-  async function toggleRule(category: string) {
-    const next = { ...ruleToggles, [category]: !(ruleToggles[category] !== false) };
-    setRuleToggles(next);
-    await updateConfig("rule_toggles", next);
-  }
-
-  async function addSecretPrefix() {
-    const trimmed = newSecretPrefix.trim();
-    if (!trimmed) return;
-    if (secretPrefixes.includes(trimmed)) {
-      setNewSecretPrefix("");
-      return;
-    }
-    await updateConfig("secret_prefixes", [...secretPrefixes, trimmed]);
-    setNewSecretPrefix("");
-  }
-
-  async function removeSecretPrefix(index: number) {
-    const newList = secretPrefixes.filter((_, i) => i !== index);
-    await updateConfig("secret_prefixes", newList);
-  }
-
-  async function saveExclusionsDraft() {
-    try {
-      const parsed = JSON.parse(exclDraft) as unknown;
-      if (!isHighRiskAssets(parsed)) throw new Error("invalid high-risk assets");
-      await updateConfig("high_risk_assets", parsed);
-      setExclEditing(false);
-    } catch {
-      setMessage({ type: "error", text: t("settings.configUpdateFailed") });
-      setTimeout(() => setMessage(null), 3000);
-    }
-  }
-
-  function cancelExclEdit() {
-    setExclEditing(false);
   }
 
   function startEditConfig(key: string, currentValue: number) {
@@ -396,130 +340,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* High-risk assets */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("settings.highRiskAssets")}</CardTitle>
-          <p className="text-xs text-muted-foreground">{t("settings.highRiskAssetsDesc")}</p>
-        </CardHeader>
-        <CardContent>
-          {exclEditing ? (
-            <div className="space-y-3">
-              <JsonEditor
-                value={exclDraft}
-                onChange={setExclDraft}
-                minHeight={240}
-                autoFocus
-              />
-              <div className="flex gap-2">
-                <Button
-                  onClick={saveExclusionsDraft}
-                  disabled={updating === "high_risk_assets"}
-                >
-                  {t("settings.exclusionSave")}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={cancelExclEdit}
-                  disabled={updating === "high_risk_assets"}
-                >
-                  {t("settings.exclusionCancel")}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <JsonEditor
-                value={exclDraft}
-                onChange={() => {}}
-                readOnly
-                placeholder={t("settings.exclusionEmpty")}
-                minHeight={60}
-              />
-              <Button
-                variant="outline"
-                onClick={() => setExclEditing(true)}
-              >
-                {t("settings.exclusionEdit")}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Builtin rule toggles */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("settings.ruleToggles")}</CardTitle>
-          <p className="text-xs text-muted-foreground">{t("settings.ruleTogglesDesc")}</p>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
-            {(
-              [
-                "PRIVATE_KEY", "BEARER_TOKEN", "BASIC_AUTH", "JWT", "COOKIE_HEADER", "SET_COOKIE_HEADER",
-                "DB_URI", "AWS_ACCESS_KEY", "GITHUB_TOKEN", "DEVELOPER_TOKEN", "SLACK_TOKEN", "GOOGLE_API_KEY",
-                "PROVIDER_API_KEY", "CLOUD_CREDENTIAL", "CONNECTION_STRING", "ENCODED_SECRET", "BASE64_TOKEN",
-                "STRIPE_KEY", "SENDGRID_KEY", "CONTEXTUAL_SECRET", "SENSITIVE_FILENAME",
-                "PHONE", "EMAIL", "ID_CARD", "BANK_CARD", "LANDLINE", "PLATE",
-                "IP_PRIVATE", "IP_INTERNAL", "IBAN", "USCC", "MAC", "HKID", "CUSTOM_TERM",
-              ] as FindingCategory[]
-            ).map((category) => (
-              <label key={category} className="flex cursor-pointer items-center justify-between gap-2 rounded-md border border-border/60 px-3 py-2">
-                <code className="font-mono text-xs">{category}</code>
-                <Checkbox
-                  checked={ruleToggles[category] !== false}
-                  onCheckedChange={() => toggleRule(category)}
-                  disabled={updating === "rule_toggles"}
-                />
-              </label>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Secret prefixes */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("settings.secretPrefixes")}</CardTitle>
-          <p className="text-xs text-muted-foreground">{t("settings.secretPrefixesDesc")}</p>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {secretPrefixes.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("settings.secretPrefixesEmpty")}</p>
-            ) : (
-              secretPrefixes.map((prefix, index) => (
-                <div key={index} className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
-                  <code className="font-mono text-sm">{prefix}</code>
-                  <button
-                    onClick={() => removeSecretPrefix(index)}
-                    disabled={updating === "secret_prefixes"}
-                    className="text-muted-foreground hover:text-destructive disabled:opacity-50"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))
-            )}
-            <div className="flex gap-2">
-              <Input
-                value={newSecretPrefix}
-                onChange={(e) => setNewSecretPrefix(e.target.value)}
-                placeholder={t("settings.secretPrefixPlaceholder")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") addSecretPrefix();
-                }}
-                disabled={updating === "secret_prefixes"}
-              />
-              <Button onClick={addSecretPrefix} disabled={updating === "secret_prefixes" || !newSecretPrefix.trim()}>
-                {t("settings.addSecretPrefix")}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Engine behavior */}
       <Card>
         <CardHeader>
@@ -531,7 +351,6 @@ export default function SettingsPage() {
             {[
               { key: "log_retention_days", label: t("settings.logRetentionDays") },
               { key: "max_body_mb", label: t("settings.maxBodyMb") },
-              { key: "secret_prefix_min_length", label: t("settings.secretPrefixMinLength") },
             ].map(({ key, label }) => {
               const config = editableConfigs[key];
               if (!config) return null;

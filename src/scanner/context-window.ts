@@ -1,20 +1,22 @@
-import type { Finding, HighRiskAssets } from "@/types";
+import type { Finding } from "@/types";
 import { scanSecrets, scanSecretPrefixes } from "./secrets";
 import { scanContextKey, locateSensitiveHits } from "./context-key";
 import { scanPii } from "./pii";
-import { locateHighRiskAssets, type AssetHit } from "./high-risk-assets";
-import { HIGH_RISK_ASSETS, CONTEXT_WINDOW_SIZE } from "@/config";
+import { CONTEXT_WINDOW_SIZE } from "@/config";
 
 export const CONTEXT_WINDOW = CONTEXT_WINDOW_SIZE.value;
 
-export function sliceWindow(text: string, hit: AssetHit, radius: number = CONTEXT_WINDOW_SIZE.value): string {
+interface WindowAnchor {
+  value: string;
+  start: number;
+  end: number;
+}
+
+export function sliceWindow(text: string, hit: WindowAnchor, radius: number = CONTEXT_WINDOW_SIZE.value): string {
   return text.slice(Math.max(0, hit.start - radius), Math.min(text.length, hit.end + radius));
 }
 
-export function scanContextWindows(
-  text: string,
-  assets: HighRiskAssets = HIGH_RISK_ASSETS
-): Finding[] {
+export function scanContextWindows(text: string): Finding[] {
   const allFindings: Finding[] = [];
   const seen = new Set<string>();
 
@@ -43,10 +45,8 @@ export function scanContextWindows(
   // 仅 PHONE/ID_CARD/BANK_CARD 全文扫描(用户确认保留);EMAIL 收窄到窗口锚点内
   push(scanPii(text).filter((f) => f.category !== "EMAIL"));
 
-  // 窗口锚点:白名单资产(domains/emails/accounts)+ 敏感键值对(secret/encoded key=value)
-  // 锚点命中后,窗口内扫描 secrets + context-key;endpoint/identity 键不再触发窗口
-  const sensitiveRanges: AssetHit[] = locateSensitiveHits(text).map((h) => ({ value: h.value, start: h.start, end: h.end }));
-  const hits: AssetHit[] = [...sensitiveRanges, ...locateHighRiskAssets(text, assets)];
+  // 窗口锚点:敏感键值对(secret/encoded key=value);高风险资产白名单已下线
+  const hits: WindowAnchor[] = locateSensitiveHits(text).map((h) => ({ value: h.value, start: h.start, end: h.end }));
 
   for (const hit of hits) {
     const window = sliceWindow(text, hit);

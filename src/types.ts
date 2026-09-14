@@ -42,14 +42,8 @@ export type Severity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 export const SEVERITY_ORDER: Record<Severity, number> = { LOW: 0, MEDIUM: 1, HIGH: 2, CRITICAL: 3 };
 
-export interface HighRiskAssets {
-  domains: string[];
-  emails: string[];
-  accounts: string[];
-}
-
 export type EditableConfigType = "number" | "string" | "json_array";
-export type EditableConfigValue = number | string | string[] | HighRiskAssets | Record<string, boolean>;
+export type EditableConfigValue = number | string | string[] | Record<string, boolean>;
 
 export interface EditableConfig {
   value: EditableConfigValue;

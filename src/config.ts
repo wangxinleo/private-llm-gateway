@@ -1,17 +1,9 @@
-import type { HighRiskAssets, FindingCategory, Severity } from "@/types";
-
-export type { HighRiskAssets } from "@/types";
+import type { FindingCategory, Severity } from "@/types";
 
 const UPSTREAM_URL = process.env.UPSTREAM_URL ?? "http://localhost:8787";
 const DB_PATH = process.env.DB_PATH ?? "audit.sqlite";
 const DEBUG = process.env.DEBUG === "true" || process.env.NODE_ENV !== "production";
 const SECRET_SCANNER_MODE = process.env.PRIVACY_SECRET_SCANNER_MODE === "strict" ? "strict" : "balanced";
-
-export const DEFAULT_HIGH_RISK_ASSETS: HighRiskAssets = {
-  domains: ["*.ccload.com", "*.gffunds.com"],
-  emails: [],
-  accounts: [],
-};
 
 // 内置规则默认启停:对齐 maskit 预设(IP_INTERNAL/USCC/MAC/HKID 默认关,防误报)
 export const DEFAULT_RULE_TOGGLES: Record<FindingCategory, boolean> = {
@@ -58,7 +50,6 @@ export const DEFAULT_CONFIG_VALUES = {
   CONTEXT_KEY_MAX_SPACES: 2,
   CONTEXT_WINDOW_SIZE: 200,
   PATH_PREFIX_OPTIONS: ["/v1/messages", "/v1/responses", "/v1beta"],
-  HIGH_RISK_ASSETS: DEFAULT_HIGH_RISK_ASSETS,
   RULE_TOGGLES: DEFAULT_RULE_TOGGLES,
   SECRET_PREFIXES: ["sk-"],
   SECRET_PREFIX_MIN_LENGTH: 8,
@@ -79,12 +70,6 @@ export const CONTEXT_KEY = {
 export const CONTEXT_WINDOW_SIZE = { value: DEFAULT_CONFIG_VALUES.CONTEXT_WINDOW_SIZE };
 
 export const PATH_PREFIX_OPTIONS: string[] = [...DEFAULT_CONFIG_VALUES.PATH_PREFIX_OPTIONS];
-
-export const HIGH_RISK_ASSETS: HighRiskAssets = {
-  domains: [...DEFAULT_HIGH_RISK_ASSETS.domains],
-  emails: [],
-  accounts: [],
-};
 
 export const SCANNER_RULES: Record<FindingCategory, boolean> = { ...DEFAULT_RULE_TOGGLES };
 

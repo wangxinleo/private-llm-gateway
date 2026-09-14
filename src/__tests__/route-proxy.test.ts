@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { HIGH_RISK_ASSETS } from "@/config";
 
 vi.mock("@/config-loader", () => ({
   initializeConfigs: vi.fn(),

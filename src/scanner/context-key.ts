@@ -474,7 +474,8 @@ export function locateSensitiveHits(text: string): SensitiveHit[] {
     if (group === "unknown") continue;
 
     const after = text.slice(re.lastIndex);
-    const valueMatch = after.match(/^\s*["']?([^"',}\]]+)/);
+    // 值只取紧随的连续 token(不含空白):贪婪吞空格会把后续文本整段圈进窗口锚点
+    const valueMatch = after.match(/^\s*["']?([^\s"',}\]]+)/);
     const value = valueMatch ? valueMatch[1].trim() : "";
     if (!value) continue;
 

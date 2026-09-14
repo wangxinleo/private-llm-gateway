@@ -35,7 +35,6 @@ vi.mock("@/config", () => ({
     MAX_SPACES: 2,
   },
   PATH_PREFIX_OPTIONS: ["/v1/messages", "/v1/responses", "/v1beta"],
-  HIGH_RISK_ASSETS: { domains: ["*.ccload.com", "*.gffunds.com"], emails: [], accounts: [] },
   CONTEXT_WINDOW_SIZE: { value: 200 },
   SCANNER_RULES: {},
   RUNTIME: {
@@ -110,7 +109,13 @@ describe("admin config and stats routes", () => {
           context_key_max_length: { value: 200, type: "number" },
           context_key_max_spaces: { value: 2, type: "number" },
           context_window_size: { value: 200, type: "number" },
-          high_risk_assets: { value: { domains: ["*.ccload.com", "*.gffunds.com"], emails: [], accounts: [] }, type: "json_array" },
+          rule_toggles: { value: {}, type: "json_array" },
+          secret_prefixes: { value: ["sk-"], type: "json_array" },
+          secret_prefix_min_length: { value: 8, type: "number" },
+          log_retention_days: { value: 7, type: "number" },
+          audit_severity_floor: { value: "MEDIUM", type: "string" },
+          fail_closed: { value: "1", type: "string" },
+          max_body_mb: { value: 32, type: "number" },
         },
         constants: {
           contextKey: { minLength: 8, maxLength: 200, maxSpaces: 2 },

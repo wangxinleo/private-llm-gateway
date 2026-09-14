@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDbStats, getAllConfigs, setConfig } from "@/audit";
 import { checkAdminAuth } from "@/lib/admin-auth";
-import { UPSTREAM_URL, DB_PATH, DEBUG, CONTEXT_KEY, PATH_PREFIX_OPTIONS, HIGH_RISK_ASSETS, CONTEXT_WINDOW_SIZE, SCANNER_RULES, RUNTIME } from "@/config";
+import { UPSTREAM_URL, DB_PATH, DEBUG, CONTEXT_KEY, PATH_PREFIX_OPTIONS, CONTEXT_WINDOW_SIZE, SCANNER_RULES, RUNTIME } from "@/config";
 import { initializeConfigs, refreshConfig } from "@/config-loader";
 import { Logger } from "@/log";
 import { statSync } from "fs";
@@ -39,7 +39,6 @@ export async function GET(request: Request) {
         context_key_max_length: { value: CONTEXT_KEY.MAX_LENGTH, type: "number", description: "Context key maximum length" },
         context_key_max_spaces: { value: CONTEXT_KEY.MAX_SPACES, type: "number", description: "Context key maximum spaces" },
         context_window_size: { value: CONTEXT_WINDOW_SIZE.value, type: "number", description: "Context scan window radius in characters" },
-        high_risk_assets: { value: HIGH_RISK_ASSETS, type: "json_array", description: "High-risk asset whitelist (domains/emails/accounts) whose context windows are scanned" },
         rule_toggles: { value: SCANNER_RULES, type: "json_array", description: "Per-category builtin rule toggles" },
         secret_prefixes: { value: RUNTIME.secretPrefixes, type: "json_array", description: "Custom secret prefixes treated as SECRET category" },
         secret_prefix_min_length: { value: RUNTIME.secretPrefixMinLen, type: "number", description: "Minimum ciphertext length after a secret prefix" },
@@ -88,7 +87,6 @@ export async function PUT(request: Request) {
       "context_key_max_length",
       "context_key_max_spaces",
       "context_window_size",
-      "high_risk_assets",
       "rule_toggles",
       "secret_prefixes",
       "secret_prefix_min_length",
@@ -115,22 +113,6 @@ export async function PUT(request: Request) {
       }
       type = "json_array";
       valueStr = JSON.stringify(value);
-    } else if (key === "high_risk_assets") {
-      if (!value || typeof value !== "object" || Array.isArray(value)) {
-        return NextResponse.json({ error: "high_risk_assets must be an object" }, { status: 400 });
-      }
-      const { domains, emails, accounts } = value as Record<string, unknown>;
-      for (const [field, arr] of [["domains", domains], ["emails", emails], ["accounts", accounts]] as const) {
-        if (arr !== undefined && (!Array.isArray(arr) || !arr.every(v => typeof v === "string"))) {
-          return NextResponse.json({ error: `high_risk_assets.${field} must be an array of strings` }, { status: 400 });
-        }
-      }
-      type = "json_array";
-      valueStr = JSON.stringify({
-        domains: Array.isArray(domains) ? domains : [],
-        emails: Array.isArray(emails) ? emails : [],
-        accounts: Array.isArray(accounts) ? accounts : [],
-      });
     } else if (key === "rule_toggles") {
       if (!value || typeof value !== "object" || Array.isArray(value)) {
         return NextResponse.json({ error: "rule_toggles must be an object" }, { status: 400 });
