@@ -170,22 +170,127 @@ export interface MaskResult {
   masked: string;
   replacementCount: number;
   registry?: MaskRegistry;
+  // 本次脱敏实际使用的 原文→占位符 对(供字节级 splice 复用)
+  pairs?: Map<string, string>;
 }
 
 const PLACEHOLDER_SPLIT_RE = new RegExp(`(${TAG_RE.source})`);
+const REGEX_SPECIALS = /[.*+?^${}()|[\]\\]/g;
 
-export function applyMasks(text: string, findings: Finding[], registry?: MaskRegistry): MaskResult {
+export function applyMasks(
+  text: string,
+  findings: Finding[],
+  registry?: MaskRegistry,
+  pairsOut?: Map<string, string>
+): MaskResult {
+  const maskFindings = findings.filter((f) => f.action === "mask" && f.maskTag && f.matched);
+  if (!text || maskFindings.length === 0) {
+    return { masked: text, replacementCount: 0, registry };
+  }
+
+  // 值→finding 去重(同值多类别时首个生效,与旧的"先替换者胜"语义一致)
+  const literalToFinding = new Map<string, Finding>();
+  const alts: string[] = [];
+  for (const f of maskFindings) {
+    if (literalToFinding.has(f.matched)) continue;
+    literalToFinding.set(f.matched, f);
+    alts.push(f.matched.replace(REGEX_SPECIALS, "\\$&"));
+  }
+  if (alts.length === 0) {
+    return { masked: text, replacementCount: 0, registry };
+  }
+
+  // 单遍合并替换(CosyRedactGateway span 模型 / maskit 合并 subn 的等价实现):
+  // 旧实现逐 finding includes+replaceAll 为 O(findings×text);合并 alternation 后整段文本只扫一遍。
+  // 最长优先:同一起点的包含关系(长词/短词同时命中)由长词胜出,短词不再劈开长值。
+  // 分段保护:占位符文法段(TAG_RE)不参与替换,防套娃/防劈开既有占位符语义保持。
+  // tagFor 保持惰性:只为文本中实际命中的值铸造占位符(与旧 includes 门槛语义一致)。
+  //
+  // alternation 规模上限:真实管线按叶子调用,去重后数量远低于此;超过则回退
+  // 逐条 includes 循环(巨型合并正则的编译代价反而成为瓶颈)。
+  if (alts.length <= 512) {
+    return applyMasksCombined(text, alts, literalToFinding, registry, pairsOut);
+  }
+  return applyMasksSequential(text, maskFindings, registry, pairsOut);
+}
+
+function applyMasksCombined(
+  text: string,
+  alts: string[],
+  literalToFinding: Map<string, Finding>,
+  registry?: MaskRegistry,
+  pairsOut?: Map<string, string>
+): MaskResult {
+  alts.sort((a, b) => b.length - a.length);
+  const combined = new RegExp(alts.join("|"), "g");
+
+  let replacementCount = 0;
+  const pairs = new Map<string, string>();
+  const segments = text.split(PLACEHOLDER_SPLIT_RE);
+  for (let i = 0; i < segments.length; i += 2) {
+    const segment = segments[i]!;
+    if (!segment) continue;
+    combined.lastIndex = 0;
+    const hits: Array<{ start: number; end: number; value: string }> = [];
+    let m: RegExpExecArray | null;
+    while ((m = combined.exec(segment)) !== null) {
+      const matched = m[0];
+      if (!matched) {
+        combined.lastIndex += 1;
+        continue;
+      }
+      hits.push({ start: m.index, end: m.index + matched.length, value: matched });
+    }
+    if (hits.length === 0) continue;
+
+    let out = "";
+    let at = 0;
+    for (const hit of hits) {
+      let tag = pairs.get(hit.value);
+      if (tag === undefined) {
+        const finding = literalToFinding.get(hit.value)!;
+        tag = registry ? registry.tagFor(finding.category, finding.matched, finding.shortCode) : finding.maskTag!;
+        if (tag === hit.value) {
+          // 防套娃:值本身是占位符文法且 tagFor 原样返回——原样保留
+          tag = hit.value;
+        }
+        pairs.set(hit.value, tag);
+      }
+      out += segment.slice(at, hit.start);
+      out += tag;
+      at = hit.end;
+      if (tag !== hit.value) replacementCount += 1;
+    }
+    segments[i] = out + segment.slice(at);
+  }
+  if (pairsOut) {
+    for (const [k, v] of pairs) pairsOut.set(k, v);
+  }
+  return { masked: segments.join(""), replacementCount, registry, pairs };
+}
+
+// 逐条回退路径(仅在单次调用超过 512 个去重值时使用)
+function applyMasksSequential(
+  text: string,
+  maskFindings: Finding[],
+  registry?: MaskRegistry,
+  pairsOut?: Map<string, string>
+): MaskResult {
   let result = text;
   let replacementCount = 0;
-  const maskFindings = findings.filter((f) => f.action === "mask" && f.maskTag);
+  const pairs = new Map<string, string>();
   for (const f of maskFindings) {
-    if (!f.maskTag || !result.includes(f.matched)) continue;
-    const tag = registry ? registry.tagFor(f.category, f.matched, f.shortCode) : f.maskTag;
+    if (!result.includes(f.matched)) continue;
+    const tag = registry ? registry.tagFor(f.category, f.matched, f.shortCode) : f.maskTag!;
     const applied = replaceOutsidePlaceholders(result, f.matched, tag);
     result = applied.text;
     replacementCount += applied.count;
+    if (tag !== f.matched) pairs.set(f.matched, tag);
   }
-  return { masked: result, replacementCount, registry };
+  if (pairsOut) {
+    for (const [k, v] of pairs) pairsOut.set(k, v);
+  }
+  return { masked: result, replacementCount, registry, pairs };
 }
 
 function replaceOutsidePlaceholders(text: string, matched: string, tag: string): { text: string; count: number } {

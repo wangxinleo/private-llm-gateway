@@ -54,42 +54,47 @@ const PRIVACY_MASK_TOKEN_RE = /<<PRIVACY_MASK:[A-Z_]+>>/g;
 interface Rule {
   category: Finding["category"];
   pattern: RegExp;
+  // keyword 预过滤(CosyRedactGateway 做法):任一关键字不出现在文本中就跳过该正则。
+  // ci=true 时对 toLowerCase 后的文本检查(大小写不敏感规则)。
+  // 只影响性能不影响正确性:关键字是匹配的必要条件,误报包含只会照常执行正则。
+  keywords?: string[];
+  ci?: boolean;
 }
 
 const STRONG_RULES: Rule[] = [
-  { category: "PRIVATE_KEY", pattern: PRIVATE_KEY_RE },
-  { category: "BEARER_TOKEN", pattern: BEARER_TOKEN_RE },
-  { category: "BASIC_AUTH", pattern: BASIC_AUTH_RE },
-  { category: "JWT", pattern: JWT_RE },
-  { category: "COOKIE_HEADER", pattern: COOKIE_HEADER_RE },
-  { category: "SET_COOKIE_HEADER", pattern: SET_COOKIE_HEADER_RE },
-  { category: "DB_URI", pattern: DB_URI_RE },
-  { category: "CONNECTION_STRING", pattern: URL_CREDENTIAL_RE },
-  { category: "CONNECTION_STRING", pattern: JDBC_CREDENTIAL_RE },
-  { category: "CONNECTION_STRING", pattern: CONNECTION_PASSWORD_PARAM_RE },
-  { category: "CONNECTION_STRING", pattern: AZURE_STORAGE_CONNECTION_RE },
-  { category: "AWS_ACCESS_KEY", pattern: AWS_KEY_RE },
-  { category: "GITHUB_TOKEN", pattern: GITHUB_TOKEN_RE },
-  { category: "DEVELOPER_TOKEN", pattern: GITLAB_TOKEN_RE },
-  { category: "DEVELOPER_TOKEN", pattern: NPM_TOKEN_RE },
-  { category: "DEVELOPER_TOKEN", pattern: PYPI_TOKEN_RE },
-  { category: "DEVELOPER_TOKEN", pattern: VERCEL_TOKEN_RE },
-  { category: "DEVELOPER_TOKEN", pattern: LINEAR_TOKEN_RE },
-  { category: "SLACK_TOKEN", pattern: SLACK_TOKEN_RE },
-  { category: "GOOGLE_API_KEY", pattern: GOOGLE_API_KEY_RE },
-  { category: "PROVIDER_API_KEY", pattern: OPENROUTER_TOKEN_RE },
-  { category: "PROVIDER_API_KEY", pattern: OPENAI_KEY_RE },
-  { category: "PROVIDER_API_KEY", pattern: ANTHROPIC_KEY_RE },
-  { category: "PROVIDER_API_KEY", pattern: HUGGINGFACE_TOKEN_RE },
-  { category: "PROVIDER_API_KEY", pattern: REPLICATE_TOKEN_RE },
-  { category: "PROVIDER_API_KEY", pattern: GROQ_TOKEN_RE },
-  { category: "PROVIDER_API_KEY", pattern: PERPLEXITY_TOKEN_RE },
-  { category: "CLOUD_CREDENTIAL", pattern: NETRC_CREDENTIAL_RE },
-  { category: "CLOUD_CREDENTIAL", pattern: CURL_USER_CREDENTIAL_RE },
-  { category: "BASE64_TOKEN", pattern: BASE64_TOKEN_RE },
-  { category: "STRIPE_KEY", pattern: STRIPE_KEY_RE },
-  { category: "SENDGRID_KEY", pattern: SENDGRID_KEY_RE },
-  { category: "CONTEXTUAL_SECRET", pattern: PRIVACY_MASK_TOKEN_RE },
+  { category: "PRIVATE_KEY", pattern: PRIVATE_KEY_RE, keywords: ["-----BEGIN"] },
+  { category: "BEARER_TOKEN", pattern: BEARER_TOKEN_RE, keywords: ["bearer"], ci: true },
+  { category: "BASIC_AUTH", pattern: BASIC_AUTH_RE, keywords: ["basic "], ci: true },
+  { category: "JWT", pattern: JWT_RE, keywords: ["eyJ"] },
+  { category: "COOKIE_HEADER", pattern: COOKIE_HEADER_RE, keywords: ["cookie:"], ci: true },
+  { category: "SET_COOKIE_HEADER", pattern: SET_COOKIE_HEADER_RE, keywords: ["set-cookie:"], ci: true },
+  { category: "DB_URI", pattern: DB_URI_RE, keywords: ["postgres://", "mysql://", "mongodb://", "redis://"], ci: true },
+  { category: "CONNECTION_STRING", pattern: URL_CREDENTIAL_RE, keywords: ["://"] },
+  { category: "CONNECTION_STRING", pattern: JDBC_CREDENTIAL_RE, keywords: ["jdbc:"], ci: true },
+  { category: "CONNECTION_STRING", pattern: CONNECTION_PASSWORD_PARAM_RE, keywords: ["://"] },
+  { category: "CONNECTION_STRING", pattern: AZURE_STORAGE_CONNECTION_RE, keywords: ["defaultendpointsprotocol"], ci: true },
+  { category: "AWS_ACCESS_KEY", pattern: AWS_KEY_RE, keywords: ["AKIA", "ASIA"] },
+  { category: "GITHUB_TOKEN", pattern: GITHUB_TOKEN_RE, keywords: ["ghp_", "gho_", "ghu_", "ghs_", "ghr_", "github_pat_"] },
+  { category: "DEVELOPER_TOKEN", pattern: GITLAB_TOKEN_RE, keywords: ["glpat-", "glrt-", "glcbt-", "glagent-"] },
+  { category: "DEVELOPER_TOKEN", pattern: NPM_TOKEN_RE, keywords: ["npm_"] },
+  { category: "DEVELOPER_TOKEN", pattern: PYPI_TOKEN_RE, keywords: ["pypi-"] },
+  { category: "DEVELOPER_TOKEN", pattern: VERCEL_TOKEN_RE, keywords: ["vercel_"] },
+  { category: "DEVELOPER_TOKEN", pattern: LINEAR_TOKEN_RE, keywords: ["lin_api_"] },
+  { category: "SLACK_TOKEN", pattern: SLACK_TOKEN_RE, keywords: ["xox"] },
+  { category: "GOOGLE_API_KEY", pattern: GOOGLE_API_KEY_RE, keywords: ["AIza"] },
+  { category: "PROVIDER_API_KEY", pattern: OPENROUTER_TOKEN_RE, keywords: ["sk-or-v1-"] },
+  { category: "PROVIDER_API_KEY", pattern: OPENAI_KEY_RE, keywords: ["sk-"] },
+  { category: "PROVIDER_API_KEY", pattern: ANTHROPIC_KEY_RE, keywords: ["sk-ant-"] },
+  { category: "PROVIDER_API_KEY", pattern: HUGGINGFACE_TOKEN_RE, keywords: ["hf_"] },
+  { category: "PROVIDER_API_KEY", pattern: REPLICATE_TOKEN_RE, keywords: ["r8_"] },
+  { category: "PROVIDER_API_KEY", pattern: GROQ_TOKEN_RE, keywords: ["gsk_"] },
+  { category: "PROVIDER_API_KEY", pattern: PERPLEXITY_TOKEN_RE, keywords: ["pplx-"] },
+  { category: "CLOUD_CREDENTIAL", pattern: NETRC_CREDENTIAL_RE, keywords: ["password"], ci: true },
+  { category: "CLOUD_CREDENTIAL", pattern: CURL_USER_CREDENTIAL_RE, keywords: ["-u", "--user"], ci: true },
+  { category: "BASE64_TOKEN", pattern: BASE64_TOKEN_RE, keywords: ["eyJ"] },
+  { category: "STRIPE_KEY", pattern: STRIPE_KEY_RE, keywords: ["sk_live_", "sk_test_"] },
+  { category: "SENDGRID_KEY", pattern: SENDGRID_KEY_RE, keywords: ["SG."] },
+  { category: "CONTEXTUAL_SECRET", pattern: PRIVACY_MASK_TOKEN_RE, keywords: ["<<PRIVACY_MASK:"] },
 ];
 
 interface IndexedFinding {
@@ -158,8 +163,16 @@ function pruneOverlappingSameCategoryFindings(indexed: IndexedFinding[]): Indexe
 
 export function scanSecrets(text: string): Finding[] {
   const seen = new Set<string>();
+  // keyword 预过滤:大小写不敏感规则对 lowercase 文本检查,其余对原文检查。
+  // lowercase 惰性计算:存在任一 ci 规则命中必要条件时才需要,这里一次性算好(单遍 C 级扫描)。
+  const lower = text.toLowerCase();
   const indexed = STRONG_RULES
-    .filter((rule) => isRuleEnabled(rule.category))
+    .filter((rule) => {
+      if (!isRuleEnabled(rule.category)) return false;
+      if (!rule.keywords) return true;
+      const haystack = rule.ci ? lower : text;
+      return rule.keywords.some((k) => haystack.includes(k));
+    })
     .flatMap((rule) => collectRuleFindings(rule, text, seen));
   const pruned = pruneContainedBase64JwtFindings(pruneOverlappingSameCategoryFindings(indexed));
 

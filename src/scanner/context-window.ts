@@ -48,8 +48,25 @@ export function scanContextWindows(text: string): Finding[] {
   // 窗口锚点:敏感键值对(secret/encoded key=value);高风险资产白名单已下线
   const hits: WindowAnchor[] = locateSensitiveHits(text).map((h) => ({ value: h.value, start: h.start, end: h.end }));
 
-  for (const hit of hits) {
-    const window = sliceWindow(text, hit);
+  // 区间合并:相邻/重叠锚点的窗口合并为一次扫描。
+  // 密集锚点(文件内容里连续 api_key=/token= 行)原本产生上百个高度重叠的窗口,
+  // 对同一片文本反复跑 secrets/context-key;合并后扫描区域 = 窗口并集,隐私语义不变。
+  const radius = CONTEXT_WINDOW_SIZE.value;
+  const ranges = hits
+    .map((h) => ({ lo: Math.max(0, h.start - radius), hi: Math.min(text.length, h.end + radius) }))
+    .sort((a, b) => a.lo - b.lo);
+  const merged: Array<{ lo: number; hi: number }> = [];
+  for (const r of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && r.lo <= last.hi) {
+      last.hi = Math.max(last.hi, r.hi);
+    } else {
+      merged.push({ ...r });
+    }
+  }
+
+  for (const range of merged) {
+    const window = text.slice(range.lo, range.hi);
     push(scanPii(window).filter((f) => f.category === "EMAIL"));
     push(scanSecrets(window).filter((f) => f.category !== "BASIC_AUTH"));
     push(scanContextKey(window));
