@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 15
-- **Last Active**: 2026-09-11
+- **Total Sessions**: 16
+- **Last Active**: 2026-09-14
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~559 | Active |
+| `journal-1.md` | ~641 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 16 | 2026-09-14 | Maskit 差距补充 P1-P6、高风险资产下线、扫描替换性能优化 O1+O2 | `94d5fa3`, `5529225`, `bda7a0f`, `3417e5c`, `4a039e0`, `749298a`, `828d95f`, `d635acc`, `8851750`, `52aa04b` | `master` |
 | 15 | 2026-09-11 | 下行还原收尾:130 值全链路压测 + 悬挂括号标签泄漏修复 | `9d37b08` | `master` |
 | 14 | 2026-08-14 | 补齐扫描性能任务体系与 span 架构规划 | - | `master` |
 | 13 | 2026-08-07 | 白名单锚点窗口内无条件严格扫描 | `8af1dbb`, `f0e3e24`, `fc25047`, `8fbda95` | `master` |

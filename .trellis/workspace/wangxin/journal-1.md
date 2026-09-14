@@ -597,3 +597,45 @@ Completed Stage B/C/D scanner expansion with provider, developer, cloud, connect
 ### Next Steps
 
 - 用户确认后提交前端改动(scanner/在途文件请勿混入本次 commit)
+
+
+## Session 16: Maskit 差距补充 P1-P6、高风险资产下线、扫描替换性能优化 O1+O2
+
+**Date**: 2026-09-14
+**Task**: Maskit 差距补充 P1-P6、高风险资产下线、扫描替换性能优化 O1+O2
+**Branch**: `master`
+
+### Summary
+
+对照 maskit 全功能差距评审并完成四组补充:规则库强化(34 类开关+8 类 PII+keyword 预过滤+短 Key 修正)、自定义词库(+.env 导入,内容版本缓存)、Token 用量剔除后聚焦隐私本职;流式还原协议硬化(语义通道键 chat choice.index/Anthropic 块 index/Responses output_index+content_index、终态通道级 flush、.done 快照清理,修复 event: 行整帧不还原与扁平信封共享通道两个现存缺陷);响应侧被动安全分析(SCAN_WARN+5 信号只记录不阻断);留存 TTL/fail_closed/413/Origin 校验。下线高风险资产白名单(与词库重复),规则开关与前缀 UI 并入词库页,修复 locateSensitiveHits 值贪婪吞空格与 Radix checkbox bubble input 双滚动条。性能:参照 CosyRedactGateway span 单遍模型与 maskit 字节级 splice,applyMasks 单遍合并替换(O(F×text)→线性)、mask 路径字节级 splice+深等价校验(保上游 Prompt Cache 前缀)、allow 路径零重序列化、窗口区间合并;病态 1.2MB/11k findings 2334→1001ms,真实 1MB/200 findings 427ms,80KB 27ms,端到端 1MB 66ms。RE2 撤销(lookaround 不兼容,两参照项目均用回溯引擎+有界纪律)。全部桌面验证通过,458 vitest 绿。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `94d5fa3` | (see git log) |
+| `5529225` | (see git log) |
+| `bda7a0f` | (see git log) |
+| `3417e5c` | (see git log) |
+| `4a039e0` | (see git log) |
+| `749298a` | (see git log) |
+| `828d95f` | (see git log) |
+| `d635acc` | (see git log) |
+| `8851750` | (see git log) |
+| `52aa04b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
