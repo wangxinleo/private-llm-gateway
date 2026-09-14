@@ -14,7 +14,7 @@ export function logAudit(params: {
   scanResult?: ScanResult;
   bypassApplied?: boolean;
   duration?: number;
-}): void {
+}): number {
   const matchedValues = params.findings.reduce<Record<string, string[]>>((acc, finding) => {
     const values = acc[finding.category] ?? [];
     values.push(finding.matched);
@@ -66,4 +66,6 @@ export function logAudit(params: {
     bypassApplied: entry.bypassApplied,
     duration: entry.duration,
   });
+
+  return id;
 }

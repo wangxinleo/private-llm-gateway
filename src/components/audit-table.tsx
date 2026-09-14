@@ -25,6 +25,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import type { SignalRow } from "@/audit/signals-store";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { OverflowBadges } from "@/components/overflow-badges";
@@ -228,6 +229,7 @@ export function AuditTable() {
   const [loading, setLoading] = useState(true);
   const [allTotal, setAllTotal] = useState<number | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [signalsByAudit, setSignalsByAudit] = useState<Map<number, SignalRow[]>>(new Map());
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
@@ -489,7 +491,18 @@ export function AuditTable() {
   }, []);
 
   const toggleExpand = (id: number) => {
-    setExpandedIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setExpandedIds((prev) => {
+      const n = new Set(prev);
+      const willExpand = !n.has(id);
+      n.has(id) ? n.delete(id) : n.add(id);
+      if (willExpand && !signalsByAudit.has(id)) {
+        authedFetch(`/api/admin/signals?audit_id=${id}`)
+          .then((res) => (res.ok ? res.json() : { rows: [] }))
+          .then((json) => setSignalsByAudit((prev) => new Map(prev).set(id, Array.isArray(json.rows) ? json.rows : [])))
+          .catch(() => setSignalsByAudit((prev) => new Map(prev).set(id, [])));
+      }
+      return n;
+    });
   };
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -775,6 +788,18 @@ export function AuditTable() {
                                 {findingSummaries.map((summary) => (
                                   <Badge key={summary.item} variant={getFindingVariant(summary.item)} className="shrink-0 whitespace-nowrap font-mono text-xs">
                                     {formatSummaryLabel(summary)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {(signalsByAudit.get(row.id)?.length ?? 0) > 0 && (
+                            <div className="mt-3 min-w-0">
+                              <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t("audit.signalsLabel")}</p>
+                              <div className="flex max-h-24 min-w-0 flex-wrap gap-1.5 overflow-y-auto overflow-x-hidden rounded-md border border-border/40 bg-muted/20 p-2">
+                                {signalsByAudit.get(row.id)!.map((sig) => (
+                                  <Badge key={sig.id} variant={sig.severity === "CRITICAL" || sig.severity === "HIGH" ? "destructive" : sig.severity === "MEDIUM" ? "warning" : "outline"} className="shrink-0 whitespace-nowrap font-mono text-xs">
+                                    {sig.signal} · {sig.severity}
                                   </Badge>
                                 ))}
                               </div>

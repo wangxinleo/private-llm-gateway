@@ -9,8 +9,10 @@ import { blockedResponse } from "@/engine/policy";
 import { forwardRequest } from "@/proxy/forwarder";
 import { createStreamingResponse } from "@/proxy/streaming";
 import { SseChannelRestorer, restoreText } from "@/proxy/restore";
+import { analyzeResponse, StreamResponseAnalyzer } from "@/proxy/response-analysis";
 import { applyDisambiguation } from "@/proxy/disambiguation";
 import { logAudit } from "@/audit/logger";
+import { insertSignals } from "@/audit/signals-store";
 import { Logger } from "@/log";
 import { PRIVACY_DEBUG_HEADERS, PRIVACY_MASK_FORMAT, RUNTIME } from "@/config";
 import { initializeConfigs } from "@/config-loader";
@@ -102,15 +104,41 @@ function runScanProtected(operation: string, scan: () => ScanResult): ScanResult
 async function finalizeUpstream(
   upstream: Response,
   registry: MaskRegistry | undefined,
-  maskSummary: MaskSummary
+  maskSummary: MaskSummary,
+  analysis?: { auditId: number; requestModel?: string }
 ): Promise<Response> {
-  if (!registry || registry.size === 0) return upstream;
   const contentType = upstream.headers.get("content-type") ?? "";
+  const hasRegistry = !!(registry && registry.size > 0);
+
   if (contentType.includes("text/event-stream")) {
-    return createStreamingResponse(upstream, new SseChannelRestorer(registry));
+    if (!hasRegistry) return upstream;
+    const restorer = new SseChannelRestorer(registry);
+    const analyzer = analysis
+      ? new StreamResponseAnalyzer(
+          { status: upstream.status, forwardValues: [...registry!.tagToValue.values()], requestModel: analysis.requestModel },
+          analysis.auditId
+        )
+      : undefined;
+    return createStreamingResponse(upstream, restorer, analyzer);
   }
   if (!upstream.body || isBinaryContentType(contentType)) return upstream;
-  const restored = restoreText(await upstream.text(), registry);
+  // 还原与响应分析共用这次全文读取;两者都不需要时保持零拷贝透传
+  if (!hasRegistry && !analysis) return upstream;
+
+  const raw = await upstream.text();
+  const restored = hasRegistry ? restoreText(raw, registry!) : raw;
+  if (analysis) {
+    insertSignals(
+      analysis.auditId,
+      analyzeResponse({
+        status: upstream.status,
+        text: restored,
+        forwardValues: [...registry!.tagToValue.values()],
+        requestModel: analysis.requestModel,
+      })
+    );
+  }
+
   const headers = new Headers(upstream.headers);
   headers.delete("content-length");
   if (PRIVACY_DEBUG_HEADERS && maskSummary.applied) {
@@ -283,7 +311,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     log.info(`${method} ${path} | action: ${result.action} | hits: ${hitCategories || "none"} | ${durationMs.toFixed(2)}ms`);
   }
 
-  logAudit({
+  const auditId = logAudit({
     path,
     method,
     contentType,
@@ -300,7 +328,6 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     const blocked = blockedResponse(result.findings);
     return Response.json(blocked.body, { status: blocked.status });
   }
-
   try {
     let forwardBody: BodyInit | undefined;
     if (multipart) {
@@ -321,7 +348,8 @@ async function handleRequest(request: NextRequest): Promise<Response> {
       forwardBody
     );
 
-    return finalizeUpstream(upstream, registry, result.maskSummary);
+    // legacy 格式(registry undefined)不做响应分析(R3.6)
+    return finalizeUpstream(upstream, registry, result.maskSummary, registry ? { auditId, requestModel: model } : undefined);
   } catch (err) {
     const cause = err instanceof Error && "cause" in err ? (err.cause as Error) : undefined;
     const code = cause && "code" in cause ? (cause as { code: string }).code : undefined;

@@ -6,9 +6,11 @@ import { OverflowBadges } from "@/components/overflow-badges";
 import { useLocale } from "@/i18n";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import { formatSummaryLabel, getFindingVariant, summarizeItems } from "@/lib/finding-summary";
-import { ShieldAlert, Eye, CheckCircle, Activity } from "lucide-react";
+import { ShieldAlert, Eye, CheckCircle, Activity, Radar } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+
+type SeverityCounts = { LOW: number; MEDIUM: number; HIGH: number; CRITICAL: number };
 
 function StatCard({ title, value, icon: Icon, color }: { title: string; value: number; icon: React.ComponentType<{ className?: string }>; color: string }) {
   return (
@@ -48,16 +50,19 @@ export function DashboardContent() {
   const { authedFetch } = useAdminAuth();
   const [stats, setStats] = useState<Stats>({ total: 0, blocked: 0, masked: 0, allowed: 0 });
   const [recentBlocked, setRecentBlocked] = useState<AuditRow[]>([]);
+  const [signalCounts, setSignalCounts] = useState<SeverityCounts | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const [statsRes, blockRes, maskRes] = await Promise.all([
+        const [statsRes, blockRes, maskRes, signalRes] = await Promise.all([
           authedFetch("/api/admin/stats"),
           authedFetch("/api/admin/audit?limit=10&action=block"),
           authedFetch("/api/admin/audit?limit=10&action=mask"),
+          authedFetch("/api/admin/signals?summary=1&hours=24"),
         ]);
         if (statsRes.ok) setStats(await statsRes.json());
+        if (signalRes.ok) setSignalCounts((await signalRes.json()).counts ?? null);
 
         // Merge block and mask records
         const blockRows = blockRes.ok ? (await blockRes.json()).rows ?? [] : [];
@@ -80,6 +85,27 @@ export function DashboardContent() {
         <StatCard title={t("overview.masked")} value={stats.masked} icon={Eye} color="text-warning" />
         <StatCard title={t("overview.allowed")} value={stats.allowed} icon={CheckCircle} color="text-success" />
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">{t("overview.signalCounts")}</CardTitle>
+          <Radar className="h-4 w-4 text-primary" />
+        </CardHeader>
+        <CardContent>
+          {signalCounts ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {(["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const).map((severity) => (
+                <Badge key={severity} variant={severity === "CRITICAL" || severity === "HIGH" ? "destructive" : severity === "MEDIUM" ? "warning" : "outline"} className="font-mono text-xs">
+                  {severity} · {(signalCounts[severity] ?? 0).toLocaleString()}
+                </Badge>
+              ))}
+              <span className="text-xs text-muted-foreground">{t("overview.signalWindow")}</span>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">{t("overview.signalEmpty")}</p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between gap-4">

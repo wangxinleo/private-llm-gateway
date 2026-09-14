@@ -1,6 +1,11 @@
 import type { SseChannelRestorer } from "./restore";
+import type { StreamResponseAnalyzer } from "./response-analysis";
 
-export function createStreamingResponse(upstream: Response, restorer?: SseChannelRestorer): Response {
+export function createStreamingResponse(
+  upstream: Response,
+  restorer?: SseChannelRestorer,
+  analyzer?: StreamResponseAnalyzer
+): Response {
   const headers = new Headers(upstream.headers);
   headers.delete("content-encoding");
   headers.delete("content-length");
@@ -21,8 +26,12 @@ export function createStreamingResponse(upstream: Response, restorer?: SseChanne
           if (done) {
             if (restorer) {
               const tail = restorer.flush();
-              if (tail) controller.enqueue(encoder.encode(tail));
+              if (tail) {
+                analyzer?.observe(tail);
+                controller.enqueue(encoder.encode(tail));
+              }
             }
+            analyzer?.finish();
             controller.close();
             return;
           }
@@ -34,6 +43,7 @@ export function createStreamingResponse(upstream: Response, restorer?: SseChanne
           if (!decoded) continue;
           const frames = restorer.pushBytes(decoded);
           if (frames) {
+            analyzer?.observe(frames);
             controller.enqueue(encoder.encode(frames));
             return;
           }

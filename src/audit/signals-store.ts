@@ -19,13 +19,15 @@ export function insertSignals(auditId: number | null, signals: AuditSignal[]): n
   const db = getDb();
   const stmt = db.prepare(INSERT_SQL);
   const ts = new Date().toISOString();
+  const filtered = signals.filter((s) => isAboveSeverityFloor(s.severity));
+  if (filtered.length === 0) return 0;
   const tx = db.transaction((rows: AuditSignal[]) => {
     for (const s of rows) {
       stmt.run(ts, auditId, s.signal, s.severity, JSON.stringify(s.detail ?? {}));
     }
   });
-  tx(signals);
-  return signals.length;
+  tx(filtered);
+  return filtered.length;
 }
 
 export interface SignalRow {
