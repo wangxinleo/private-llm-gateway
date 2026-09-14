@@ -242,7 +242,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <SidebarNavItems collapsed={false} />
         </nav>
 
-        <main id="main-content" className="min-h-0 flex-1 overflow-y-auto">
+        {/* relative:Radix Checkbox 隐藏 bubble input 的包含块,防止其逃逸到 html 撑出第二条滚动条 */}
+        <main id="main-content" className="relative min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto h-full w-full max-w-[1200px] p-4 md:p-6">{children}</div>
         </main>
       </div>
