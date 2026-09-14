@@ -1,4 +1,4 @@
-import type { HighRiskAssets } from "@/types";
+import type { HighRiskAssets, FindingCategory, Severity } from "@/types";
 
 export type { HighRiskAssets } from "@/types";
 
@@ -13,6 +13,43 @@ export const DEFAULT_HIGH_RISK_ASSETS: HighRiskAssets = {
   accounts: [],
 };
 
+// 内置规则默认启停:对齐 maskit 预设(IP_INTERNAL/USCC/MAC/HKID 默认关,防误报)
+export const DEFAULT_RULE_TOGGLES: Record<FindingCategory, boolean> = {
+  PRIVATE_KEY: true,
+  BEARER_TOKEN: true,
+  BASIC_AUTH: true,
+  JWT: true,
+  COOKIE_HEADER: true,
+  SET_COOKIE_HEADER: true,
+  DB_URI: true,
+  AWS_ACCESS_KEY: true,
+  GITHUB_TOKEN: true,
+  DEVELOPER_TOKEN: true,
+  SLACK_TOKEN: true,
+  GOOGLE_API_KEY: true,
+  PROVIDER_API_KEY: true,
+  CLOUD_CREDENTIAL: true,
+  CONNECTION_STRING: true,
+  ENCODED_SECRET: true,
+  BASE64_TOKEN: true,
+  STRIPE_KEY: true,
+  SENDGRID_KEY: true,
+  CONTEXTUAL_SECRET: true,
+  SENSITIVE_FILENAME: true,
+  PHONE: true,
+  EMAIL: true,
+  ID_CARD: true,
+  BANK_CARD: true,
+  LANDLINE: true,
+  PLATE: true,
+  IP_PRIVATE: true,
+  IP_INTERNAL: false,
+  IBAN: true,
+  USCC: false,
+  MAC: false,
+  HKID: false,
+};
+
 // Default values for hot-reloadable configs
 export const DEFAULT_CONFIG_VALUES = {
   CONTEXT_KEY_MIN_LENGTH: 8,
@@ -21,6 +58,13 @@ export const DEFAULT_CONFIG_VALUES = {
   CONTEXT_WINDOW_SIZE: 200,
   PATH_PREFIX_OPTIONS: ["/v1/messages", "/v1/responses", "/v1beta"],
   HIGH_RISK_ASSETS: DEFAULT_HIGH_RISK_ASSETS,
+  RULE_TOGGLES: DEFAULT_RULE_TOGGLES,
+  SECRET_PREFIXES: ["sk-"],
+  SECRET_PREFIX_MIN_LENGTH: 8,
+  LOG_RETENTION_DAYS: 7,
+  AUDIT_SEVERITY_FLOOR: "MEDIUM",
+  FAIL_CLOSED: "1",
+  MAX_BODY_MB: 32,
 };
 
 // Hot-reloadable config state (wrapped in objects to allow mutation)
@@ -39,6 +83,18 @@ export const HIGH_RISK_ASSETS: HighRiskAssets = {
   domains: [...DEFAULT_HIGH_RISK_ASSETS.domains],
   emails: [],
   accounts: [],
+};
+
+export const SCANNER_RULES: Record<FindingCategory, boolean> = { ...DEFAULT_RULE_TOGGLES };
+
+// 引擎级运行时开关(热加载):fail_closed/max_body_mb/留存/信号阈值/自定义前缀
+export const RUNTIME = {
+  failClosed: true,
+  maxBodyBytes: DEFAULT_CONFIG_VALUES.MAX_BODY_MB * 1024 * 1024,
+  logRetentionDays: DEFAULT_CONFIG_VALUES.LOG_RETENTION_DAYS,
+  severityFloor: DEFAULT_CONFIG_VALUES.AUDIT_SEVERITY_FLOOR as Severity,
+  secretPrefixes: [...DEFAULT_CONFIG_VALUES.SECRET_PREFIXES],
+  secretPrefixMinLen: DEFAULT_CONFIG_VALUES.SECRET_PREFIX_MIN_LENGTH,
 };
 
 const PRIVACY_MASK_FORMAT = process.env.PRIVACY_MASK_FORMAT === "legacy" ? "legacy" : "semantic";

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import type { Finding, MaskSummary } from "@/types";
+import type { Finding, MaskSummary, ScanResult } from "@/types";
 import { runPipeline } from "@/scanner/pipeline";
 import { MaskRegistry } from "@/scanner/mask-registry";
 import { isJsonContentType, maskJsonBody } from "@/scanner/json-mask";
@@ -12,8 +12,9 @@ import { SseChannelRestorer, restoreText } from "@/proxy/restore";
 import { applyDisambiguation } from "@/proxy/disambiguation";
 import { logAudit } from "@/audit/logger";
 import { Logger } from "@/log";
-import { PRIVACY_DEBUG_HEADERS, PRIVACY_MASK_FORMAT } from "@/config";
+import { PRIVACY_DEBUG_HEADERS, PRIVACY_MASK_FORMAT, RUNTIME } from "@/config";
 import { initializeConfigs } from "@/config-loader";
+import { initRetentionScheduler } from "@/audit/retention";
 import { findMatchingBypassRule } from "@/bypass/store";
 import { extractRequestModel } from "@/bypass/rules";
 
@@ -76,6 +77,28 @@ function isBinaryContentType(contentType: string): boolean {
   return /^(?:image|audio|video)\//.test(contentType) || contentType.includes("application/octet-stream");
 }
 
+function isTooLarge(contentLength: string | null): boolean {
+  const declared = parseInt(contentLength ?? "0", 10);
+  return Number.isFinite(declared) && declared > RUNTIME.maxBodyBytes;
+}
+
+function tooLargeResponse(): Response {
+  return Response.json({ error: "payload_too_large" }, { status: 413 });
+}
+
+// 扫描/脱敏异常的受控处理:fail_closed → 503 拒绝出网;fail-open → 返回 null 由调用方放行原文
+function runScanProtected(operation: string, scan: () => ScanResult): ScanResult | Response | null {
+  try {
+    return scan();
+  } catch (err) {
+    log.error(`${operation} scan failed: ${err instanceof Error ? err.message : String(err)}`);
+    if (RUNTIME.failClosed) {
+      return Response.json({ error: "mask_failed" }, { status: 503 });
+    }
+    return null;
+  }
+}
+
 async function finalizeUpstream(
   upstream: Response,
   registry: MaskRegistry | undefined,
@@ -120,10 +143,15 @@ export async function DELETE(request: NextRequest) {
 async function handleRequest(request: NextRequest): Promise<Response> {
   const startTime = performance.now();
   initializeConfigs();
+  initRetentionScheduler();
   const path = extractPath(request);
   const method = request.method;
   const contentType = request.headers.get("content-type") ?? "";
   const multipart = isMultipart(contentType);
+  if (isTooLarge(request.headers.get("content-length"))) {
+    log.warn(`${method} ${path} | rejected: payload_too_large (content-length)`);
+    return tooLargeResponse();
+  }
   // legacy 格式歧义不可还原(R7):不分配实例映射,连带禁用响应还原与指令注入
   const registry = PRIVACY_MASK_FORMAT === "legacy" ? undefined : new MaskRegistry();
 
@@ -137,6 +165,10 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     bodyText = extracted.text;
     filenames = extracted.filenames;
     bodySize = extracted.size;
+    if (bodySize > RUNTIME.maxBodyBytes) {
+      log.warn(`${method} ${path} | rejected: payload_too_large (${bodySize} bytes)`);
+      return tooLargeResponse();
+    }
   }
 
   const model = !multipart && bodyText ? extractRequestModel(bodyText) ?? undefined : undefined;
@@ -150,11 +182,16 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     : null;
 
   if (bypassRule) {
+    let bypassResult: ScanResult | null = null;
     if (hasBody && !multipart) {
       const scanFn = (text: string, size: number) => runPipeline(text, size, filenames);
-      const bypassResult = isJsonContentType(contentType)
-        ? maskJsonBody(bodyText, scanFn)
-        : runPipeline(bodyText, bodySize, filenames);
+      const outcome = runScanProtected("bypass", () =>
+        isJsonContentType(contentType) ? maskJsonBody(bodyText, scanFn) : runPipeline(bodyText, bodySize, filenames)
+      );
+      if (outcome instanceof Response) return outcome;
+      bypassResult = outcome;
+    }
+    if (bypassResult) {
       const bypassHitCategories = bypassResult.findings.map(f => f.category).join(", ");
       const bypassDurationMs = performance.now() - startTime;
       log.info(`${method} ${path} | action: allow (bypass) | hits: ${bypassHitCategories || "none"} | ${bypassDurationMs.toFixed(2)}ms`);
@@ -218,11 +255,26 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     bodyText = extracted.text;
     filenames = extracted.filenames;
     bodySize = extracted.size;
+    if (bodySize > RUNTIME.maxBodyBytes) {
+      log.warn(`${method} ${path} | rejected: payload_too_large (${bodySize} bytes)`);
+      return tooLargeResponse();
+    }
   }
 
-  const result = isJsonContentType(contentType) && !multipart
-    ? maskJsonBody(bodyText, scanFn, registry)
-    : runPipeline(bodyText, bodySize, filenames, registry);
+  const scanOutcome = runScanProtected("request", () =>
+    isJsonContentType(contentType) && !multipart
+      ? maskJsonBody(bodyText, scanFn, registry)
+      : runPipeline(bodyText, bodySize, filenames, registry)
+  );
+  if (scanOutcome instanceof Response) return scanOutcome;
+  // fail-open:放行原文并按 allow 留痕(无 findings 可记)
+  const result: ScanResult = scanOutcome ?? {
+    findings: [],
+    maskedBody: bodyText,
+    action: "allow",
+    maskSummary: { applied: false, categories: [], replacementCount: 0 },
+    registry,
+  };
 
   const hitCategories = result.findings.map(f => f.category).join(", ");
   const durationMs = performance.now() - startTime;

@@ -10,6 +10,10 @@ vi.mock("@/audit/logger", () => ({
   logAudit: vi.fn(),
 }));
 
+vi.mock("@/audit/retention", () => ({
+  initRetentionScheduler: vi.fn(),
+}));
+
 import { forwardRequest } from "@/proxy/forwarder";
 
 const mockForward = vi.mocked(forwardRequest);

@@ -1,0 +1,2 @@
+{"file": ".trellis/tasks/09-11-maskit-feature-gap-review/prd.md", "reason": "Verify against AC1-AC8 and exclusions (no usage stats, no multi-channel, passive signals only, no price table)"}
+{"file": ".trellis/tasks/09-11-maskit-feature-gap-review/design.md", "reason": "Check trade-offs (section 8) and rollback constraints (section 9): nullable new columns, fallbackPath = current behavior, escape hatches for fail_closed and origin check"}

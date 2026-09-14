@@ -38,6 +38,14 @@ export const CATEGORY_SHORTCODES: Readonly<Record<FindingCategory, string>> = {
   EMAIL: "EMAIL",
   ID_CARD: "ID_CARD",
   BANK_CARD: "BANK_CARD",
+  LANDLINE: "LANDLINE",
+  PLATE: "PLATE",
+  IP_PRIVATE: "IPPRIVATE",
+  IP_INTERNAL: "IPINTERN",
+  IBAN: "IBAN",
+  USCC: "USCC",
+  MAC: "MAC",
+  HKID: "HKID",
 };
 
 export function categoryShortCode(category: FindingCategory): string {

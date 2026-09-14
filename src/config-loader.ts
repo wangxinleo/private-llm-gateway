@@ -1,6 +1,6 @@
 import { getConfig, setConfig, getAllConfigs } from "@/audit";
-import { CONTEXT_KEY, PATH_PREFIX_OPTIONS, HIGH_RISK_ASSETS, CONTEXT_WINDOW_SIZE, DEFAULT_CONFIG_VALUES } from "@/config";
-import type { EditableConfigType, HighRiskAssets } from "@/types";
+import { CONTEXT_KEY, PATH_PREFIX_OPTIONS, HIGH_RISK_ASSETS, CONTEXT_WINDOW_SIZE, DEFAULT_CONFIG_VALUES, SCANNER_RULES, RUNTIME } from "@/config";
+import type { EditableConfigType, HighRiskAssets, Severity, FindingCategory } from "@/types";
 import { Logger } from "@/log";
 
 let configsInitialized = false;
@@ -42,6 +42,28 @@ export function initializeConfigs(): void {
     HIGH_RISK_ASSETS.domains = Array.isArray(loadedAssets.domains) ? loadedAssets.domains : [];
     HIGH_RISK_ASSETS.emails = Array.isArray(loadedAssets.emails) ? loadedAssets.emails : [];
     HIGH_RISK_ASSETS.accounts = Array.isArray(loadedAssets.accounts) ? loadedAssets.accounts : [];
+
+    const loadedToggles = loadOrInit(
+      "rule_toggles",
+      DEFAULT_CONFIG_VALUES.RULE_TOGGLES as Record<string, boolean>,
+      "json_array",
+      "Per-category builtin rule toggles"
+    );
+    for (const [key, value] of Object.entries(loadedToggles)) {
+      if (typeof value === "boolean" && key in SCANNER_RULES) {
+        SCANNER_RULES[key as FindingCategory] = value;
+      }
+    }
+
+    const loadedPrefixes = loadOrInit("secret_prefixes", DEFAULT_CONFIG_VALUES.SECRET_PREFIXES, "json_array", "Custom secret prefixes treated as SECRET category");
+    RUNTIME.secretPrefixes = loadedPrefixes.filter((p) => typeof p === "string" && p.length > 0);
+    RUNTIME.secretPrefixMinLen = loadOrInit("secret_prefix_min_length", DEFAULT_CONFIG_VALUES.SECRET_PREFIX_MIN_LENGTH, "number", "Minimum ciphertext length after a secret prefix");
+    RUNTIME.logRetentionDays = loadOrInit("log_retention_days", DEFAULT_CONFIG_VALUES.LOG_RETENTION_DAYS, "number", "Audit log retention in days (0 = keep forever)");
+    const floor = loadOrInit("audit_severity_floor", DEFAULT_CONFIG_VALUES.AUDIT_SEVERITY_FLOOR, "string", "Minimum severity for audit signals to persist");
+    if (["LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(floor)) RUNTIME.severityFloor = floor as Severity;
+    RUNTIME.failClosed = loadOrInit("fail_closed", DEFAULT_CONFIG_VALUES.FAIL_CLOSED, "string", "Fail closed on scan/mask errors (503) instead of forwarding plaintext") === "1";
+    const maxBodyMb = loadOrInit("max_body_mb", DEFAULT_CONFIG_VALUES.MAX_BODY_MB, "number", "Maximum request body size in MB");
+    RUNTIME.maxBodyBytes = Math.max(1, maxBodyMb) * 1024 * 1024;
   } catch (err) {
     log.error("failed to initialize configs from database", err instanceof Error ? err.message : String(err));
     // Fall back to defaults on error
@@ -77,5 +99,36 @@ export function refreshConfig(key: string): void {
       HIGH_RISK_ASSETS.accounts = Array.isArray(loaded.accounts) ? loaded.accounts : HIGH_RISK_ASSETS.accounts;
       break;
     }
+    case "rule_toggles": {
+      const loaded = JSON.parse(config.value) as Record<string, boolean>;
+      for (const [key, value] of Object.entries(loaded)) {
+        if (typeof value === "boolean" && key in SCANNER_RULES) {
+          SCANNER_RULES[key as FindingCategory] = value;
+        }
+      }
+      break;
+    }
+    case "secret_prefixes":
+      RUNTIME.secretPrefixes = (JSON.parse(config.value) as unknown[]).filter(
+        (p): p is string => typeof p === "string" && p.length > 0
+      );
+      break;
+    case "secret_prefix_min_length":
+      RUNTIME.secretPrefixMinLen = parseInt(config.value, 10);
+      break;
+    case "log_retention_days":
+      RUNTIME.logRetentionDays = parseInt(config.value, 10);
+      break;
+    case "audit_severity_floor": {
+      const floor = config.value;
+      if (["LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(floor)) RUNTIME.severityFloor = floor as Severity;
+      break;
+    }
+    case "fail_closed":
+      RUNTIME.failClosed = config.value === "1";
+      break;
+    case "max_body_mb":
+      RUNTIME.maxBodyBytes = Math.max(1, parseInt(config.value, 10)) * 1024 * 1024;
+      break;
   }
 }

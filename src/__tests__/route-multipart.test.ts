@@ -5,6 +5,10 @@ vi.mock("@/config-loader", () => ({
   initializeConfigs: vi.fn(),
 }));
 
+vi.mock("@/audit/retention", () => ({
+  initRetentionScheduler: vi.fn(),
+}));
+
 vi.mock("@/proxy/forwarder", () => ({
   forwardRequest: vi.fn(),
 }));

@@ -31,6 +31,28 @@ export function getDb(): Database.Database {
         description TEXT,
         updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
       );
+
+      CREATE TABLE IF NOT EXISTS custom_words (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        label TEXT NOT NULL,
+        value TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK(kind IN ('word', 'regex')),
+        whole_word INTEGER NOT NULL DEFAULT 0,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS audit_signals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ts TEXT NOT NULL,
+        audit_id INTEGER,
+        signal TEXT NOT NULL,
+        severity TEXT NOT NULL CHECK(severity IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
+        detail TEXT NOT NULL DEFAULT '{}'
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_audit_signals_ts ON audit_signals(ts);
+      CREATE INDEX IF NOT EXISTS idx_audit_signals_audit ON audit_signals(audit_id);
     `);
     const columns = db.prepare("PRAGMA table_info(audit_log)").all() as { name: string }[];
     if (!columns.some((column) => column.name === "matched_values")) {
@@ -45,13 +67,22 @@ export function getDb(): Database.Database {
     if (!columns.some((column) => column.name === "duration")) {
       db.exec("ALTER TABLE audit_log ADD COLUMN duration REAL");
     }
+    if (!columns.some((column) => column.name === "mask_applied")) {
+      db.exec("ALTER TABLE audit_log ADD COLUMN mask_applied INTEGER");
+    }
+    if (!columns.some((column) => column.name === "mask_categories")) {
+      db.exec("ALTER TABLE audit_log ADD COLUMN mask_categories TEXT");
+    }
+    if (!columns.some((column) => column.name === "mask_count")) {
+      db.exec("ALTER TABLE audit_log ADD COLUMN mask_count INTEGER");
+    }
   }
   return db;
 }
 
 const INSERT_SQL = `
-  INSERT INTO audit_log (timestamp, path, method, content_type, body_size, model, filenames, findings, matched_values, action, bypass_applied, duration)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO audit_log (timestamp, path, method, content_type, body_size, model, filenames, findings, matched_values, action, bypass_applied, duration, mask_applied, mask_categories, mask_count)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `;
 
 export function insertAudit(entry: AuditEntry): number {
@@ -68,7 +99,10 @@ export function insertAudit(entry: AuditEntry): number {
     JSON.stringify(entry.matchedValues ?? {}),
     entry.action,
     entry.bypassApplied ? 1 : 0,
-    entry.duration ?? null
+    entry.duration ?? null,
+    entry.maskApplied === undefined ? null : entry.maskApplied ? 1 : 0,
+    entry.maskCategories ? JSON.stringify(entry.maskCategories) : null,
+    entry.maskCount ?? null
   );
   return Number(result.lastInsertRowid);
 }
@@ -87,6 +121,9 @@ export interface AuditRow {
   action: string;
   bypass_applied: number;
   duration: number | null;
+  mask_applied: number | null;
+  mask_categories: string | null;
+  mask_count: number | null;
 }
 
 export interface QueryParams {

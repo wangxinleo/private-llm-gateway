@@ -25,9 +25,21 @@ export type FindingCategory =
   | "PHONE"
   | "EMAIL"
   | "ID_CARD"
-  | "BANK_CARD";
+  | "BANK_CARD"
+  | "LANDLINE"
+  | "PLATE"
+  | "IP_PRIVATE"
+  | "IP_INTERNAL"
+  | "IBAN"
+  | "USCC"
+  | "MAC"
+  | "HKID";
 
 export type ActionType = "block" | "mask" | "allow";
+
+export type Severity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export const SEVERITY_ORDER: Record<Severity, number> = { LOW: 0, MEDIUM: 1, HIGH: 2, CRITICAL: 3 };
 
 export interface HighRiskAssets {
   domains: string[];

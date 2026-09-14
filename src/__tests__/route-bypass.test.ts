@@ -10,6 +10,10 @@ vi.mock("@/audit/logger", () => ({
   logAudit: vi.fn(),
 }));
 
+vi.mock("@/audit/retention", () => ({
+  initRetentionScheduler: vi.fn(),
+}));
+
 vi.mock("@/bypass/store", () => ({
   findMatchingBypassRule: vi.fn(),
 }));
