@@ -180,7 +180,7 @@ export function applyMasks(text: string, findings: Finding[], registry?: MaskReg
   const maskFindings = findings.filter((f) => f.action === "mask" && f.maskTag);
   for (const f of maskFindings) {
     if (!f.maskTag || !result.includes(f.matched)) continue;
-    const tag = registry ? registry.tagFor(f.category, f.matched) : f.maskTag;
+    const tag = registry ? registry.tagFor(f.category, f.matched, f.shortCode) : f.maskTag;
     const applied = replaceOutsidePlaceholders(result, f.matched, tag);
     result = applied.text;
     replacementCount += applied.count;

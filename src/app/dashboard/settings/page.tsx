@@ -462,7 +462,7 @@ export default function SettingsPage() {
                 "PROVIDER_API_KEY", "CLOUD_CREDENTIAL", "CONNECTION_STRING", "ENCODED_SECRET", "BASE64_TOKEN",
                 "STRIPE_KEY", "SENDGRID_KEY", "CONTEXTUAL_SECRET", "SENSITIVE_FILENAME",
                 "PHONE", "EMAIL", "ID_CARD", "BANK_CARD", "LANDLINE", "PLATE",
-                "IP_PRIVATE", "IP_INTERNAL", "IBAN", "USCC", "MAC", "HKID",
+                "IP_PRIVATE", "IP_INTERNAL", "IBAN", "USCC", "MAC", "HKID", "CUSTOM_TERM",
               ] as FindingCategory[]
             ).map((category) => (
               <label key={category} className="flex cursor-pointer items-center justify-between gap-2 rounded-md border border-border/60 px-3 py-2">

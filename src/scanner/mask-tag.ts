@@ -46,6 +46,7 @@ export const CATEGORY_SHORTCODES: Readonly<Record<FindingCategory, string>> = {
   USCC: "USCC",
   MAC: "MAC",
   HKID: "HKID",
+  CUSTOM_TERM: "TERM",
 };
 
 export function categoryShortCode(category: FindingCategory): string {

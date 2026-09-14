@@ -3,6 +3,8 @@ import { isBlockCategory } from "@/types";
 import { scanFilename } from "./filename";
 import { scanContextWindows } from "./context-window";
 import { applyMasks } from "./pii";
+import { scanCustomWords } from "./custom-words";
+import { isRuleEnabled } from "@/config";
 import type { MaskRegistry } from "./mask-registry";
 import { Logger } from "@/log";
 
@@ -39,7 +41,9 @@ export function runPipeline(
   }
 
   const textFindings = scanText(text);
-  const allFindings = [...fileFindings, ...textFindings];
+  // 自定义词库阶段:窗口扫描之后,命中默认 mask;开关关闭或词库为空时零开销
+  const customFindings = isRuleEnabled("CUSTOM_TERM") ? scanCustomWords(text) : [];
+  const allFindings = [...fileFindings, ...textFindings, ...customFindings];
 
   log.debug(`scan complete | total findings: ${allFindings.length}`);
   for (const f of allFindings) {

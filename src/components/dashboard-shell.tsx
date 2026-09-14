@@ -14,6 +14,7 @@ import {
   PanelLeft,
   Moon,
   Sun,
+  BookLock,
 } from "lucide-react";
 import { useLocale } from "@/i18n";
 import { useAdminAuth } from "@/lib/admin-auth-context";
@@ -22,6 +23,7 @@ const NAV_KEYS = [
   { href: "/dashboard", labelKey: "nav.overview", icon: LayoutDashboard },
   { href: "/dashboard/audit", labelKey: "nav.audit", icon: FileText },
   { href: "/dashboard/rules", labelKey: "nav.rules", icon: Shield },
+  { href: "/dashboard/words", labelKey: "nav.words", icon: BookLock },
   { href: "/dashboard/settings", labelKey: "nav.settings", icon: Settings },
 ] as const;
 

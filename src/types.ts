@@ -33,7 +33,8 @@ export type FindingCategory =
   | "IBAN"
   | "USCC"
   | "MAC"
-  | "HKID";
+  | "HKID"
+  | "CUSTOM_TERM";
 
 export type ActionType = "block" | "mask" | "allow";
 
@@ -86,6 +87,8 @@ export interface Finding {
   action: ActionType;
   matched: string;
   maskTag?: string;
+  // 自定义词库按分类名派生的占位符短码(safe-label);缺省用类别默认短码
+  shortCode?: string;
 }
 
 export interface ScanResult {

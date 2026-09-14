@@ -48,6 +48,7 @@ export const DEFAULT_RULE_TOGGLES: Record<FindingCategory, boolean> = {
   USCC: false,
   MAC: false,
   HKID: false,
+  CUSTOM_TERM: true,
 };
 
 // Default values for hot-reloadable configs
