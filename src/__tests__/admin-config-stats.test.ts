@@ -37,6 +37,15 @@ vi.mock("@/config", () => ({
   PATH_PREFIX_OPTIONS: ["/v1/messages", "/v1/responses", "/v1beta"],
   HIGH_RISK_ASSETS: { domains: ["*.ccload.com", "*.gffunds.com"], emails: [], accounts: [] },
   CONTEXT_WINDOW_SIZE: { value: 200 },
+  SCANNER_RULES: {},
+  RUNTIME: {
+    failClosed: true,
+    maxBodyBytes: 32 * 1024 * 1024,
+    logRetentionDays: 7,
+    severityFloor: "MEDIUM",
+    secretPrefixes: ["sk-"],
+    secretPrefixMinLen: 8,
+  },
 }));
 
 vi.mock("fs", () => ({

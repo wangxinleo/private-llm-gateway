@@ -7,11 +7,12 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useLocale } from "@/i18n";
 import { getErrorText, isHighRiskAssets, isStringArrayConfigValue } from "@/lib/admin-config";
 import { useAdminAuth } from "@/lib/admin-auth-context";
 import { JsonEditor } from "@/components/json-editor";
-import type { AdminConfigResponse, EditableConfig, EditableConfigValue } from "@/types";
+import type { AdminConfigResponse, EditableConfig, EditableConfigValue, FindingCategory } from "@/types";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -60,6 +61,11 @@ export default function SettingsPage() {
   const [newPathPrefix, setNewPathPrefix] = useState("");
   const [pathPrefixes, setPathPrefixes] = useState<string[]>([]);
 
+  // Secret prefixes state
+  const [newSecretPrefix, setNewSecretPrefix] = useState("");
+  const [secretPrefixes, setSecretPrefixes] = useState<string[]>([]);
+  const [ruleToggles, setRuleToggles] = useState<Record<string, boolean>>({});
+
   // Editable number config state
   const [editingConfig, setEditingConfig] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -85,7 +91,13 @@ export default function SettingsPage() {
         setEditableConfigs(data.editableConfigs);
         const prefixValue = data.editableConfigs.path_prefix_options?.value;
         const assetsValue = data.editableConfigs.high_risk_assets?.value;
+        const togglesValue = data.editableConfigs.rule_toggles?.value;
+        const secretPrefixValue = data.editableConfigs.secret_prefixes?.value;
         setPathPrefixes(isStringArrayConfigValue(prefixValue) ? prefixValue : []);
+        setSecretPrefixes(isStringArrayConfigValue(secretPrefixValue) ? secretPrefixValue : []);
+        if (togglesValue && typeof togglesValue === "object" && !Array.isArray(togglesValue)) {
+          setRuleToggles(togglesValue as unknown as Record<string, boolean>);
+        }
         setExclDraft(JSON.stringify(isHighRiskAssets(assetsValue) ? assetsValue : { domains: [], emails: [], accounts: [] }, null, 2));
       }
     } catch (err) {
@@ -140,6 +152,28 @@ export default function SettingsPage() {
   async function removePathPrefix(index: number) {
     const newList = pathPrefixes.filter((_, i) => i !== index);
     await updateConfig("path_prefix_options", newList);
+  }
+
+  async function toggleRule(category: string) {
+    const next = { ...ruleToggles, [category]: !(ruleToggles[category] !== false) };
+    setRuleToggles(next);
+    await updateConfig("rule_toggles", next);
+  }
+
+  async function addSecretPrefix() {
+    const trimmed = newSecretPrefix.trim();
+    if (!trimmed) return;
+    if (secretPrefixes.includes(trimmed)) {
+      setNewSecretPrefix("");
+      return;
+    }
+    await updateConfig("secret_prefixes", [...secretPrefixes, trimmed]);
+    setNewSecretPrefix("");
+  }
+
+  async function removeSecretPrefix(index: number) {
+    const newList = secretPrefixes.filter((_, i) => i !== index);
+    await updateConfig("secret_prefixes", newList);
   }
 
   async function saveExclusionsDraft() {
@@ -410,6 +444,161 @@ export default function SettingsPage() {
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Builtin rule toggles */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("settings.ruleToggles")}</CardTitle>
+          <p className="text-xs text-muted-foreground">{t("settings.ruleTogglesDesc")}</p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+            {(
+              [
+                "PRIVATE_KEY", "BEARER_TOKEN", "BASIC_AUTH", "JWT", "COOKIE_HEADER", "SET_COOKIE_HEADER",
+                "DB_URI", "AWS_ACCESS_KEY", "GITHUB_TOKEN", "DEVELOPER_TOKEN", "SLACK_TOKEN", "GOOGLE_API_KEY",
+                "PROVIDER_API_KEY", "CLOUD_CREDENTIAL", "CONNECTION_STRING", "ENCODED_SECRET", "BASE64_TOKEN",
+                "STRIPE_KEY", "SENDGRID_KEY", "CONTEXTUAL_SECRET", "SENSITIVE_FILENAME",
+                "PHONE", "EMAIL", "ID_CARD", "BANK_CARD", "LANDLINE", "PLATE",
+                "IP_PRIVATE", "IP_INTERNAL", "IBAN", "USCC", "MAC", "HKID",
+              ] as FindingCategory[]
+            ).map((category) => (
+              <label key={category} className="flex cursor-pointer items-center justify-between gap-2 rounded-md border border-border/60 px-3 py-2">
+                <code className="font-mono text-xs">{category}</code>
+                <Checkbox
+                  checked={ruleToggles[category] !== false}
+                  onCheckedChange={() => toggleRule(category)}
+                  disabled={updating === "rule_toggles"}
+                />
+              </label>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Secret prefixes */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("settings.secretPrefixes")}</CardTitle>
+          <p className="text-xs text-muted-foreground">{t("settings.secretPrefixesDesc")}</p>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {secretPrefixes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("settings.secretPrefixesEmpty")}</p>
+            ) : (
+              secretPrefixes.map((prefix, index) => (
+                <div key={index} className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
+                  <code className="font-mono text-sm">{prefix}</code>
+                  <button
+                    onClick={() => removeSecretPrefix(index)}
+                    disabled={updating === "secret_prefixes"}
+                    className="text-muted-foreground hover:text-destructive disabled:opacity-50"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))
+            )}
+            <div className="flex gap-2">
+              <Input
+                value={newSecretPrefix}
+                onChange={(e) => setNewSecretPrefix(e.target.value)}
+                placeholder={t("settings.secretPrefixPlaceholder")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") addSecretPrefix();
+                }}
+                disabled={updating === "secret_prefixes"}
+              />
+              <Button onClick={addSecretPrefix} disabled={updating === "secret_prefixes" || !newSecretPrefix.trim()}>
+                {t("settings.addSecretPrefix")}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Engine behavior */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("settings.engineBehavior")}</CardTitle>
+          <p className="text-xs text-muted-foreground">{t("settings.engineBehaviorDesc")}</p>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {[
+              { key: "log_retention_days", label: t("settings.logRetentionDays") },
+              { key: "max_body_mb", label: t("settings.maxBodyMb") },
+              { key: "secret_prefix_min_length", label: t("settings.secretPrefixMinLength") },
+            ].map(({ key, label }) => {
+              const config = editableConfigs[key];
+              if (!config) return null;
+              const isEditing = editingConfig === key;
+              const value = typeof config.value === "number" ? config.value : 0;
+
+              return (
+                <div key={key} className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
+                  <span className="text-sm text-muted-foreground">{label}</span>
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveEditConfig(key);
+                        if (e.key === "Escape") cancelEdit();
+                      }}
+                      onBlur={() => saveEditConfig(key)}
+                      className="h-7 w-32 text-xs"
+                      autoFocus
+                    />
+                  ) : (
+                    <code
+                      className="cursor-pointer rounded bg-muted px-2 py-0.5 font-mono text-xs hover:bg-muted/70"
+                      onClick={() => startEditConfig(key, value)}
+                    >
+                      {value}
+                    </code>
+                  )}
+                </div>
+              );
+            })}
+            {(["audit_severity_floor", "fail_closed"] as const).map((key) => {
+              const config = editableConfigs[key];
+              if (!config) return null;
+              const value = String(config.value);
+              return (
+                <div key={key} className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
+                  <span className="text-sm text-muted-foreground">
+                    {key === "audit_severity_floor" ? t("settings.severityFloor") : t("settings.failClosed")}
+                  </span>
+                  {key === "audit_severity_floor" ? (
+                    <select
+                      value={value}
+                      onChange={(e) => updateConfig(key, e.target.value)}
+                      disabled={updating === key}
+                      className="h-7 rounded-md border border-border bg-transparent px-2 font-mono text-xs"
+                    >
+                      {["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <Checkbox
+                        checked={value === "1"}
+                        onCheckedChange={() => updateConfig(key, value === "1" ? "0" : "1")}
+                        disabled={updating === key}
+                      />
+                      <code className="font-mono text-xs">{value === "1" ? "ON" : "OFF"}</code>
+                    </label>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
 

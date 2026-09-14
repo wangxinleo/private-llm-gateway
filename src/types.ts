@@ -48,7 +48,7 @@ export interface HighRiskAssets {
 }
 
 export type EditableConfigType = "number" | "string" | "json_array";
-export type EditableConfigValue = number | string | string[] | HighRiskAssets;
+export type EditableConfigValue = number | string | string[] | HighRiskAssets | Record<string, boolean>;
 
 export interface EditableConfig {
   value: EditableConfigValue;

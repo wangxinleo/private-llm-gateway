@@ -87,6 +87,10 @@ export const HIGH_RISK_ASSETS: HighRiskAssets = {
 
 export const SCANNER_RULES: Record<FindingCategory, boolean> = { ...DEFAULT_RULE_TOGGLES };
 
+export function isRuleEnabled(category: FindingCategory): boolean {
+  return SCANNER_RULES[category] !== false;
+}
+
 // 引擎级运行时开关(热加载):fail_closed/max_body_mb/留存/信号阈值/自定义前缀
 export const RUNTIME = {
   failClosed: true,

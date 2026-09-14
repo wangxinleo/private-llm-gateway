@@ -1,5 +1,5 @@
 import type { Finding, HighRiskAssets } from "@/types";
-import { scanSecrets } from "./secrets";
+import { scanSecrets, scanSecretPrefixes } from "./secrets";
 import { scanContextKey, locateSensitiveHits } from "./context-key";
 import { scanPii } from "./pii";
 import { locateHighRiskAssets, type AssetHit } from "./high-risk-assets";
@@ -54,6 +54,9 @@ export function scanContextWindows(
     push(scanSecrets(window).filter((f) => f.category !== "BASIC_AUTH"));
     push(scanContextKey(window));
   }
+
+  // 自定义前缀密文全文扫描(排在窗口扫描后:窗口内已有类别的值由 push 去重保留)
+  push(scanSecretPrefixes(text));
 
   return allFindings;
 }

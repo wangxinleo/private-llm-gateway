@@ -1,4 +1,4 @@
-import { CONTEXT_KEY, SECRET_SCANNER_MODE } from "@/config";
+import { CONTEXT_KEY, SECRET_SCANNER_MODE, isRuleEnabled } from "@/config";
 import type { Finding, FindingCategory } from "@/types";
 import { buildMaskTag } from "./mask-tag";
 
@@ -448,10 +448,10 @@ export function scanContextKey(text: string): Finding[] {
   }
 
   if (hasSecretCandidate) {
-    return [...secretHits, ...endpointHits, ...identityHits, ...encodedHits];
+    return [...secretHits, ...endpointHits, ...identityHits, ...encodedHits].filter((f) => isRuleEnabled(f.category));
   }
 
-  return [...endpointHits, ...encodedHits];
+  return [...endpointHits, ...encodedHits].filter((f) => isRuleEnabled(f.category));
 }
 
 export interface SensitiveHit {

@@ -1,5 +1,6 @@
 import type { Finding, ActionType } from "@/types";
 import { buildMaskTag } from "./mask-tag";
+import { isRuleEnabled, RUNTIME } from "@/config";
 import { Logger } from "@/log";
 
 const log = new Logger("scanner");
@@ -157,9 +158,37 @@ function pruneOverlappingSameCategoryFindings(indexed: IndexedFinding[]): Indexe
 
 export function scanSecrets(text: string): Finding[] {
   const seen = new Set<string>();
-  const indexed = STRONG_RULES.flatMap((rule) => collectRuleFindings(rule, text, seen));
+  const indexed = STRONG_RULES
+    .filter((rule) => isRuleEnabled(rule.category))
+    .flatMap((rule) => collectRuleFindings(rule, text, seen));
   const pruned = pruneContainedBase64JwtFindings(pruneOverlappingSameCategoryFindings(indexed));
 
   log.debug(`secrets scan complete | findings: ${pruned.length} | categories: [${pruned.map((f) => f.category).join(", ")}]`);
   return pruned.map((f) => ({ category: f.category, action: f.action, matched: f.matched, maskTag: f.maskTag }));
+}
+
+// 自定义前缀密文(maskit 教训:8~16 位自建短 Key 曾被长最小值整批漏判)。
+// 与 STRONG_RULES 的定长厂商格式互补:短 Key 常无窗口锚点,故全文扫描,
+// 并排在窗口扫描之后,已有 finding 的值由上层 push 去重保留原类别。
+export function scanSecretPrefixes(text: string): Finding[] {
+  const prefixes = RUNTIME.secretPrefixes;
+  if (prefixes.length === 0) return [];
+  const minLen = Math.max(1, RUNTIME.secretPrefixMinLen);
+  const escaped = prefixes.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const pattern = new RegExp(
+    `(?<![A-Za-z0-9_-])(?:${escaped})[A-Za-z0-9][A-Za-z0-9_-]{${minLen - 1},}(?![A-Za-z0-9_-])`,
+    "g"
+  );
+  const findings: Finding[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text)) !== null) {
+    findings.push({
+      category: "CONTEXTUAL_SECRET",
+      action: "mask",
+      matched: match[0],
+      maskTag: buildMaskTag("CONTEXTUAL_SECRET"),
+    });
+    if (match[0].length === 0) pattern.lastIndex += 1;
+  }
+  return findings;
 }

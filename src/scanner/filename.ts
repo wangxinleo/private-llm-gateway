@@ -1,4 +1,5 @@
 import type { Finding } from "@/types";
+import { isRuleEnabled } from "@/config";
 
 const BLOCKED_EXTENSIONS: ReadonlySet<string> = new Set([
   ".env",
@@ -35,6 +36,7 @@ function extension(filename: string): string {
 }
 
 export function scanFilename(filename: string): Finding | null {
+  if (!isRuleEnabled("SENSITIVE_FILENAME")) return null;
   const name = basename(filename);
   const ext = extension(name);
   const lowerName = name.toLowerCase();

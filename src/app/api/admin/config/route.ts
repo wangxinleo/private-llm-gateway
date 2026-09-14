@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDbStats, getAllConfigs, setConfig } from "@/audit";
 import { checkAdminAuth } from "@/lib/admin-auth";
-import { UPSTREAM_URL, DB_PATH, DEBUG, CONTEXT_KEY, PATH_PREFIX_OPTIONS, HIGH_RISK_ASSETS, CONTEXT_WINDOW_SIZE } from "@/config";
+import { UPSTREAM_URL, DB_PATH, DEBUG, CONTEXT_KEY, PATH_PREFIX_OPTIONS, HIGH_RISK_ASSETS, CONTEXT_WINDOW_SIZE, SCANNER_RULES, RUNTIME } from "@/config";
 import { initializeConfigs, refreshConfig } from "@/config-loader";
 import { Logger } from "@/log";
 import { statSync } from "fs";
@@ -40,6 +40,13 @@ export async function GET(request: Request) {
         context_key_max_spaces: { value: CONTEXT_KEY.MAX_SPACES, type: "number", description: "Context key maximum spaces" },
         context_window_size: { value: CONTEXT_WINDOW_SIZE.value, type: "number", description: "Context scan window radius in characters" },
         high_risk_assets: { value: HIGH_RISK_ASSETS, type: "json_array", description: "High-risk asset whitelist (domains/emails/accounts) whose context windows are scanned" },
+        rule_toggles: { value: SCANNER_RULES, type: "json_array", description: "Per-category builtin rule toggles" },
+        secret_prefixes: { value: RUNTIME.secretPrefixes, type: "json_array", description: "Custom secret prefixes treated as SECRET category" },
+        secret_prefix_min_length: { value: RUNTIME.secretPrefixMinLen, type: "number", description: "Minimum ciphertext length after a secret prefix" },
+        log_retention_days: { value: RUNTIME.logRetentionDays, type: "number", description: "Audit log retention in days (0 = keep forever)" },
+        audit_severity_floor: { value: RUNTIME.severityFloor, type: "string", description: "Minimum severity for audit signals to persist" },
+        fail_closed: { value: RUNTIME.failClosed ? "1" : "0", type: "string", description: "Fail closed on scan/mask errors (503) instead of forwarding plaintext" },
+        max_body_mb: { value: Math.round(RUNTIME.maxBodyBytes / (1024 * 1024)), type: "number", description: "Maximum request body size in MB" },
       },
       constants: {
         contextKey: {
@@ -82,6 +89,13 @@ export async function PUT(request: Request) {
       "context_key_max_spaces",
       "context_window_size",
       "high_risk_assets",
+      "rule_toggles",
+      "secret_prefixes",
+      "secret_prefix_min_length",
+      "log_retention_days",
+      "audit_severity_floor",
+      "fail_closed",
+      "max_body_mb",
     ];
 
     if (!editableKeys.includes(key)) {
@@ -117,6 +131,43 @@ export async function PUT(request: Request) {
         emails: Array.isArray(emails) ? emails : [],
         accounts: Array.isArray(accounts) ? accounts : [],
       });
+    } else if (key === "rule_toggles") {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return NextResponse.json({ error: "rule_toggles must be an object" }, { status: 400 });
+      }
+      const entries = Object.entries(value as Record<string, unknown>);
+      if (!entries.every(([, v]) => typeof v === "boolean")) {
+        return NextResponse.json({ error: "rule_toggles values must be booleans" }, { status: 400 });
+      }
+      type = "json_array";
+      valueStr = JSON.stringify(Object.fromEntries(entries));
+    } else if (key === "secret_prefixes") {
+      if (!Array.isArray(value) || !value.every((v) => typeof v === "string" && v.trim().length > 0)) {
+        return NextResponse.json({ error: "secret_prefixes must be an array of non-empty strings" }, { status: 400 });
+      }
+      type = "json_array";
+      valueStr = JSON.stringify((value as string[]).map((v) => v.trim()));
+    } else if (key === "audit_severity_floor") {
+      if (value !== "LOW" && value !== "MEDIUM" && value !== "HIGH" && value !== "CRITICAL") {
+        return NextResponse.json({ error: "audit_severity_floor must be LOW|MEDIUM|HIGH|CRITICAL" }, { status: 400 });
+      }
+      type = "string";
+      valueStr = value;
+    } else if (key === "fail_closed") {
+      const flag = value === true || value === "1" ? "1" : value === false || value === "0" ? "0" : null;
+      if (flag === null) {
+        return NextResponse.json({ error: "fail_closed must be boolean or 0/1" }, { status: 400 });
+      }
+      type = "string";
+      valueStr = flag;
+    } else if (key === "log_retention_days" || key === "max_body_mb" || key === "secret_prefix_min_length") {
+      // Number configs
+      const numValue = Number(value);
+      if (isNaN(numValue) || numValue < 0 || (key !== "log_retention_days" && numValue < 1)) {
+        return NextResponse.json({ error: "value must be a positive number" }, { status: 400 });
+      }
+      type = "number";
+      valueStr = String(numValue);
     } else {
       // Number configs
       const numValue = Number(value);

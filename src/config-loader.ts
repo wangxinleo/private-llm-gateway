@@ -45,7 +45,7 @@ export function initializeConfigs(): void {
 
     const loadedToggles = loadOrInit(
       "rule_toggles",
-      DEFAULT_CONFIG_VALUES.RULE_TOGGLES as Record<string, boolean>,
+      DEFAULT_CONFIG_VALUES.RULE_TOGGLES as unknown as Record<string, boolean>,
       "json_array",
       "Per-category builtin rule toggles"
     );
