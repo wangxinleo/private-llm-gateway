@@ -55,6 +55,26 @@ describe("analyzeResponse (passive signals)", () => {
     expect(residual.some((s) => s.signal === "response_poison" && s.detail.kind === "placeholder_residual")).toBe(true);
   });
 
+  it("response_poison: notice example tags are exempted, real unknown tags still fire", () => {
+    // 模型回显防改写 notice 的示例占位符属常态,不应计 residual
+    const noticeEcho = analyzeResponse({
+      status: 200,
+      text: "Note: keep placeholders like {{EMAIL_trwmq}} exactly as-is where the original value belongs.",
+      forwardValues: [],
+    });
+    expect(noticeEcho.some((s) => s.signal === "response_poison" && s.detail.kind === "placeholder_residual")).toBe(false);
+
+    // 未知真实占位符残留仍照常告警(notice 示例 + 真实残留混合)
+    const mixed = analyzeResponse({
+      status: 200,
+      text: "like {{EMAIL_trwmq}} but also leaked {{PHONE_qgqhn}}",
+      forwardValues: [],
+    });
+    const residual = mixed.find((s) => s.signal === "response_poison" && s.detail.kind === "placeholder_residual");
+    expect(residual).toBeTruthy();
+    expect((residual!.detail as { count: number }).count).toBe(1);
+  });
+
   it("response_scan: model-invented PII flagged, echo of forwarded value suppressed", () => {
     const registry = new MaskRegistry();
     const phone = registry.tagFor("PHONE", "13800138000");

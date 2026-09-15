@@ -3,11 +3,20 @@ import { TAG_RE } from "@/scanner/mask-tag";
 import { scanSecrets } from "@/scanner/secrets";
 import { scanPii } from "@/scanner/pii";
 import { scanCustomWords } from "@/scanner/custom-words";
+import { PRIVACY_NOTICE_TEXT } from "@/config";
 import type { AuditSignal } from "@/audit/signals-store";
 import { insertSignals } from "@/audit/signals-store";
 
 // 分析窗口截断:只用于只读信号分析,截断不影响响应转发
 const TEXT_ANALYSIS_LIMIT = 2_000_000;
+
+const TAG_GLOBAL = new RegExp(TAG_RE.source, "g");
+
+// notice 自带的示例占位符(默认文本含 {{EMAIL_trwmq}} 等):模型回显 notice 属常态,
+// 不应计入 placeholder_residual,否则真实占位符泄漏会淹没在例行假警报里
+const NOTICE_EXAMPLE_TAGS: ReadonlySet<string> = new Set(
+  [...PRIVACY_NOTICE_TEXT.matchAll(new RegExp(TAG_RE.source, "g"))].map((m) => m[0]!)
+);
 
 export interface ResponseAnalysisInput {
   status: number;
@@ -115,8 +124,8 @@ export function analyzeResponse(input: ResponseAnalysisInput): AuditSignal[] {
       if (zeroWidth && zeroWidth.length >= 8) {
         signals.push(signal("response_poison", "MEDIUM", { kind: "zero_width", count: zeroWidth.length }));
       }
-      const residualTags = text.match(new RegExp(TAG_RE.source, "g"));
-      if (residualTags && residualTags.length > 0) {
+      const residualTags = (text.match(TAG_GLOBAL) ?? []).filter((tag) => !NOTICE_EXAMPLE_TAGS.has(tag));
+      if (residualTags.length > 0) {
         signals.push(signal("response_poison", "MEDIUM", { kind: "placeholder_residual", count: residualTags.length }));
       }
     } catch {
