@@ -51,6 +51,15 @@ export function getDb(): Database.Database {
         detail TEXT NOT NULL DEFAULT '{}'
       );
 
+      CREATE TABLE IF NOT EXISTS upstreams (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        target TEXT NOT NULL,
+        extra_headers TEXT NOT NULL DEFAULT '{}',
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
       CREATE INDEX IF NOT EXISTS idx_audit_signals_ts ON audit_signals(ts);
       CREATE INDEX IF NOT EXISTS idx_audit_signals_audit ON audit_signals(audit_id);
     `);

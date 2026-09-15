@@ -14,6 +14,10 @@ vi.mock("@/audit/retention", () => ({
   initRetentionScheduler: vi.fn(),
 }));
 
+vi.mock("@/proxy/channels", () => ({
+  resolveChannel: vi.fn(() => null),
+}));
+
 import { forwardRequest } from "@/proxy/forwarder";
 
 const mockForward = vi.mocked(forwardRequest);

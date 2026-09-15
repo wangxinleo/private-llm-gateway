@@ -1,13 +1,22 @@
 import { UPSTREAM_URL } from "@/config";
+import type { ResolvedChannel } from "./channels";
 
 export async function forwardRequest(
   path: string,
   request: Request,
-  body?: BodyInit
+  body?: BodyInit,
+  channel?: ResolvedChannel
 ): Promise<Response> {
-  const url = `${UPSTREAM_URL}${path}`;
+  const url = channel ? `${channel.target}${channel.forwardPath}` : `${UPSTREAM_URL}${path}`;
   const headers = new Headers(request.headers);
   headers.delete("host");
+
+  if (channel) {
+    // 仅补调用方未持有的头(大小写不敏感),绝不覆盖真 Key/协议头(maskit 教训 #8)
+    for (const [key, value] of Object.entries(channel.extraHeaders)) {
+      if (!headers.has(key)) headers.set(key, value);
+    }
+  }
 
   const init: RequestInit = {
     method: request.method,

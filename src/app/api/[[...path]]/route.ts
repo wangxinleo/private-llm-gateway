@@ -7,6 +7,7 @@ import { parseMultipart, collectMultipartText, collectFilenames } from "@/scanne
 import { applyMasks } from "@/scanner/pii";
 import { blockedResponse } from "@/engine/policy";
 import { forwardRequest } from "@/proxy/forwarder";
+import { resolveChannel, type ResolvedChannel } from "@/proxy/channels";
 import { createStreamingResponse } from "@/proxy/streaming";
 import { SseChannelRestorer, restoreText } from "@/proxy/restore";
 import { analyzeResponse, StreamResponseAnalyzer } from "@/proxy/response-analysis";
@@ -168,11 +169,26 @@ export async function DELETE(request: NextRequest) {
   return handleRequest(request);
 }
 
+// 无渠道时保持三参调用(既有签名与测试兼容);有渠道时第四参携带解析结果
+function forwardToUpstream(
+  path: string,
+  request: NextRequest,
+  body: BodyInit | undefined,
+  channel: ResolvedChannel | null
+): Promise<Response> {
+  return channel
+    ? forwardRequest(path, request, body, channel)
+    : forwardRequest(path, request, body);
+}
+
 async function handleRequest(request: NextRequest): Promise<Response> {
   const startTime = performance.now();
   initializeConfigs();
   initRetentionScheduler();
   const path = extractPath(request);
+  // 渠道路由:命中 /<channel>/** 时 strip 前缀转发到渠道 target;未命中回落 UPSTREAM_URL。
+  // 审计与 bypass 仍使用完整原始 path(含渠道前缀)
+  const channel = resolveChannel(path);
   const method = request.method;
   const contentType = request.headers.get("content-type") ?? "";
   const multipart = isMultipart(contentType);
@@ -253,10 +269,11 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     }
 
     try {
-      const upstream = await forwardRequest(
+      const upstream = await forwardToUpstream(
         path,
         request,
-        hasBody && !multipart ? bodyText : multipart ? await request.formData() : undefined
+        hasBody && !multipart ? bodyText : multipart ? await request.formData() : undefined,
+        channel
       );
       const upstreamContentType = upstream.headers.get("content-type") ?? "";
       if (upstreamContentType.includes("text/event-stream")) {
@@ -342,11 +359,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
         : hasBody ? bodyText : undefined;
     }
 
-    const upstream = await forwardRequest(
-      path,
-      request,
-      forwardBody
-    );
+    const upstream = await forwardToUpstream(path, request, forwardBody, channel);
 
     // legacy 格式(registry undefined)不做响应分析(R3.6)
     return finalizeUpstream(upstream, registry, result.maskSummary, registry ? { auditId, requestModel: model } : undefined);
