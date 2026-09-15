@@ -705,3 +705,36 @@ upstreams 表+CRUD(channel 名校验/保留段 admin+health/target 归一化/ext
 ### Next Steps
 
 - None - task complete
+
+
+## Session 19: G3 桌面验证补全(真实点击闭环)
+
+**Date**: 2026-09-15
+**Task**: G3 桌面验证补全(真实点击闭环)
+**Branch**: `master`
+
+### Summary
+
+此前因 MCP 所连 Edge 标签页后台冻结而未完成的浏览器写操作闭环,改用 headless Edge+原生 CDP(Node 22 内置 WebSocket,零依赖)真实点击重试:UI 创建渠道→列表出现、UI 停用/启用→服务端状态翻转、渠道转发(alt 上游+x-org-id 注入+PHONE 脱敏还原)、UI 删除生效、审计原始路径含渠道前缀——6/6 PASS。确证此前失败为工具链环境故障而非应用缺陷。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c2338cd` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
