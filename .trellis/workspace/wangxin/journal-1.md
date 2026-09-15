@@ -738,3 +738,36 @@ upstreams 表+CRUD(channel 名校验/保留段 admin+health/target 归一化/ext
 ### Next Steps
 
 - None - task complete
+
+
+## Session 20: 枚举硬化:无默认路由+渠道随机前缀+默认上游回填
+
+**Date**: 2026-09-15
+**Task**: 枚举硬化:无默认路由+渠道随机前缀+默认上游回填
+**Branch**: `master`
+
+### Summary
+
+UPSTREAM_URL 可选化:未设置时无前缀/未匹配路径读 body 前即 404(不扫描不转发不审计,防外网枚举),设置时存量行为不变;渠道名上限 64+UI 随机前缀生成按钮(24 位 crypto 随机码);Clients 默认上游状态卡+回填为渠道预填。桌面验证双模式(headless CDP):防枚举 404/零审计/随机码端到端,存量回落/回填预填,全 PASS。475 测试绿。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9ecef6d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
