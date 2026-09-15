@@ -639,3 +639,36 @@ Completed Stage B/C/D scanner expansion with provider, developer, cloud, connect
 ### Next Steps
 
 - None - task complete
+
+
+## Session 17: G7 跨请求稳定占位符+notice 残留豁免
+
+**Date**: 2026-09-15
+**Task**: G7 跨请求稳定占位符+notice 残留豁免
+**Branch**: `master`
+
+### Summary
+
+加盐 HMAC-SHA256(进程密钥) 派生占位符后缀替代请求级随机:同值跨请求同 tag,上游 Prompt Cache 前缀跨轮稳定;密钥可 PRIVACY_SUFFIX_SECRET 固定(多副本一致),spec 变更记录(无盐 Oracle 论据→加盐关闭);冲突链 attempt 0-3+随机兜底保双射;notice 示例标签豁免 placeholder_residual,消除模型回显 notice 的例行假警报。桌面验证:两轮请求上游字节一致、还原正常、零残留误报。464 测试绿。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `17931f7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
