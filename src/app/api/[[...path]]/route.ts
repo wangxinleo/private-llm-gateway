@@ -15,7 +15,7 @@ import { applyDisambiguation } from "@/proxy/disambiguation";
 import { logAudit } from "@/audit/logger";
 import { insertSignals } from "@/audit/signals-store";
 import { Logger } from "@/log";
-import { PRIVACY_DEBUG_HEADERS, PRIVACY_MASK_FORMAT, RUNTIME } from "@/config";
+import { PRIVACY_DEBUG_HEADERS, PRIVACY_MASK_FORMAT, RUNTIME, getDefaultUpstream } from "@/config";
 import { initializeConfigs } from "@/config-loader";
 import { initRetentionScheduler } from "@/audit/retention";
 import { findMatchingBypassRule } from "@/bypass/store";
@@ -186,9 +186,14 @@ async function handleRequest(request: NextRequest): Promise<Response> {
   initializeConfigs();
   initRetentionScheduler();
   const path = extractPath(request);
-  // 渠道路由:命中 /<channel>/** 时 strip 前缀转发到渠道 target;未命中回落 UPSTREAM_URL。
-  // 审计与 bypass 仍使用完整原始 path(含渠道前缀)
+  // 渠道路由:命中 /<channel>/** 时 strip 前缀转发到渠道 target。
+  // 无渠道且未配置默认上游(UPSTREAM_URL)→ 立即 404(防外网枚举常见 API 路径):
+  // 不读 body、不扫描、不审计,避免探测面与资源消耗
   const channel = resolveChannel(path);
+  if (!channel && !getDefaultUpstream()) {
+    log.debug(`${request.method} ${path} | 404 no_default_upstream`);
+    return Response.json({ error: "not_found" }, { status: 404 });
+  }
   const method = request.method;
   const contentType = request.headers.get("content-type") ?? "";
   const multipart = isMultipart(contentType);

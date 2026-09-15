@@ -5,7 +5,7 @@ import { getUpstreamsVersion, listEnabledUpstreams, type UpstreamRow } from "@/u
 // - health:健康检查约定路径(容器 HEALTHCHECK 依赖),避免被渠道劫持
 export const RESERVED_CHANNEL_SEGMENTS: ReadonlySet<string> = new Set(["admin", "health"]);
 
-export const CHANNEL_NAME_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
+export const CHANNEL_NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
 // extra_headers 注入黑名单:凭据头(防覆盖真 Key)与协议关键头(防破坏请求)
 export const EXTRA_HEADER_BLACKLIST: ReadonlySet<string> = new Set([
@@ -53,9 +53,9 @@ function parseExtraHeaders(raw: string): Record<string, string> {
   }
 }
 
-// `/api/<channel>/**` → 渠道解析;未命中返回 null(回落 UPSTREAM_URL 默认渠道)
+// `/api/<channel>/**` → 渠道解析;未命中返回 null(由调用方决定 404 或默认上游回落)
 export function resolveChannel(path: string): ResolvedChannel | null {
-  const match = /^\/([a-z0-9-]{1,32})(\/.*)?$/.exec(path);
+  const match = /^\/([a-z0-9-]{1,64})(\/.*)?$/.exec(path);
   if (!match) return null;
   const name = match[1]!;
   if (RESERVED_CHANNEL_SEGMENTS.has(name)) return null;

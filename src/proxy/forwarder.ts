@@ -1,4 +1,4 @@
-import { UPSTREAM_URL } from "@/config";
+import { getDefaultUpstream } from "@/config";
 import type { ResolvedChannel } from "./channels";
 
 export async function forwardRequest(
@@ -7,7 +7,11 @@ export async function forwardRequest(
   body?: BodyInit,
   channel?: ResolvedChannel
 ): Promise<Response> {
-  const url = channel ? `${channel.target}${channel.forwardPath}` : `${UPSTREAM_URL}${path}`;
+  // 渠道优先;无渠道时走默认上游(调用方已保证 getDefaultUpstream() 非空)
+  const fallback = channel ? null : getDefaultUpstream();
+  const url = channel
+    ? `${channel.target}${channel.forwardPath}`
+    : `${fallback ?? ""}${path}`;
   const headers = new Headers(request.headers);
   headers.delete("host");
 

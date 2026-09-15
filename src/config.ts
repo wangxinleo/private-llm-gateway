@@ -1,6 +1,5 @@
 import type { FindingCategory, Severity } from "@/types";
 
-const UPSTREAM_URL = process.env.UPSTREAM_URL ?? "http://localhost:8787";
 const DB_PATH = process.env.DB_PATH ?? "audit.sqlite";
 const DEBUG = process.env.DEBUG === "true" || process.env.NODE_ENV !== "production";
 const SECRET_SCANNER_MODE = process.env.PRIVACY_SECRET_SCANNER_MODE === "strict" ? "strict" : "balanced";
@@ -101,4 +100,11 @@ const PRIVACY_NOTICE_TEXT = process.env.PRIVACY_NOTICE_TEXT ??
   `Anonymized placeholders like {{EMAIL_trwmq}} or <<PRIVACY_MASK:EMAIL>> were injected by a privacy proxy: never invent, guess, expand, rewrite, translate, or remove them; keep every placeholder exactly as-is where the original value belongs.`;
 const PRIVACY_DEBUG_HEADERS = process.env.PRIVACY_DEBUG_HEADERS === "true";
 
-export { UPSTREAM_URL, DB_PATH, DEBUG, SECRET_SCANNER_MODE, PRIVACY_MASK_FORMAT, PRIVACY_DISAMBIGUATION_MODE, PRIVACY_NOTICE_TEXT, PRIVACY_DEBUG_HEADERS };
+// 默认上游(可选,实时读 env):设置时无渠道前缀请求走它(存量兼容);
+// 未设置时无默认路由——未匹配路径一律 404(防外网枚举常见 API 路径)
+export function getDefaultUpstream(): string | null {
+  const value = process.env.UPSTREAM_URL;
+  return value && value.length > 0 ? value : null;
+}
+
+export { DB_PATH, DEBUG, SECRET_SCANNER_MODE, PRIVACY_MASK_FORMAT, PRIVACY_DISAMBIGUATION_MODE, PRIVACY_NOTICE_TEXT, PRIVACY_DEBUG_HEADERS };

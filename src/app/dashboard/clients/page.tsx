@@ -22,6 +22,19 @@ interface Upstream {
 
 const EMPTY_FORM = { name: "", target: "", extraHeaders: "" };
 
+const PREFIX_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+// 随机入口前缀:24 位约 10^37 组合,外网无法枚举常见路径
+function generateRandomPrefix(length = 24): string {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  for (let i = 0; i < length; i++) {
+    out += PREFIX_CHARS[bytes[i]! % PREFIX_CHARS.length];
+  }
+  return out;
+}
+
 function headersPreview(raw: string): string {
   try {
     const parsed = JSON.parse(raw) as Record<string, string>;
@@ -40,6 +53,7 @@ export default function ClientsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState(EMPTY_FORM);
+  const [defaultUpstream, setDefaultUpstream] = useState<string | null>(null);
 
   async function loadUpstreams() {
     setLoading(true);
@@ -56,8 +70,21 @@ export default function ClientsPage() {
     }
   }
 
+  async function loadDefaultUpstream() {
+    try {
+      const res = await authedFetch("/api/admin/config");
+      if (!res.ok) return;
+      const data = await res.json();
+      const value = data?.env?.upstreamUrl;
+      setDefaultUpstream(typeof value === "string" && value.length > 0 ? value : null);
+    } catch {
+      /* 默认上游仅展示用途,加载失败不阻塞 */
+    }
+  }
+
   useEffect(() => {
     loadUpstreams();
+    loadDefaultUpstream();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function parseHeadersDraft(): Record<string, string> | null {
@@ -130,6 +157,29 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
+      {/* 默认上游(环境变量)状态:回填入口 + 防枚举模式说明 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("clients.defaultUpstream")}</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {defaultUpstream
+              ? t("clients.defaultUpstreamSet").replace("{target}", defaultUpstream)
+              : t("clients.defaultUpstreamNone")}
+          </p>
+        </CardHeader>
+        {defaultUpstream && (
+          <CardContent>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setForm({ name: generateRandomPrefix(), target: defaultUpstream, extraHeaders: "" })}
+            >
+              {t("clients.importDefault")}
+            </Button>
+          </CardContent>
+        )}
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>{t("clients.createTitle")}</CardTitle>
@@ -140,12 +190,23 @@ export default function ClientsPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <label className="space-y-1.5">
                 <span className="text-xs font-medium text-muted-foreground">{t("clients.name")}</span>
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                  placeholder="relay-a"
-                  maxLength={32}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    value={form.name}
+                    onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="relay-a"
+                    maxLength={64}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => setForm((prev) => ({ ...prev, name: generateRandomPrefix() }))}
+                  >
+                    {t("clients.generate")}
+                  </Button>
+                </div>
               </label>
               <label className="space-y-1.5">
                 <span className="text-xs font-medium text-muted-foreground">{t("clients.target")}</span>

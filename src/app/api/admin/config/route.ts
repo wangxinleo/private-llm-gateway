@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDbStats, getAllConfigs, setConfig } from "@/audit";
 import { checkAdminAuth } from "@/lib/admin-auth";
-import { UPSTREAM_URL, DB_PATH, DEBUG, CONTEXT_KEY, PATH_PREFIX_OPTIONS, CONTEXT_WINDOW_SIZE, SCANNER_RULES, RUNTIME } from "@/config";
+import { getDefaultUpstream, DB_PATH, DEBUG, CONTEXT_KEY, PATH_PREFIX_OPTIONS, CONTEXT_WINDOW_SIZE, SCANNER_RULES, RUNTIME } from "@/config";
 import { initializeConfigs, refreshConfig } from "@/config-loader";
 import { Logger } from "@/log";
 import { statSync } from "fs";
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       env: {
-        upstreamUrl: UPSTREAM_URL,
+        upstreamUrl: getDefaultUpstream() ?? "",
         dbPath: DB_PATH,
         debug: DEBUG,
         nodeEnv: process.env.NODE_ENV ?? "development",

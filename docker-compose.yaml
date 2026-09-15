@@ -7,6 +7,8 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
+      # 可选默认上游:设置时无渠道前缀请求走它(存量兼容);
+      # 删除此行则为防枚举模式——仅 /api/<渠道随机前缀>/... 可达,其余路径 404
       UPSTREAM_URL: http://host.docker.internal:8787
       DB_PATH: /data/audit.sqlite
       ADMIN_KEY: ""

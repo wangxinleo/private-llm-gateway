@@ -12,7 +12,8 @@ client -> private-llm-gateway -> upstream service -> LLM provider
 
 ## What it does
 
-- Proxies `/api/*` traffic to the same path on `UPSTREAM_URL`.
+- Routes `/api/<channel>/**` to the channel target configured in the dashboard (multi-channel upstreams).
+- When `UPSTREAM_URL` is set, requests without a channel prefix fall back to it (legacy compatibility); when unset, unmatched paths return 404 — common API paths reveal nothing to scanners (anti-enumeration; use a long random channel prefix).
 - Supports OpenAI/Anthropic-style JSON requests and SSE streaming responses.
 - Scans JSON, plain text, form, and multipart requests before forwarding.
 - Masks credential-like values and common PII instead of sending raw values upstream.
@@ -39,6 +40,7 @@ openssl rand -base64 32
 Edit `.env`:
 
 ```dotenv
+# 可选:默认上游。设置时无渠道前缀请求走它(存量兼容);留空则未匹配路径一律 404(防枚举模式)
 UPSTREAM_URL=http://localhost:8787
 ADMIN_KEY=<paste-generated-admin-key>
 ```
@@ -56,19 +58,22 @@ The proxy listens on `http://localhost:3000` by default.
 
 ### 3. Send traffic through the proxy
 
-Requests under `/api/*` are forwarded to `UPSTREAM_URL` with the `/api` prefix removed.
+Configure a channel in the dashboard (`Upstream Clients`) first, then use its prefix:
 
 ```bash
-curl -s http://localhost:3000/api/v1/chat/completions \
+curl -s http://localhost:3000/api/<channel>/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"model":"demo-model","messages":[{"role":"user","content":"hello"}]}'
 ```
 
-With `UPSTREAM_URL=http://localhost:8787`, the example above forwards to:
+With channel `relay-a → http://localhost:8787`, the example forwards to:
 
 ```text
 http://localhost:8787/v1/chat/completions
 ```
+
+If `UPSTREAM_URL` is set, requests without a channel prefix are forwarded there with the `/api`
+prefix removed (legacy single-upstream behavior). If it is unset, unmatched paths return 404.
 
 ### 4. Open the admin dashboard
 

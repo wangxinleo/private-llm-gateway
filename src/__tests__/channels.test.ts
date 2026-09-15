@@ -64,6 +64,17 @@ describe("resolveChannel", () => {
     expect(resolveChannel("/root2")?.forwardPath).toBe("/");
   });
 
+  it("accepts long random-looking prefixes up to 64 chars, rejects 65", () => {
+    const random24 = "k7m2x9q4w8e3r6t1y5u0p2a4";
+    createUpstream({ name: random24, target: "https://rand.example.test" });
+    expect(resolveChannel(`/${random24}/v1/chat/completions`)?.name).toBe(random24);
+
+    const tooLong = "a".repeat(65);
+    createUpstream({ name: "a".repeat(64), target: "https://max.example.test" });
+    expect(resolveChannel(`/${"a".repeat(64)}/v1`)?.name).toBe("a".repeat(64));
+    expect(resolveChannel(`/${tooLong}/v1`)).toBeNull();
+  });
+
   it("hot reload: disabling a channel takes effect immediately (version cache)", () => {
     const created = createUpstream({ name: "hot", target: "https://hot.example.test" });
     expect(resolveChannel("/hot/v1")).not.toBeNull();

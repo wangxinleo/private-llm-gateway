@@ -27,6 +27,7 @@ vi.mock("@/log", () => ({
 
 vi.mock("@/config", () => ({
   UPSTREAM_URL: "http://localhost:8787",
+  getDefaultUpstream: () => "http://localhost:8787",
   DB_PATH: "/tmp/test.sqlite",
   DEBUG: false,
   CONTEXT_KEY: {

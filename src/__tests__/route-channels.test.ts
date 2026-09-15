@@ -53,4 +53,32 @@ describe("channel-aware forwarding (route integration)", () => {
     await POST(makeRequest("/v1/chat/completions"));
     expect(mockForward.mock.calls[0]!.length).toBe(3);
   });
+
+  it("returns 404 without forwarding or auditing when no channel and no default upstream (enumeration hardening)", async () => {
+    const saved = process.env.UPSTREAM_URL;
+    delete process.env.UPSTREAM_URL;
+    try {
+      mockResolve.mockReturnValue(null);
+      const res = await POST(makeRequest("/v1/chat/completions"));
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ error: "not_found" });
+      expect(mockForward).not.toHaveBeenCalled();
+      expect(mockLogAudit).not.toHaveBeenCalled();
+    } finally {
+      process.env.UPSTREAM_URL = saved;
+    }
+  });
+
+  it("channel routing still works without default upstream", async () => {
+    const saved = process.env.UPSTREAM_URL;
+    delete process.env.UPSTREAM_URL;
+    try {
+      mockResolve.mockReturnValue(CHANNEL);
+      const res = await POST(makeRequest("/relay/v1/chat/completions"));
+      expect(res.status).toBe(200);
+      expect(mockForward).toHaveBeenCalled();
+    } finally {
+      process.env.UPSTREAM_URL = saved;
+    }
+  });
 });
