@@ -672,3 +672,36 @@ Completed Stage B/C/D scanner expansion with provider, developer, cloud, connect
 ### Next Steps
 
 - None - task complete
+
+
+## Session 18: G3 多渠道上游路由+Clients 管理页
+
+**Date**: 2026-09-15
+**Task**: G3 多渠道上游路由+Clients 管理页
+**Branch**: `master`
+
+### Summary
+
+upstreams 表+CRUD(channel 名校验/保留段 admin+health/target 归一化/extra_headers 凭据黑名单);resolveChannel 路径前缀路由(/api/<channel>/** strip 后转发 target,空表回落 UPSTREAM_URL 逐字节兼容),审计与 bypass 保持原始路径;forwarder 可选 channel 参数,额外头不覆盖调用方同名头(maskit 教训#8),无渠道保持三参兼容;Clients 页+侧栏+中英 i18n,热加载即时生效。测试 472 全绿。桌面验证:双 mock 上游对照(渠道转发/头注入/脱敏/审计原始路径/停用回落/调用方头优先),UI 渲染与数据实测;浏览器写操作闭环因 MCP 桥冻结未现场完成,以同构 curl 等价验证。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c2338cd` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
