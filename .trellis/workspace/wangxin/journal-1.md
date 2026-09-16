@@ -804,3 +804,37 @@ UPSTREAM_URL 可选化:未设置时无前缀/未匹配路径读 body 前即 404(
 ### Next Steps
 
 - None - task complete
+
+
+## Session 22: 部署配置同步(.env/compose/Dockerfile)与登录失败归因修复
+
+**Date**: 2026-09-16
+**Task**: 部署配置同步(.env/compose/Dockerfile)与登录失败归因修复
+**Branch**: `master`
+
+### Summary
+
+部署三件套核对:compose 改为从仓库根 .env 插值(ADMIN_KEY/UPSTREAM_URL/PRIVACY_SUFFIX_SECRET/HOST_PORT,修复此前 ADMIN_KEY 硬编码空串导致控制台不可用),Dockerfile 无需改(无新运行时依赖,healthcheck 经 307→fetch 跟随→200 不受根路径代理影响,.dockerignore 已排除 .env),.env/.env.template/README 同步新增变量与防枚举说明;docker-compose config 渲染复核+启动三连。随后排查用户'未登录/未配置 ADMIN_KEY'报障:CDP 实测其 3000 dev server 服务端登录正常(200),根因=登录门把一切非 401 错误误显示为'未配置 ADMIN_KEY'(实为 503),且 compose 静默传空 key——修复:登录门错误精确映射(401/503/403/其他HTTP码/网络异常各自文案,i18n 中英),compose ADMIN_KEY 改 ${ADMIN_KEY:?} fail-fast(缺配置启动即报错)。headless CDP 验证:keyless 实例显示'（服务端 503）'且网络面板 503 对应、有 key 实例登录成功;清理 3216/3230 僵尸测试实例。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f9b0d88` | (see git log) |
+| `8336e15` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
