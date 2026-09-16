@@ -281,7 +281,10 @@ const zh: Record<string, string> = {
   "auth.placeholder": "输入 Admin Key",
   "auth.login": "登录",
   "auth.invalidKey": "Admin Key 无效",
-  "auth.notConfigured": "未配置 ADMIN_KEY，请设置环境变量",
+  "auth.notConfigured": "未配置 ADMIN_KEY，请设置环境变量（服务端 503）",
+  "auth.originRejected": "请求被来源校验拒绝（403）：检查浏览器扩展/代理，或设置 DISABLE_ORIGIN_CHECK=1",
+  "auth.loginFailed": "登录失败（HTTP {status}）",
+  "auth.networkError": "无法连接服务，请确认服务已启动",
   // Action labels
   "action.allow": "放行",
   "action.mask": "脱敏",
@@ -572,7 +575,10 @@ const en: Record<string, string> = {
   "auth.placeholder": "Enter Admin Key",
   "auth.login": "Login",
   "auth.invalidKey": "Invalid Admin Key",
-  "auth.notConfigured": "ADMIN_KEY not configured, please set the environment variable",
+  "auth.notConfigured": "ADMIN_KEY not configured on the server, please set the environment variable (HTTP 503)",
+  "auth.originRejected": "Request rejected by origin check (403): check browser extensions/proxy, or set DISABLE_ORIGIN_CHECK=1",
+  "auth.loginFailed": "Login failed (HTTP {status})",
+  "auth.networkError": "Cannot reach the server — make sure it is running",
 };
 
 const dicts: Record<Locale, Record<string, string>> = { zh, en };

@@ -11,7 +11,9 @@ services:
       # 即为防枚举模式——仅 /<渠道随机前缀>/... 可达,其余路径 404
       UPSTREAM_URL: "${UPSTREAM_URL:-}"
       DB_PATH: /data/audit.sqlite
-      ADMIN_KEY: "${ADMIN_KEY:-}"
+      # 必填:.env 或 shell 中未设置 ADMIN_KEY 时 compose 启动直接报错(fail-fast),
+      # 避免"容器能起但控制台登不上"。生成:openssl rand -base64 32
+      ADMIN_KEY: "${ADMIN_KEY:?请在仓库根 .env 或 shell 环境设置 ADMIN_KEY}"
       # 可选:固定占位符派生密钥(重启/多副本间占位符映射一致,上游 Prompt Cache 前缀稳定);
       # 不在 .env 设置则每次启动随机生成
       PRIVACY_SUFFIX_SECRET: "${PRIVACY_SUFFIX_SECRET:-}"

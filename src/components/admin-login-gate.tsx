@@ -37,7 +37,13 @@ export function AdminLoginGate({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      setError(res.status === 401 ? t("auth.invalidKey") : t("auth.notConfigured"));
+      // 精确映射,避免把来源校验/服务错误误报成"未配置 ADMIN_KEY"
+      if (res.status === 401) setError(t("auth.invalidKey"));
+      else if (res.status === 503) setError(t("auth.notConfigured"));
+      else if (res.status === 403) setError(t("auth.originRejected"));
+      else setError(t("auth.loginFailed", { status: String(res.status) }));
+    } catch {
+      setError(t("auth.networkError"));
     } finally {
       setSubmitting(false);
     }
