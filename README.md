@@ -97,17 +97,19 @@ The production image is published to GitHub Container Registry:
 ghcr.io/wangxinleo/private-llm-gateway:latest
 ```
 
-Edit `docker-compose.yaml` before starting:
+Edit `.env` in the repository root — `docker-compose.yaml` interpolates it automatically:
 
-```yaml
-environment:
-  NODE_ENV: production
-  PORT: 3000
-  HOSTNAME: 0.0.0.0
-  UPSTREAM_URL: http://host.docker.internal:8787
-  DB_PATH: /data/audit.sqlite
-  ADMIN_KEY: "<strong-admin-key>"
+```dotenv
+# Optional default upstream (legacy). Comment it out for anti-enumeration mode (404).
+UPSTREAM_URL=http://host.docker.internal:8787
+# Optional: fixed placeholder secret for stable prompt-cache prefixes across restarts.
+# PRIVACY_SUFFIX_SECRET=<openssl rand -hex 32>
+ADMIN_KEY=<strong-admin-key>
+HOST_PORT=3000
 ```
+
+The values are passed through by `docker-compose.yaml` (`ADMIN_KEY`, `UPSTREAM_URL`,
+`PRIVACY_SUFFIX_SECRET`, host port). Container-internal settings (`PORT`, `DB_PATH`) stay inline.
 
 Start the service:
 
@@ -145,10 +147,14 @@ If the upstream service runs on the Docker host, `http://host.docker.internal:87
 | `NODE_ENV` | `production` in Compose | Node.js runtime environment. |
 | `PORT` | `3000` | Next.js listen port. |
 | `HOSTNAME` | `0.0.0.0` in Compose | Bind interface inside the container. |
-| `UPSTREAM_URL` | `http://localhost:8787` directly / `http://host.docker.internal:8787` in Compose | Upstream base URL. |
+| `UPSTREAM_URL` | unset (anti-enumeration mode) | Optional default upstream. When set, requests without a channel prefix are forwarded as-is (legacy mode); when unset, unmatched paths return 404. |
 | `DB_PATH` | `audit.sqlite` directly / `/data/audit.sqlite` in Compose | SQLite audit database path. |
 | `DEBUG` | `false` in production | Enables verbose scan flow logs when `true`. |
 | `ADMIN_KEY` | empty | Required for dashboard and reveal-auth access. |
+| `PRIVACY_SUFFIX_SECRET` | random per process | Optional fixed secret (≥16 chars) for placeholder derivation — keeps mappings stable across restarts/replicas so upstream prompt-cache prefixes survive. |
+| `ALLOWED_ORIGINS` | unset | Comma-separated extra origins allowed to call `/api/admin/*` (same-origin is always allowed). |
+| `TRUST_PROXY` | unset | Set to `1` behind a reverse proxy so `X-Forwarded-Proto/Host` are trusted for origin checks. |
+| `DISABLE_ORIGIN_CHECK` | unset | Set to `1` to disable the admin origin check entirely (escape hatch). |
 | `PRIVACY_SECRET_SCANNER_MODE` | `balanced` | Set to `strict` to use stricter contextual secret scanning. |
 | `PRIVACY_MASK_FORMAT` | `explicit` | Mask token format; `legacy` is available for compatibility. |
 | `PRIVACY_DISAMBIGUATION_MODE` | `auto` | Adds privacy-mask guidance for upstream LLMs by prepending notice text into standard prompt fields (`system` / `messages` / `prompt` / `input`). Values: `off`, `prefix`, `auto`. Legacy `json-meta` is treated as `auto` and no longer injects custom JSON fields. |

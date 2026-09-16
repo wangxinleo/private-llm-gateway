@@ -7,13 +7,16 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
-      # 可选默认上游:设置时无渠道前缀请求走它(存量兼容);
-      # 删除此行则为防枚举模式——仅 /<渠道随机前缀>/... 可达,其余路径 404
-      UPSTREAM_URL: http://host.docker.internal:8787
+      # 从仓库根 .env 自动插值(docker compose 读取同目录 .env);留空/注释掉 UPSTREAM_URL
+      # 即为防枚举模式——仅 /<渠道随机前缀>/... 可达,其余路径 404
+      UPSTREAM_URL: "${UPSTREAM_URL:-}"
       DB_PATH: /data/audit.sqlite
-      ADMIN_KEY: ""
+      ADMIN_KEY: "${ADMIN_KEY:-}"
+      # 可选:固定占位符派生密钥(重启/多副本间占位符映射一致,上游 Prompt Cache 前缀稳定);
+      # 不在 .env 设置则每次启动随机生成
+      PRIVACY_SUFFIX_SECRET: "${PRIVACY_SUFFIX_SECRET:-}"
     ports:
-      - "3000:3000"
+      - "${HOST_PORT:-3000}:3000"
     volumes:
       - ./data:/data
     healthcheck:
