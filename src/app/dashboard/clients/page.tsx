@@ -272,7 +272,7 @@ export default function ClientsPage() {
                 {upstreams.map((upstream) => (
                   <TableRow key={upstream.id}>
                     <TableCell>
-                      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">/api/{upstream.name}/...</code>
+                      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">/{upstream.name}/...</code>
                     </TableCell>
                     <TableCell className="max-w-[280px] truncate">
                       <code className="font-mono text-xs">{upstream.target}</code>

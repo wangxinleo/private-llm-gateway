@@ -213,7 +213,7 @@ describe("Integration: Privacy Proxy + Dashboard", () => {
   it("allows clean request and records audit log", async (context) => {
     skipIfUnavailable(context);
 
-    const res = await fetch(`${TEST_BASE_URL}/api/post`, {
+    const res = await fetch(`${TEST_BASE_URL}/post`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: "hello world", number: 42 }),
@@ -230,7 +230,7 @@ describe("Integration: Privacy Proxy + Dashboard", () => {
   it("masks sensitive token and records as mask action", async (context) => {
     skipIfUnavailable(context);
 
-    const res = await fetch(`${TEST_BASE_URL}/api/post`, {
+    const res = await fetch(`${TEST_BASE_URL}/post`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -247,7 +247,7 @@ describe("Integration: Privacy Proxy + Dashboard", () => {
     skipIfUnavailable(context);
 
     const rawPhone = "13912345678";
-    const res = await fetch(`${TEST_BASE_URL}/api/post`, {
+    const res = await fetch(`${TEST_BASE_URL}/post`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -275,7 +275,7 @@ describe("Integration: Privacy Proxy + Dashboard", () => {
   it("never injects instructions into clean (unmasked) requests", async (context) => {
     skipIfUnavailable(context);
 
-    const res = await fetch(`${TEST_BASE_URL}/api/post`, {
+    const res = await fetch(`${TEST_BASE_URL}/post`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: "hello world", number: 42 }),

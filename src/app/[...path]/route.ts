@@ -26,9 +26,9 @@ const log = new Logger("proxy");
 const MULTIPART = "multipart/form-data";
 
 function extractPath(request: NextRequest): string {
+  // 根路径代理:path 原样(含 query);渠道前缀即首段,不再有固定 api 段
   const url = new URL(request.url);
-  const path = url.pathname.replace(/^\/api/, "") || "/";
-  return `${path}${url.search}`;
+  return `${url.pathname}${url.search}`;
 }
 
 function isMultipart(contentType: string): boolean {

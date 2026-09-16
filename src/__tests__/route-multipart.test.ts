@@ -25,7 +25,7 @@ vi.mock("@/bypass/store", () => ({
   findMatchingBypassRule: vi.fn(),
 }));
 
-import { POST } from "@/app/api/[[...path]]/route";
+import { POST } from "@/app/[...path]/route";
 import { forwardRequest } from "@/proxy/forwarder";
 import { findMatchingBypassRule } from "@/bypass/store";
 
@@ -38,7 +38,7 @@ function makeMultipartRequest(fields: Record<string, string>, files: Record<stri
   for (const [key, { content, filename, type }] of Object.entries(files)) {
     form.append(key, new File([content], filename, { type }));
   }
-  return new NextRequest("http://localhost:3000/api/v1/upload", {
+  return new NextRequest("http://localhost:3000/v1/upload", {
     method: "POST",
     body: form,
   });

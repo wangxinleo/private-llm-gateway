@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { POST } from "@/app/api/[[...path]]/route";
+import { POST } from "@/app/[...path]/route";
 
 vi.mock("@/proxy/forwarder", () => ({
   forwardRequest: vi.fn(),
@@ -31,7 +31,7 @@ const mockLogAudit = vi.mocked(logAudit);
 const mockFindMatchingBypassRule = vi.mocked(findMatchingBypassRule);
 
 function makeRequest(path: string, body: string): NextRequest {
-  return new NextRequest(`http://localhost:3000/api${path}`, {
+  return new NextRequest(`http://localhost:3000${path}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body,

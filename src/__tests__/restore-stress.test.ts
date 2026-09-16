@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
-import { POST } from "@/app/api/[[...path]]/route";
+import { POST } from "@/app/[...path]/route";
 import { MaskRegistry } from "@/scanner/mask-registry";
 import { runPipeline } from "@/scanner/pipeline";
 import { SseChannelRestorer } from "@/proxy/restore";
@@ -69,7 +69,7 @@ function buildContent(values: GeneratedValue[]): string {
 }
 
 function makeRequest(body: string): NextRequest {
-  return new NextRequest("http://localhost:3000/api/v1/chat/completions", {
+  return new NextRequest("http://localhost:3000/v1/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body,

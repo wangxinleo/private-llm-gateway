@@ -25,7 +25,7 @@ vi.mock("@/bypass/store", () => ({
   findMatchingBypassRule: vi.fn(),
 }));
 
-import { GET, POST } from "@/app/api/[[...path]]/route";
+import { GET, POST } from "@/app/[...path]/route";
 import { initializeConfigs } from "@/config-loader";
 import { forwardRequest } from "@/proxy/forwarder";
 import { findMatchingBypassRule } from "@/bypass/store";
@@ -37,7 +37,7 @@ const mockForward = vi.mocked(forwardRequest);
 const mockFindMatchingBypassRule = vi.mocked(findMatchingBypassRule);
 
 function makeRequest(path: string, init?: NextRequestInit): NextRequest {
-  return new NextRequest(`http://localhost:3000/api${path}`, init);
+  return new NextRequest(`http://localhost:3000${path}`, init);
 }
 
 describe("proxy route LLM compatibility", () => {

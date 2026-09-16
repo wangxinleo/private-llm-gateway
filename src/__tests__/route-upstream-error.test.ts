@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { POST } from "@/app/api/[[...path]]/route";
+import { POST } from "@/app/[...path]/route";
 import { NextRequest } from "next/server";
 
 vi.mock("@/proxy/forwarder", () => ({
@@ -28,7 +28,7 @@ function makeRequest(
   method = "POST",
   contentType = "application/json",
 ): NextRequest {
-  const url = `http://localhost:3000/api${path}`;
+  const url = `http://localhost:3000${path}`;
   const init: { method: string; headers: Record<string, string>; body?: string } = { method, headers: { "content-type": contentType } };
   if (body !== undefined) init.body = body;
   return new NextRequest(url, init);

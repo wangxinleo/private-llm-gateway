@@ -12,8 +12,8 @@ client -> private-llm-gateway -> upstream service -> LLM provider
 
 ## What it does
 
-- Routes `/api/<channel>/**` to the channel target configured in the dashboard (multi-channel upstreams).
-- When `UPSTREAM_URL` is set, requests without a channel prefix fall back to it (legacy compatibility); when unset, unmatched paths return 404 — common API paths reveal nothing to scanners (anti-enumeration; use a long random channel prefix).
+- Routes `/<channel>/**` to the channel target configured in the dashboard — the channel prefix lives at the root path (e.g. a random code `/k7x…/v1/chat/completions`); there is no fixed `/api` segment for proxied traffic.
+- When `UPSTREAM_URL` is set, requests without a channel prefix are forwarded as-is to it (legacy compatibility); when unset, unmatched paths return 404 — common API paths reveal nothing to scanners (anti-enumeration; use a long random channel prefix).
 - Supports OpenAI/Anthropic-style JSON requests and SSE streaming responses.
 - Scans JSON, plain text, form, and multipart requests before forwarding.
 - Masks credential-like values and common PII instead of sending raw values upstream.
@@ -61,7 +61,7 @@ The proxy listens on `http://localhost:3000` by default.
 Configure a channel in the dashboard (`Upstream Clients`) first, then use its prefix:
 
 ```bash
-curl -s http://localhost:3000/api/<channel>/v1/chat/completions \
+curl -s http://localhost:3000/<channel>/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"model":"demo-model","messages":[{"role":"user","content":"hello"}]}'
 ```
@@ -72,8 +72,12 @@ With channel `relay-a → http://localhost:8787`, the example forwards to:
 http://localhost:8787/v1/chat/completions
 ```
 
-If `UPSTREAM_URL` is set, requests without a channel prefix are forwarded there with the `/api`
-prefix removed (legacy single-upstream behavior). If it is unset, unmatched paths return 404.
+If `UPSTREAM_URL` is set, requests without a channel prefix are forwarded to it as-is (legacy
+single-upstream behavior; the whole path is kept, e.g. `/v1/chat/completions`). If it is unset,
+unmatched paths return 404.
+
+> Migration note: older setups used base URL `http://host:3000/api`. Proxied paths are now rooted
+> at `/` — drop the `/api` segment (or use a channel prefix). The admin API stays under `/api/admin`.
 
 ### 4. Open the admin dashboard
 

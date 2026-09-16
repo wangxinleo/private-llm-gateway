@@ -1,9 +1,10 @@
 import { getUpstreamsVersion, listEnabledUpstreams, type UpstreamRow } from "@/upstreams/store";
 
-// 渠道名不得撞已存在的具体路由段或系统端点:
-// - admin:src/app/api 下具体路由优先于 catch-all,撞段必然不可达
-// - health:健康检查约定路径(容器 HEALTHCHECK 依赖),避免被渠道劫持
-export const RESERVED_CHANNEL_SEGMENTS: ReadonlySet<string> = new Set(["admin", "health"]);
+// 渠道名不得撞已存在的根级路由段或系统约定:
+// - api:/api/admin 管理端树(具体路由优先,撞段不可达)
+// - dashboard:控制台页面树
+// - admin/health:防与管理系统/健康检查约定混淆
+export const RESERVED_CHANNEL_SEGMENTS: ReadonlySet<string> = new Set(["api", "dashboard", "admin", "health"]);
 
 export const CHANNEL_NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 

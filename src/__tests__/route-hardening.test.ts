@@ -25,7 +25,7 @@ vi.mock("@/bypass/store", () => ({
   findMatchingBypassRule: vi.fn(),
 }));
 
-import { POST } from "@/app/api/[[...path]]/route";
+import { POST } from "@/app/[...path]/route";
 import { forwardRequest } from "@/proxy/forwarder";
 import { findMatchingBypassRule } from "@/bypass/store";
 import { maskJsonBody } from "@/scanner/json-mask";
@@ -46,7 +46,7 @@ const mockMaskJson = vi.mocked(maskJsonBody);
 type NextRequestInit = ConstructorParameters<typeof NextRequest>[1];
 
 function makeRequest(init?: NextRequestInit): NextRequest {
-  return new NextRequest("http://localhost:3000/api/v1/chat/completions", init);
+  return new NextRequest("http://localhost:3000/v1/chat/completions", init);
 }
 
 function jsonRequest(body: unknown, headers?: Record<string, string>): NextRequest {

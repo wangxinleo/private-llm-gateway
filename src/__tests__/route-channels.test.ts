@@ -8,7 +8,7 @@ vi.mock("@/bypass/store", () => ({ findMatchingBypassRule: vi.fn(() => null) }))
 vi.mock("@/proxy/channels", () => ({ resolveChannel: vi.fn() }));
 vi.mock("@/proxy/forwarder", () => ({ forwardRequest: vi.fn() }));
 
-import { POST } from "@/app/api/[[...path]]/route";
+import { POST } from "@/app/[...path]/route";
 import { forwardRequest } from "@/proxy/forwarder";
 import { resolveChannel } from "@/proxy/channels";
 import { logAudit } from "@/audit/logger";
@@ -18,7 +18,7 @@ const mockResolve = vi.mocked(resolveChannel);
 const mockLogAudit = vi.mocked(logAudit);
 
 function makeRequest(path: string): NextRequest {
-  return new NextRequest(`http://localhost:3000/api${path}`, {
+  return new NextRequest(`http://localhost:3000${path}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ model: "demo-model", messages: [{ role: "user", content: "hello" }] }),
