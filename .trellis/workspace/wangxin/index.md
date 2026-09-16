@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 22
+- **Total Sessions**: 23
 - **Last Active**: 2026-09-16
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~840 | Active |
+| `journal-1.md` | ~874 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 23 | 2026-09-16 | 部署来源校验误杀修复(Host 头同源判定)与 spec 校准 | `0191a28`, `07ef225` | `master` |
 | 22 | 2026-09-16 | 部署配置同步(.env/compose/Dockerfile)与登录失败归因修复 | `f9b0d88`, `8336e15` | `master` |
 | 21 | 2026-09-16 | 根路径渠道前缀:移除 /api/ 固定段 | `b399b15` | `master` |
 | 20 | 2026-09-15 | 枚举硬化:无默认路由+渠道随机前缀+默认上游回填 | `9ecef6d` | `master` |

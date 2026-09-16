@@ -838,3 +838,37 @@ UPSTREAM_URL 可选化:未设置时无前缀/未匹配路径读 body 前即 404(
 ### Next Steps
 
 - None - task complete
+
+
+## Session 23: 部署来源校验误杀修复(Host 头同源判定)与 spec 校准
+
+**Date**: 2026-09-16
+**Task**: 部署来源校验误杀修复(Host 头同源判定)与 spec 校准
+**Branch**: `master`
+
+### Summary
+
+部署后浏览器登录 403 origin_not_allowed 根因定位与修复:生产 standalone 构建实证 Next.js 以服务端绑定地址构造 middleware 的 request.url(standalone=http://0.0.0.0:PORT,dev=localhost:PORT),同源判定永不命中浏览器真实来源(修复前实测仅 Origin=http://0.0.0.0:PORT 放行),故任何真实浏览器访问全 403 且与 ADMIN_KEY 无关。修复:同源候选改为 Host 头(http/https 双纳入)并保留 request.url 兜底;跨站 Origin、Origin: null、未开 TRUST_PROXY 伪造 X-Forwarded-* 仍 403,错误 key 仍 401;compose 补透传 TRUST_PROXY/ALLOWED_ORIGINS/DISABLE_ORIGIN_CHECK(此前 compose 部署不可设置)。验证:生产构建 10 场景矩阵全过+全量 478 测试绿(新增 3 条回归)。提交 0191a28 推送后 GHCR :latest 已发布。用户服务器经 fnos 隧道实测待进行:Host 透传则免配置,改写则 TRUST_PROXY/ALLOWED_ORIGINS(前缀每次重启随机重生成,子域通配需求已提出、按需再实现)。补流程:任务 design.md/上下文清单齐备并通过 validate;spec 校准(docker-cicd 的 compose .env 插值契约、reverse-proxy 新增 Admin API Origin Check scenario)07ef225。遗留:reverse-proxy.md 的 LLM Privacy Proxy scenario 仍写 /api/[[...path]] 旧路径(未随根路径迁移更新),待下轮校准。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0191a28` | (see git log) |
+| `07ef225` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
