@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 20
-- **Last Active**: 2026-09-15
+- **Total Sessions**: 21
+- **Last Active**: 2026-09-16
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~773 | Active |
+| `journal-1.md` | ~806 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 21 | 2026-09-16 | 根路径渠道前缀:移除 /api/ 固定段 | `b399b15` | `master` |
 | 20 | 2026-09-15 | 枚举硬化:无默认路由+渠道随机前缀+默认上游回填 | `9ecef6d` | `master` |
 | 19 | 2026-09-15 | G3 桌面验证补全(真实点击闭环) | `c2338cd` | `master` |
 | 18 | 2026-09-15 | G3 多渠道上游路由+Clients 管理页 | `c2338cd` | `master` |

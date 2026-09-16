@@ -771,3 +771,36 @@ UPSTREAM_URL 可选化:未设置时无前缀/未匹配路径读 body 前即 404(
 ### Next Steps
 
 - None - task complete
+
+
+## Session 21: 根路径渠道前缀:移除 /api/ 固定段
+
+**Date**: 2026-09-16
+**Task**: 根路径渠道前缀:移除 /api/ 固定段
+**Branch**: `master`
+
+### Summary
+
+代理入口从 /api/<channel>/** 迁至根路径 /<channel>/**:用户自定义任意根级前缀(随机码入口不再暴露 /api 约定);extractPath 不再剥前缀,存量 UPSTREAM_URL 模式无匹配路径原样转发(Base URL 直接为 host:port);保留段改为 api/dashboard/admin/health;README 迁移说明。测试/e2e 全量迁移,475 绿;headless CDP 双模式桌面验证全 PASS(/api/<同前缀>已 404、根路径随机码端到端、两模式路由与审计正确)。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b399b15` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
