@@ -109,7 +109,8 @@ HOST_PORT=3000
 ```
 
 The values are passed through by `docker-compose.yaml` (`ADMIN_KEY`, `UPSTREAM_URL`,
-`PRIVACY_SUFFIX_SECRET`, host port). Container-internal settings (`PORT`, `DB_PATH`) stay inline.
+`PRIVACY_SUFFIX_SECRET`, host port, plus the optional origin-check variables below).
+Container-internal settings (`PORT`, `DB_PATH`) stay inline.
 
 Start the service:
 
@@ -152,8 +153,8 @@ If the upstream service runs on the Docker host, `http://host.docker.internal:87
 | `DEBUG` | `false` in production | Enables verbose scan flow logs when `true`. |
 | `ADMIN_KEY` | empty | Required for dashboard and reveal-auth access. |
 | `PRIVACY_SUFFIX_SECRET` | random per process | Optional fixed secret (≥16 chars) for placeholder derivation — keeps mappings stable across restarts/replicas so upstream prompt-cache prefixes survive. |
-| `ALLOWED_ORIGINS` | unset | Comma-separated extra origins allowed to call `/api/admin/*` (same-origin is always allowed). |
-| `TRUST_PROXY` | unset | Set to `1` behind a reverse proxy so `X-Forwarded-Proto/Host` are trusted for origin checks. |
+| `ALLOWED_ORIGINS` | unset | Comma-separated extra origins allowed to call `/api/admin/*` (same-origin, matched against the request `Host` header, is always allowed). |
+| `TRUST_PROXY` | unset | Set to `1` behind a reverse proxy so `X-Forwarded-Proto/Host` are trusted for origin checks (needed when the proxy rewrites `Host` to an internal address). |
 | `DISABLE_ORIGIN_CHECK` | unset | Set to `1` to disable the admin origin check entirely (escape hatch). |
 | `PRIVACY_SECRET_SCANNER_MODE` | `balanced` | Set to `strict` to use stricter contextual secret scanning. |
 | `PRIVACY_MASK_FORMAT` | `explicit` | Mask token format; `legacy` is available for compatibility. |

@@ -23,8 +23,35 @@ describe("admin origin check (R6)", () => {
     expect(res.status).not.toBe(403);
   });
 
+  it("allows same-origin via Host header when request.url uses the bind address (standalone deploy)", () => {
+    const res = middleware(
+      new NextRequest("http://0.0.0.0:3000/api/admin/stats", {
+        headers: { host: "192.168.1.10:3000", referer: "http://192.168.1.10:3000/dashboard" },
+      })
+    );
+    expect(res.status).not.toBe(403);
+  });
+
+  it("allows https Host-header origin when TLS terminates upstream and Host is preserved", () => {
+    const res = middleware(
+      new NextRequest("http://0.0.0.0:3000/api/admin/stats", {
+        headers: { host: "mask.example.com", origin: "https://mask.example.com" },
+      })
+    );
+    expect(res.status).not.toBe(403);
+  });
+
   it("rejects cross-origin requests with 403", () => {
     const res = middleware(request("/api/admin/stats", { origin: "https://evil.example.com" }));
+    expect(res.status).toBe(403);
+  });
+
+  it("rejects cross-origin even when a Host header is present", () => {
+    const res = middleware(
+      new NextRequest("http://0.0.0.0:3000/api/admin/stats", {
+        headers: { host: "mask.example.com", origin: "https://evil.example.com" },
+      })
+    );
     expect(res.status).toBe(403);
   });
 

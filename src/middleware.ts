@@ -9,6 +9,13 @@ function allowedOrigins(request: NextRequest): string[] {
   } catch {
     /* 忽略解析失败 */
   }
+  // Next.js 用服务端绑定地址构造 request.url(standalone 为 0.0.0.0:PORT,dev 为 localhost:PORT),
+  // 与浏览器实际来源无关;同源判定以 Host 头为准(无法感知终端 scheme,http/https 均纳入)。
+  const host = request.headers.get("host");
+  if (host) {
+    origins.add(`http://${host}`);
+    origins.add(`https://${host}`);
+  }
   const extra = process.env.ALLOWED_ORIGINS ?? "";
   for (const item of extra.split(",")) {
     const trimmed = item.trim().replace(/\/$/, "");

@@ -17,6 +17,10 @@ services:
       # 可选:固定占位符派生密钥(重启/多副本间占位符映射一致,上游 Prompt Cache 前缀稳定);
       # 不在 .env 设置则每次启动随机生成
       PRIVACY_SUFFIX_SECRET: "${PRIVACY_SUFFIX_SECRET:-}"
+      # 可选:管理面来源校验(反代改写 Host 时需 TRUST_PROXY=1;详见 README 运行时配置)
+      TRUST_PROXY: "${TRUST_PROXY:-}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-}"
+      DISABLE_ORIGIN_CHECK: "${DISABLE_ORIGIN_CHECK:-}"
     ports:
       - "${HOST_PORT:-3000}:3000"
     volumes:
