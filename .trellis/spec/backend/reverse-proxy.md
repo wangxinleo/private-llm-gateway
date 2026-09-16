@@ -126,16 +126,20 @@ CMD ["node", "server.js"]
 
 ### 3. Contracts
 
-Runtime env keys in `docker-compose.yaml` are written directly, without `.env`, environment-file wiring, or project-prefixed indirection:
+Runtime env keys in `docker-compose.yaml` interpolate from the repository-root `.env` (docker compose reads it automatically): optional values use `${VAR:-}`, required values use `${VAR:?message}` fail-fast. No project-prefixed indirection:
 
 | Container env | Required | Default in Compose | Contract |
 | --- | --- | --- | --- |
 | `NODE_ENV` | yes | `production` | Production runtime mode. |
 | `PORT` | yes | `3000` | Next.js listen port inside the container. |
 | `HOSTNAME` | yes | `0.0.0.0` | Bind all container interfaces. |
-| `UPSTREAM_URL` | yes | `http://host.docker.internal:8787` | Base URL reachable from inside the container; edit directly for the real upstream. |
+| `UPSTREAM_URL` | no | empty (anti-enumeration) | Base URL reachable from inside the container; empty means only `/<channel-prefix>/...` paths are reachable. |
 | `DB_PATH` | yes | `/data/audit.sqlite` | SQLite audit database path under the bind-mounted `/data`. |
-| `ADMIN_KEY` | deployment-specific | empty | Required for `/dashboard`; user fills a strong value directly in Compose. |
+| `ADMIN_KEY` | yes | `${ADMIN_KEY:?...}` fail-fast | Required for `/dashboard`; compose refuses to start when unset. |
+| `PRIVACY_SUFFIX_SECRET` | no | empty (random per process) | Fixed placeholder-derivation secret for stable prompt-cache prefixes. |
+| `TRUST_PROXY` | no | empty | `1` trusts `X-Forwarded-Proto/Host` for the admin origin check (needed when the proxy rewrites `Host`). |
+| `ALLOWED_ORIGINS` | no | empty | Extra exact origins allowed to call `/api/admin/*`, comma-separated. |
+| `DISABLE_ORIGIN_CHECK` | no | empty | Escape hatch: `1` disables the admin origin check entirely. |
 
 Audit raw-value contract:
 - `logAudit` must persist `matchedValues` for every finding so private deployments can measure real leakage.
@@ -145,8 +149,8 @@ Audit raw-value contract:
 
 Compose topology contract:
 - Use the published image (`image:`) only; do not add local build configuration.
-- Do not use environment-file wiring or nested variable interpolation.
-- Do not add a simulated upstream service; smoke tests must use a real upstream URL edited into Compose.
+- Env values interpolate from the repository-root `.env`; secrets use fail-fast `${ADMIN_KEY:?...}`, never plaintext defaults.
+- Do not add a simulated upstream service; smoke tests must use a real upstream URL.
 - Mount persistent audit data with bind mount `./data:/data`; do not use named volumes.
 
 Native module contract:
@@ -159,38 +163,38 @@ Native module contract:
 | Condition | Expected behavior |
 | --- | --- |
 | Docker daemon is unavailable | `docker compose config` / `docker compose up` fails before application validation; report daemon issue separately. |
-| `UPSTREAM_URL` is not reachable from inside the container | Proxy forwarding fails; edit the direct Compose value to `host.docker.internal`, a real service name, or a routable URL. |
+| `UPSTREAM_URL` is not reachable from inside the container | Proxy forwarding fails; edit `.env` to `host.docker.internal`, a real service name, or a routable URL. |
 | `/data` is not writable by runtime user | First audit write fails when opening SQLite; create and chown `/data` before switching to `USER node`. |
 | SQLite sidecar files are not ignored | `audit.sqlite-shm`/`audit.sqlite-wal` appear as dirty files; ignore `*.sqlite-*` and `*.db-*`. |
 | `better-sqlite3` native runtime libs are missing | Container starts then crashes on module load; keep same Alpine base and install `libstdc++` in runner. |
 | Admin reveal auth is inactive | Audit API omits `matchedValues`; UI shows reveal-required copy/display hint. |
 
 ### 5. Good/Base/Bad Cases
-- Good: `docker-compose.yaml` has `image`, direct `environment`, `./data:/data`, and no local build, environment-file wiring, or mock service.
-- Base: `UPSTREAM_URL: http://host.docker.internal:8787` for Docker Desktop host upstream; user edits directly for production.
-- Bad: reintroducing project-prefixed upstream indirection, a raw-value opt-in switch, or a mock upstream service to simulate deployment complexity.
+- Good: `docker-compose.yaml` has `image`, `.env`-interpolated `environment`, `./data:/data`, and no local build or mock service.
+- Base: `UPSTREAM_URL=http://host.docker.internal:8787` in `.env` for Docker Desktop host upstream.
+- Bad: reintroducing project-prefixed upstream indirection, a raw-value opt-in switch, plaintext secrets in Compose, or a mock upstream service to simulate deployment complexity.
 
 ### 6. Tests Required
 - `docker compose config` must parse the production topology.
 - `npm test` must assert raw matched values are persisted, admin API gates them behind reveal auth, UI masking helper includes `**`, and SSE broadcasts omit raw values.
 - `npm run build` must pass after deployment changes.
-- Search deployment, docs, specs, and source for rejected topology/privacy contract terms; no local build stanza, environment-file wiring, project-prefixed indirection, raw-value opt-in switch, or mock upstream service may remain.
+- Search deployment, docs, specs, and source for rejected topology/privacy contract terms; no local build stanza, project-prefixed indirection, raw-value opt-in switch, or mock upstream service may remain.
 
 ### 7. Wrong vs Correct
 
-#### Wrong — Compose adds local image construction, env indirection, and mock service
+#### Wrong — plaintext/empty secrets and local image construction in Compose
 ```yaml
 services:
   privacy-proxy:
     # local image construction configured here
-    # environment loaded from a sidecar file
     environment:
       UPSTREAM_URL: ${PROJECT_UPSTREAM_URL:-http://upstream-service:8787}
+      ADMIN_KEY: ""   # container starts silently without a usable console key
   simulated-upstream:
     image: node:22-alpine
 ```
 
-#### Correct — Image-only Compose with direct startup env
+#### Correct — Image-only Compose with .env interpolation and fail-fast secrets
 ```yaml
 services:
   privacy-proxy:
@@ -199,9 +203,66 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
-      UPSTREAM_URL: http://host.docker.internal:8787
+      UPSTREAM_URL: "${UPSTREAM_URL:-}"
       DB_PATH: /data/audit.sqlite
-      ADMIN_KEY: ""
+      ADMIN_KEY: "${ADMIN_KEY:?请在仓库根 .env 或 shell 环境设置 ADMIN_KEY}"
+```
+
+## Scenario: Admin API Origin Check (Next.js Middleware)
+
+### 1. Scope / Trigger
+- Trigger: changing `src/middleware.ts`, `ALLOWED_ORIGINS` / `TRUST_PROXY` / `DISABLE_ORIGIN_CHECK` wiring, or debugging `/api/admin/*` 403 `origin_not_allowed` after deployment.
+- Applies to browser console login (`fetch /api/admin/config` with `x-admin-key`) and any admin API calls behind Docker, reverse proxies, or tunnels.
+
+### 2. Signatures
+- `middleware(request: NextRequest)` — matcher `/api/admin/:path*`.
+- Env keys: `ALLOWED_ORIGINS` (comma-separated exact origins), `TRUST_PROXY=1`, `DISABLE_ORIGIN_CHECK=1`.
+- Same-origin candidates = `http(s)://<request Host header>` plus `new URL(request.url).origin` (local fallback).
+
+### 3. Contracts
+- Same-origin base MUST be the request `Host` header. Never base origin decisions on `new URL(request.url).origin`: in non-Vercel runtimes Next.js builds `request.url` from the **server bind address** (`next-server.js` initUrl → `http://0.0.0.0:PORT` in standalone, `http://localhost:PORT` in dev), which no browser ever sends.
+- Both `http://` and `https://` of the Host are accepted (server cannot observe the client-facing scheme; TLS may terminate upstream).
+- `Origin: null` → 403; missing Origin and Referer → pass (non-browser clients); Referer is the fallback when Origin is absent (same-origin GET fetch sends Referer only).
+- `TRUST_PROXY=1` additionally trust `X-Forwarded-Proto` / `X-Forwarded-Host` (single hop); needed when the proxy rewrites `Host` to an internal address. Without it, forwarded headers are ignored (they are client-spoofable).
+- `ALLOWED_ORIGINS` entries are exact matches (trailing slash tolerated); `x-admin-key` remains the primary defense, this check is CSRF-style defense-in-depth.
+
+### 4. Validation & Error Matrix
+
+| Condition | Expected behavior |
+| --- | --- |
+| Browser origin scheme+host equals request Host (direct IP, domain, Host-preserving proxy) | pass |
+| Cross-site Origin/Referer | 403 `origin_not_allowed` |
+| `Origin: null` (sandboxed iframe) | 403 |
+| Proxy rewrites Host to internal address, no TRUST_PROXY | 403 (unless `ALLOWED_ORIGINS` covers the public origin) |
+| `TRUST_PROXY=1` + `X-Forwarded-Proto/Host` = public origin | pass |
+| Spoofed `X-Forwarded-*` without `TRUST_PROXY=1` | 403 |
+| Origin check passed, wrong admin key | 401 (not 403) |
+
+### 5. Good/Base/Bad Cases
+- Good: `curl -H "Host: 192.168.1.10:3210" -H "Referer: http://192.168.1.10:3210/dashboard" .../api/admin/config` passes in a standalone container.
+- Base: `curl` with no Origin/Referer passes (machine clients).
+- Bad: `allowedOrigins` seeded only from `new URL(request.url).origin` — every real browser login 403s in Docker while dev on localhost appears to work.
+
+### 6. Tests Required
+- `src/__tests__/middleware-origin.test.ts`: same-origin via Host when bind address differs; https Host when TLS terminates upstream; cross-origin rejected with Host present; `Origin: null`; `TRUST_PROXY=1` forwarded origin; spoofed forwarded headers without TRUST_PROXY; `ALLOWED_ORIGINS`; `DISABLE_ORIGIN_CHECK=1`.
+- Post-deploy smoke: browser login through the actual ingress (proxy/tunnel), not just `localhost`.
+
+### 7. Wrong vs Correct
+
+#### Wrong — bind address as same-origin base
+```typescript
+// standalone: always http://0.0.0.0:3000 — no browser matches
+origins.add(new URL(request.url).origin);
+```
+
+#### Correct — Host header as same-origin base
+```typescript
+origins.add(new URL(request.url).origin); // local/dev fallback only
+const host = request.headers.get("host");
+if (host) {
+  origins.add(`http://${host}`);
+  origins.add(`https://${host}`);
+}
 ```
 
 ## Scenario: LLM Privacy Proxy Alignment

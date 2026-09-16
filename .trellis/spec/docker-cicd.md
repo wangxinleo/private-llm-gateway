@@ -8,8 +8,8 @@ Compose 是生产/本地容器启动入口，但不负责构建镜像：镜像�
 硬性契约：
 - 使用 `image: ghcr.io/wangxinleo/private-llm-gateway:latest`。
 - 禁止本地构建配置；服务器不做镜像构建。
-- 禁止环境文件配置和项目专用前缀变量映射。
-- 只把必要启动项直接写入 `environment`，用户部署时手动改明文值。
+- 环境变量从仓库根 `.env` 插值（docker compose 自动读取同目录 `.env`）：可选值 `${VAR:-}`，必填值 `${VAR:?提示}` fail-fast。
+- 只透传部署需要的变量；容器内部值（`PORT`/`DB_PATH`）保持字面量，密钥不写明文。
 - 禁止添加模拟上游服务或 profile 模拟服务；需要烟测时连接真实上游。
 
 ```yaml
@@ -20,16 +20,20 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
-      UPSTREAM_URL: http://host.docker.internal:8787
+      UPSTREAM_URL: "${UPSTREAM_URL:-}"
       DB_PATH: /data/audit.sqlite
-      ADMIN_KEY: ""
+      ADMIN_KEY: "${ADMIN_KEY:?请在仓库根 .env 或 shell 环境设置 ADMIN_KEY}"
+      PRIVACY_SUFFIX_SECRET: "${PRIVACY_SUFFIX_SECRET:-}"
+      TRUST_PROXY: "${TRUST_PROXY:-}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-}"
+      DISABLE_ORIGIN_CHECK: "${DISABLE_ORIGIN_CHECK:-}"
 ```
 
 ### .env.template
-`.env.template` 仅用于直接运行 `npm run dev` / `npm start` 的参考配置，不参与 Compose 启动。不要在模板中维护 Compose 专用变量。
+`.env.template` 是仓库根 `.env` 的参考模板：直接 `npm run dev` / `npm start` 读取它，compose 部署亦从中插值。新增可插值变量时必须同步模板注释。
 
 ### 应用代码
-应用代码只读取应用环境变量（如 `UPSTREAM_URL`, `DB_PATH`, `ADMIN_KEY`, `DEBUG`）。运行期可管理的扫描阈值、路径前缀和排除规则放到后台配置页面/SQLite，不要塞进 Compose。
+应用代码只读取应用环境变量（如 `UPSTREAM_URL`, `DB_PATH`, `ADMIN_KEY`, `DEBUG`，及管理面来源校验的 `TRUST_PROXY` / `ALLOWED_ORIGINS` / `DISABLE_ORIGIN_CHECK`，契约见 `backend/reverse-proxy.md`）。运行期可管理的扫描阈值、路径前缀和排除规则放到后台配置页面/SQLite，不要塞进 Compose。
 
 ## 审计原始命中值契约
 
@@ -48,8 +52,8 @@ services:
 - 理由: 用户明确要求只使用文件夹映射，便于数据备份和迁移。
 
 ### 端口策略
-- 默认端口映射固定为 `"3000:3000"`。
-- 如需修改端口，直接编辑 Compose，不添加二次变量。
+- 默认端口映射为 `"${HOST_PORT:-3000}:3000"`。
+- 如需修改宿主端口，设置 `.env` 的 `HOST_PORT`，不新增其它变量映射。
 
 ## GitHub Actions CI/CD
 
@@ -76,7 +80,7 @@ services:
 
 ### 部署前检查
 - [ ] `docker compose config` 无错误。
-- [ ] `docker-compose.yaml` 不包含本地构建、环境文件、项目专用前缀变量、原始值保留开关或模拟上游服务。
+- [ ] `docker-compose.yaml` 不包含本地构建、明文密钥、原始值保留开关或模拟上游服务；环境变量统一 `${VAR:-}` / `${VAR:?}` 插值。
 - [ ] `docker compose config | grep "type: bind"` 验证 bind mount。
 - [ ] `grep -E "^(ENV|EXPOSE)" Dockerfile` 返回空。
 - [ ] `npm test` 覆盖 raw matched value 持久化、reveal-auth 返回、UI 掩码、SSE 不泄漏。
@@ -90,10 +94,10 @@ services:
 ## 常见问题
 
 ### Q: 如何修改端口？
-A: 直接编辑 `docker-compose.yaml` 的 `ports` 和 `PORT` 值，不新增变量映射。
+A: 设置 `.env` 的 `HOST_PORT`（Compose 中为 `"${HOST_PORT:-3000}:3000"`），不新增变量映射。
 
 ### Q: 如何修改上游地址？
-A: 直接编辑 `docker-compose.yaml` 的 `UPSTREAM_URL`。Docker Desktop 访问宿主机可用 `http://host.docker.internal:<port>`；同网络真实服务用服务名。
+A: 设置 `.env` 的 `UPSTREAM_URL`（留空为防枚举模式）。Docker Desktop 访问宿主机可用 `http://host.docker.internal:<port>`；同网络真实服务用服务名。
 
 ### Q: 为什么不使用 named volumes？
 A: 用户明确要求只使用文件夹映射（bind mounts），便于直接访问和备份数据。
