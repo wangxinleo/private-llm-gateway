@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "Docker 部署场景契约与新增「管理面来源校验」scenario(本次已校准)"}
+{"file": ".trellis/spec/docker-cicd.md", "reason": "compose 环境变量插值契约(ADMIN_KEY fail-fast、来源校验三变量透传)"}
