@@ -12,7 +12,7 @@
 Use `request.clone()` to split scanning and forwarding without double-consuming the body:
 
 ```typescript
-// app/api/[[...path]]/route.ts
+// src/app/[...path]/route.ts
 export async function POST(request: Request) {
   const [forScan, forForward] = [request.clone(), request];
 
@@ -268,16 +268,19 @@ if (host) {
 ## Scenario: LLM Privacy Proxy Alignment
 
 ### 1. Scope / Trigger
-- Trigger: changing `src/app/api/[[...path]]/route.ts`, `src/proxy/forwarder.ts`, `src/scanner/json-mask.ts`, or policy docs for the LLM privacy proxy path.
-- Applies to OpenAI-compatible and Anthropic-compatible JSON request flows, SSE response passthrough, DB-backed runtime scanner config, and privacy mask policy.
+- Trigger: changing `src/app/[...path]/route.ts`, `src/proxy/channels.ts`, `src/proxy/forwarder.ts`, `src/scanner/json-mask.ts`, or policy docs for the LLM privacy proxy path.
+- Applies to root-path channel routing (`/<channel-prefix>/**`, plus legacy default-upstream as-is mode), OpenAI-compatible and Anthropic-compatible JSON request flows, SSE response passthrough, DB-backed runtime scanner config, and privacy mask policy.
 
 ### 2. Signatures
-- Proxy route signature: `/api/[[...path]]` forwards to upstream path `pathnameWithoutApiPrefix + search`.
+- Route signature: `src/app/[...path]/route.ts` root catch-all; `extractPath` = `pathname + search` verbatim (no fixed `/api` segment is stripped).
+- Channel routing: `resolveChannel(path: string): ResolvedChannel | null` matches `/<channel-prefix>/**` against enabled upstreams; `forwardPath` is the path after the prefix; reserved root segments `api` / `dashboard` / `admin` / `health` never resolve as channels.
 - Scanner signature: `maskJsonBody(body: string, scan: (text: string, size: number) => ScanResult): ScanResult`.
 - Runtime config signature: call `initializeConfigs()` before scan, bypass, threshold, or exclusion decisions on the proxy request path.
 
 ### 3. Contracts
-- Query strings are part of the upstream forwarding contract: `/api/v1/messages?beta=true` must forward as `/v1/messages?beta=true`.
+- Channel hit: strip the channel prefix, keep the rest + query — `/<channel>/v1/messages?beta=true` forwards to `<channel-target>/v1/messages?beta=true` (`forwarder` uses `${target}${forwardPath}`).
+- Legacy mode (no channel hit, `UPSTREAM_URL` set): forward the full path + query verbatim; the default upstream base URL is host:port and nothing is stripped.
+- No channel hit and no default upstream: immediate 404 before reading body, scanning, or auditing (anti-enumeration).
 - JSON string values are scanned with immediate key/path context, but the forwarded JSON must contain only original fields and masked original values.
 - Synthetic scan text such as `api_key=value` or `config.secret=value` must never be inserted into the forwarded body.
 - Default LLM JSON/text secret policy is mask-and-forward. High-risk secrets should be replaced with `<<PRIVACY_MASK:...>>`, not blocked.
@@ -290,28 +293,28 @@ if (host) {
 - Secret categories treated as block by default -> LLM code/log/config analysis is interrupted; policy tests must keep secrets as mask unless explicitly hard-blocked.
 
 ### 5. Good/Base/Bad Cases
-- Good: `/api/v1/chat/completions?trace=1` forwards to `/v1/chat/completions?trace=1` and masks `{ "api_key": "abc12345_67890" }` to `{ "api_key": "<<PRIVACY_MASK:CONTEXTUAL_SECRET>>" }`.
+- Good: `/<channel>/v1/chat/completions?trace=1` forwards to `<channel-target>/v1/chat/completions?trace=1` and masks `{ "api_key": "abc12345_67890" }` to `{ "api_key": "<<PRIVACY_MASK:CONTEXTUAL_SECRET>>" }`.
 - Base: clean JSON with no findings is parsed and re-serialized without changing values.
-- Bad: forwarding `/api/v1/chat/completions?trace=1` as `/v1/chat/completions`, or forwarding synthetic text like `api_key=abc12345_67890` inside the JSON payload.
+- Bad: stripping a fixed `/api` segment (pre-migration behavior), forwarding the channel prefix to the upstream, dropping the query string, or forwarding synthetic text like `api_key=abc12345_67890` inside the JSON payload.
 
 ### 6. Tests Required
-- Route regression: forwarded path includes query string for an LLM-style API path.
+- Route regression: channel prefix stripped and query string preserved for an LLM-style API path; unmatched path without default upstream returns 404 without audit rows.
 - Route regression: `initializeConfigs()` is called before bypass or scan decisions.
 - JSON scanner regression: root and nested contextual secret fields are masked and synthetic context is absent from `maskedBody`.
 - Policy regression: LLM JSON/text secrets are mask-and-forward; `SENSITIVE_FILENAME` remains block.
 
 ### 7. Wrong vs Correct
 
-#### Wrong — drop query string and scan values without context
+#### Wrong — fixed /api prefix assumption and query dropped
 ```typescript
-const path = url.pathname.replace(/^\/api/, "") || "/";
+const path = url.pathname.replace(/^\/api/, "") || "/"; // invalid after root-path migration
 const result = scan(value, value.length);
 ```
 
-#### Correct — preserve query and scan with context while masking only original value
+#### Correct — verbatim path, channel prefix stripped only at forward time, query preserved
 ```typescript
-const path = url.pathname.replace(/^\/api/, "") || "/";
-const upstreamPath = `${path}${url.search}`;
+const path = `${url.pathname}${url.search}`;
+const upstreamPath = channel ? channel.forwardPath : path; // channel: prefix stripped; legacy: as-is
 const scanText = `${key}=${value}`;
 const result = scan(scanText, new TextEncoder().encode(scanText).length);
 ```
