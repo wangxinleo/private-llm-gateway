@@ -44,6 +44,9 @@ const sampleRow = {
   action: "block",
   bypass_applied: 0,
   duration: 5.23,
+  mask_applied: 0,
+  mask_categories: null,
+  mask_count: null,
 };
 
 function makeRequest(
