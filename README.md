@@ -290,7 +290,7 @@ npm run build
 Optional local upstream for manual proxy checks:
 
 ```bash
-node mock-upstream.mjs
+node src/__tests__/manual/mock-upstream.mjs
 ```
 
 Then send requests to `http://localhost:3000/api/...` with `UPSTREAM_URL=http://localhost:8787`.

@@ -274,7 +274,7 @@ npm run build
 可选：启动本地 mock 上游做手动代理检查：
 
 ```bash
-node mock-upstream.mjs
+node src/__tests__/manual/mock-upstream.mjs
 ```
 
 然后设置 `UPSTREAM_URL=http://localhost:8787`，把请求发送到 `http://localhost:3000/api/...`。

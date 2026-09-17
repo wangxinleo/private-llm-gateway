@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { applyMasks } from "../src/scanner/pii";
-import { buildMaskTag } from "../src/scanner/mask-tag";
-import { maskJsonBody } from "../src/scanner/json-mask";
-import { runPipeline } from "../src/scanner/pipeline";
-import type { Finding } from "../src/types";
+import { applyMasks } from "@/scanner/pii";
+import { buildMaskTag } from "@/scanner/mask-tag";
+import { maskJsonBody } from "@/scanner/json-mask";
+import { runPipeline } from "@/scanner/pipeline";
+import type { Finding } from "@/types";
 
 function benchmark(fn: () => void, iterations = 3): number {
   fn();

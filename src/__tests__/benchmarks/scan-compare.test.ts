@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { runPipeline } from "../src/scanner/pipeline";
-import { scanSecrets } from "../src/scanner/secrets";
-import { scanContextKey } from "../src/scanner/context-key";
-import { scanPii } from "../src/scanner/pii";
+import { runPipeline } from "@/scanner/pipeline";
+import { scanSecrets } from "@/scanner/secrets";
+import { scanContextKey } from "@/scanner/context-key";
+import { scanPii } from "@/scanner/pii";
 
 function benchmark(fn: () => void, iterations = 20): number {
   fn();

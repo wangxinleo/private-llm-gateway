@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { maskJsonBody } from "../src/scanner/json-mask";
-import { runPipeline } from "../src/scanner/pipeline";
+import { maskJsonBody } from "@/scanner/json-mask";
+import { runPipeline } from "@/scanner/pipeline";
 import { readFileSync, existsSync } from "fs";
 
 function benchmark(fn: () => void, iterations = 3): number {

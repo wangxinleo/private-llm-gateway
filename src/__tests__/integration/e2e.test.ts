@@ -1,12 +1,15 @@
 import { describe, it, expect, beforeAll, afterAll, type TestContext } from "vitest";
 import { spawn, type ChildProcess } from "child_process";
 import http from "node:http";
-import { statSync, unlinkSync } from "fs";
+import { mkdirSync, rmSync, statSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 
 const TEST_HOST = "127.0.0.1";
 const TEST_PORT = 9876;
 const UPSTREAM_PORT = 9877;
-const TEST_DB = "./test-integration-audit.sqlite";
+const TEST_DIR = join(tmpdir(), `integration-test-${process.pid}`);
+const TEST_DB = join(TEST_DIR, "audit.sqlite");
 const ADMIN_KEY = "test-integration-key";
 const TEST_BASE_URL = `http://${TEST_HOST}:${TEST_PORT}`;
 const UPSTREAM_URL = `http://${TEST_HOST}:${UPSTREAM_PORT}`;
@@ -38,10 +41,8 @@ interface StatsApiResponse {
   allowed: number;
 }
 
-function removeTestDb(): void {
-  try {
-    unlinkSync(TEST_DB);
-  } catch {}
+function cleanupTestDir(): void {
+  rmSync(TEST_DIR, { recursive: true, force: true });
 }
 
 const capturedUpstreamBodies: string[] = [];
@@ -132,7 +133,8 @@ describe("Integration: Privacy Proxy + Dashboard", () => {
   }
 
   beforeAll(async () => {
-    removeTestDb();
+    cleanupTestDir();
+    mkdirSync(TEST_DIR, { recursive: true });
     capturedUpstreamBodies.length = 0;
 
     const upstreamServer = http.createServer((req, res) => {
@@ -207,7 +209,7 @@ describe("Integration: Privacy Proxy + Dashboard", () => {
       await new Promise<void>((resolve) => upstreamServer.close(() => resolve()));
     }
 
-    removeTestDb();
+    cleanupTestDir();
   });
 
   it("allows clean request and records audit log", async (context) => {
