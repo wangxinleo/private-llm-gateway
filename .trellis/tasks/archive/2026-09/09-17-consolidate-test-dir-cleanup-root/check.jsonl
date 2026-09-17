@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "对照校验：测试文件位置约定、列出的质量规则无违反"}
+{"file": ".trellis/spec/guides/regex-performance-guide.md", "reason": "对照校验：benchmarks 引用已同步新路径，性能门禁用例仍可定位/执行"}
+{"file": ".trellis/spec/backend/quality.md", "reason": "对照校验：改动不引入清单中禁止的模式"}
