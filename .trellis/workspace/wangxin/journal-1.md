@@ -875,3 +875,38 @@ UPSTREAM_URL 可选化:未设置时无前缀/未匹配路径读 body 前即 404(
 ### Next Steps
 
 - None - task complete
+
+
+## Session 24: 收敛测试目录至 src/__tests__ 并清理根目录冗余
+
+**Date**: 2026-09-17
+**Task**: 收敛测试目录至 src/__tests__ 并清理根目录冗余
+**Branch**: `master`
+
+### Summary
+
+benchmarks/ 与手测脚本 git mv 至 src/__tests__/{benchmarks,manual}，同步引用（package.json/README/spec）；e2e TEST_DB 改 tmpdir+整目录清理；vitest.setup DB_PATH 兜底 tmpdir 根治 route 测试真实 insertSignals 在根建 audit.sqlite；修复 admin-audit 夹具 mask_* 滞后类型错误；删除已确认根目录冗余 14 项（data/ 与 .env 未动）。tsc exit 0；npm test 478 passed/9 skipped（e2e 因本机 dev server 占锁跳过）；npm run bench 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `174cf21` | (see git log) |
+| `38f554d` | (see git log) |
+| `006b3b3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
