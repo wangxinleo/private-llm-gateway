@@ -9,6 +9,7 @@ Provides:
     get_context_text_record   - Text for record mode
     output_json               - Print JSON
     output_text               - Print text
+    get_update_hint           - Once-per-session "update available" line
 """
 
 from __future__ import annotations
@@ -17,20 +18,14 @@ import json
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 from .active_task import resolve_context_key
 from .config import get_git_packages
 from .git import run_git
 from .packages_context import get_packages_section
-from .tasks import (
-    children_progress,
-    count_terminal_children,
-    get_all_statuses,
-    is_terminal_status,
-    iter_active_tasks,
-    load_task,
-)
+from .tasks import iter_active_tasks, load_task, get_all_statuses, children_progress
 from .paths import (
     DIR_SCRIPTS,
     DIR_SPEC,
@@ -71,11 +66,17 @@ _POLYREPO_IGNORED_DIRS = {
     "__pycache__",
 }
 _POLYREPO_SCAN_MAX_DEPTH = 2
+_POLYREPO_SCAN_MAX_REPOS = 8
+_GIT_PROBE_TIMEOUT_SECONDS = 2.0
 
 
 def _is_git_worktree(path: Path) -> bool:
     """Return True when path is inside a Git worktree."""
-    rc, out, _ = run_git(["rev-parse", "--is-inside-work-tree"], cwd=path)
+    rc, out, _ = run_git(
+        ["rev-parse", "--is-inside-work-tree"],
+        cwd=path,
+        timeout=_GIT_PROBE_TIMEOUT_SECONDS,
+    )
     return rc == 0 and out.strip().lower() == "true"
 
 
@@ -98,13 +99,27 @@ def _collect_git_repo_info(name: str, rel_path: str, repo_dir: Path) -> dict | N
     if not (repo_dir / ".git").exists():
         return None
 
-    _, branch_out, _ = run_git(["branch", "--show-current"], cwd=repo_dir)
+    status_rc, status_out, _ = run_git(
+        ["status", "--porcelain"],
+        cwd=repo_dir,
+        timeout=_GIT_PROBE_TIMEOUT_SECONDS,
+    )
+    if status_rc != 0:
+        return None
+    changes = len([line for line in status_out.splitlines() if line.strip()])
+
+    _, branch_out, _ = run_git(
+        ["branch", "--show-current"],
+        cwd=repo_dir,
+        timeout=_GIT_PROBE_TIMEOUT_SECONDS,
+    )
     branch = branch_out.strip() or "unknown"
 
-    _, status_out, _ = run_git(["status", "--porcelain"], cwd=repo_dir)
-    changes = len([l for l in status_out.splitlines() if l.strip()])
-
-    _, log_out, _ = run_git(["log", "--oneline", "-5"], cwd=repo_dir)
+    _, log_out, _ = run_git(
+        ["log", "--oneline", "-5"],
+        cwd=repo_dir,
+        timeout=_GIT_PROBE_TIMEOUT_SECONDS,
+    )
 
     return {
         "name": name,
@@ -127,20 +142,36 @@ def _collect_root_git_info(repo_root: Path) -> dict:
             "recentCommits": [],
         }
 
-    _, branch_out, _ = run_git(["branch", "--show-current"], cwd=repo_root)
+    _, branch_out, _ = run_git(
+        ["branch", "--show-current"],
+        cwd=repo_root,
+        timeout=_GIT_PROBE_TIMEOUT_SECONDS,
+    )
     branch = branch_out.strip() or "unknown"
 
-    _, status_out, _ = run_git(["status", "--porcelain"], cwd=repo_root)
+    status_rc, status_out, _ = run_git(
+        ["status", "--porcelain"],
+        cwd=repo_root,
+        timeout=_GIT_PROBE_TIMEOUT_SECONDS,
+    )
     status_lines = [line for line in status_out.splitlines() if line.strip()]
 
-    _, short_out, _ = run_git(["status", "--short"], cwd=repo_root)
+    _, short_out, _ = run_git(
+        ["status", "--short"],
+        cwd=repo_root,
+        timeout=_GIT_PROBE_TIMEOUT_SECONDS,
+    )
 
-    _, log_out, _ = run_git(["log", "--oneline", "-5"], cwd=repo_root)
+    _, log_out, _ = run_git(
+        ["log", "--oneline", "-5"],
+        cwd=repo_root,
+        timeout=_GIT_PROBE_TIMEOUT_SECONDS,
+    )
 
     return {
         "isRepo": True,
         "branch": branch,
-        "isClean": len(status_lines) == 0,
+        "isClean": status_rc == 0 and len(status_lines) == 0,
         "uncommittedChanges": len(status_lines),
         "statusShort": short_out.splitlines(),
         "recentCommits": _parse_recent_commits(log_out),
@@ -150,12 +181,16 @@ def _collect_root_git_info(repo_root: Path) -> dict:
 def _discover_child_git_repos(repo_root: Path) -> list[tuple[str, str]]:
     """Discover child Git repositories using the init-time polyrepo heuristic."""
     found: list[str] = []
+    overflow = False
 
     def is_candidate_dir(path: Path) -> bool:
         name = path.name
         return not name.startswith(".") and name not in _POLYREPO_IGNORED_DIRS
 
     def scan(rel_dir: Path, depth: int) -> None:
+        nonlocal overflow
+        if overflow:
+            return
         if depth >= _POLYREPO_SCAN_MAX_DEPTH:
             return
         abs_dir = repo_root / rel_dir
@@ -172,11 +207,23 @@ def _discover_child_git_repos(repo_root: Path) -> list[tuple[str, str]]:
                 rel_dir / child.name if rel_dir != Path(".") else Path(child.name)
             )
             if (child / ".git").exists():
+                if len(found) >= _POLYREPO_SCAN_MAX_REPOS:
+                    overflow = True
+                    return
                 found.append(child_rel.as_posix())
                 continue
             scan(child_rel, depth + 1)
 
     scan(Path("."), 0)
+    if overflow:
+        print(
+            "warning: found more than "
+            f"{_POLYREPO_SCAN_MAX_REPOS} child Git repositories; "
+            "skipping automatic Git status collection. Configure explicit "
+            "packages entries with path and git: true in .trellis/config.yaml.",
+            file=sys.stderr,
+        )
+        return []
     if len(found) < 2:
         return []
     return [(path.replace("/", "_"), path) for path in sorted(found)]
@@ -371,8 +418,16 @@ def _compare_versions(left: str, right: str) -> int | None:
     return _compare_prerelease(left_prerelease, right_prerelease)
 
 
-def _update_marker_path(repo_root: Path) -> Path:
-    context_key = resolve_context_key()
+def _update_marker_path(repo_root: Path, context_key: str | None = None) -> Path:
+    """Path of the once-per-session marker that throttles the update check.
+
+    `context_key` lets a caller that already resolved session identity pass it
+    in — the SessionStart hook reads the session id from hook stdin, which is
+    more reliable than this function's environment-only fallback chain. Shell
+    entry points leave it None and keep the previous behavior.
+    """
+    if not context_key:
+        context_key = resolve_context_key()
     if not context_key:
         terminal_key = os.environ.get("TERM_SESSION_ID", "").strip()
         context_key = terminal_key or f"ppid-{os.getppid()}"
@@ -387,8 +442,11 @@ def _update_marker_path(repo_root: Path) -> Path:
     )
 
 
-def _mark_update_check_attempted(repo_root: Path) -> bool:
-    marker_path = _update_marker_path(repo_root)
+def _mark_update_check_attempted(
+    repo_root: Path,
+    context_key: str | None = None,
+) -> bool:
+    marker_path = _update_marker_path(repo_root, context_key)
     if marker_path.exists():
         return False
     try:
@@ -399,8 +457,14 @@ def _mark_update_check_attempted(repo_root: Path) -> bool:
     return True
 
 
-def _get_update_hint(repo_root: Path) -> str | None:
-    marker_path = _update_marker_path(repo_root)
+def get_update_hint(repo_root: Path, context_key: str | None = None) -> str | None:
+    """Return the "update available" line for this session, at most once.
+
+    Public because the SessionStart hook imports it: the text-mode CLI path
+    (`get_context.py`) used to be the only caller, so hook-driven platforms —
+    Claude Code included — never saw the reminder at all.
+    """
+    marker_path = _update_marker_path(repo_root, context_key)
     if marker_path.exists():
         return None
 
@@ -412,14 +476,14 @@ def _get_update_hint(repo_root: Path) -> str | None:
     if not latest_version:
         return None
 
-    _mark_update_check_attempted(repo_root)
+    _mark_update_check_attempted(repo_root, context_key)
     comparison = _compare_versions(current_version, latest_version)
     if comparison is None or comparison >= 0:
         return None
 
     return (
         f"Trellis update available: {current_version} -> {latest_version}, "
-        "run trellis upgrade"
+        "run trellis update"
     )
 
 
@@ -616,7 +680,7 @@ def get_context_text(repo_root: Path | None = None) -> str:
     my_task_count = 0
 
     for t in all_tasks.values():
-        if t.assignee == developer and not is_terminal_status(t.status):
+        if t.assignee == developer and t.status != "done":
             progress = children_progress(t.children, all_statuses)
             lines.append(f"- [{t.priority}] {t.title} ({t.status}){progress}")
             my_task_count += 1
@@ -680,8 +744,11 @@ def get_context_record_json(repo_root: Path | None = None) -> dict:
 
     my_tasks = []
     for t in all_tasks_list:
-        if t.assignee == developer and not is_terminal_status(t.status):
-            done = count_terminal_children(t.children, all_statuses)
+        if t.assignee == developer:
+            done = sum(
+                1 for c in t.children
+                if all_statuses.get(c) in ("completed", "done")
+            )
             my_tasks.append({
                 "dir": t.dir_name,
                 "title": t.title,
@@ -767,7 +834,7 @@ def get_context_text_record(repo_root: Path | None = None) -> str:
     all_statuses = get_all_statuses(tasks_dir)
 
     for t in iter_active_tasks(tasks_dir):
-        if t.assignee == developer and not is_terminal_status(t.status):
+        if t.assignee == developer:
             progress = children_progress(t.children, all_statuses)
             lines.append(f"- [{t.priority}] {t.title} ({t.status}){progress} — {t.dir_name}")
             my_task_count += 1
@@ -818,7 +885,7 @@ def output_text(repo_root: Path | None = None) -> None:
     """
     if repo_root is None:
         repo_root = get_repo_root()
-    update_hint = _get_update_hint(repo_root)
+    update_hint = get_update_hint(repo_root)
     if update_hint:
         print(update_hint)
         print("")

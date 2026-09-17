@@ -12,32 +12,13 @@ Provides:
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 
-from .io import read_json
+from .io import describe_json_read_failure, read_json_checked
 from .paths import FILE_TASK_JSON
 from .types import TaskInfo
-
-
-TERMINAL_TASK_STATUSES = frozenset(("completed", "cancelled", "done"))
-
-
-def is_terminal_status(status: str) -> bool:
-    """Return whether a task status represents a terminal outcome."""
-    return status in TERMINAL_TASK_STATUSES
-
-
-def count_terminal_children(
-    children: tuple[str, ...] | list[str],
-    all_statuses: dict[str, str],
-) -> int:
-    """Count children that are terminal or already archived."""
-    return sum(
-        1
-        for child in children
-        if child not in all_statuses or is_terminal_status(all_statuses[child])
-    )
 
 
 def load_task(task_dir: Path) -> TaskInfo | None:
@@ -48,13 +29,22 @@ def load_task(task_dir: Path) -> TaskInfo | None:
 
     Returns:
         TaskInfo if task.json exists and is valid, None otherwise.
+
+    A directory without task.json is not a task, so it is skipped silently.
+    A task.json that exists but cannot be loaded is different: the task
+    disappears from `task.py list` and from every context the iterator feeds.
+    Callers stay tolerant, but the skip is announced on stderr so a task
+    cannot vanish from the workflow with no diagnostic anywhere.
     """
     task_json = task_dir / FILE_TASK_JSON
     if not task_json.is_file():
         return None
 
-    data = read_json(task_json)
-    if not data:
+    data, reason = read_json_checked(task_json)
+    if data is None:
+        problem, hint = describe_json_read_failure(task_json, reason)
+        print(f"[WARN] Skipping task '{task_dir.name}': {problem}", file=sys.stderr)
+        print(f"       {hint}", file=sys.stderr)
         return None
 
     return TaskInfo(
@@ -122,7 +112,11 @@ def children_progress(
     """
     if not children:
         return ""
-    # A missing child has been archived. Count archived and terminal children
-    # so parent progress does not regress after completion or cancellation.
-    done = count_terminal_children(children, all_statuses)
+    # A child missing from active statuses has been archived (cmd_archive
+    # sets status=completed before moving the dir). Count it as done so
+    # parent progress doesn't regress when children are archived.
+    done = sum(
+        1 for c in children
+        if c not in all_statuses or all_statuses.get(c) in ("completed", "done")
+    )
     return f" [{done}/{len(children)} done]"

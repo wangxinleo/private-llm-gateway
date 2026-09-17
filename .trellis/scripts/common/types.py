@@ -38,7 +38,6 @@ class TaskData(TypedDict, total=False):
     assignee: str
     createdAt: str
     completedAt: str | None
-    closedAt: str | None
     branch: str | None
     base_branch: str | None
     worktree_path: str | None
