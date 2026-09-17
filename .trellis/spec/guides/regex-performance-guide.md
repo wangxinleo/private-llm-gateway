@@ -58,4 +58,4 @@ Greedy quantifier consumes as much as possible, then backtracks one char at a ti
 
 - `src/scanner/context-key.ts` BRACKET pattern (fixed 2026-08-12)
 - `src/scanner/pii.ts` EMAIL pattern (fixed 2026-08-12)
-- `benchmarks/scan-latency-real.test.ts` — real-payload performance gate
+- `src/__tests__/benchmarks/scan-latency-real.test.ts` — real-payload performance gate

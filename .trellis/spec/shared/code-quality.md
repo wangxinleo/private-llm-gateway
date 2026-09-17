@@ -258,15 +258,17 @@ pnpm lint && pnpm type-check && pnpm build
 
 ### Test File Location
 
+All test assets live under `src/__tests__/` — no test files or test scripts in the repository root:
+
 ```
-src/
-  __tests__/              # Integration tests
-    api.test.ts
-app/
-  feature/
-    page.tsx
-    page.test.tsx         # Co-located test (when appropriate)
+src/__tests__/
+  *.test.ts        # Unit + integration tests (vitest)
+  benchmarks/      # Performance regression gates (vitest; `npm run bench`)
+  manual/          # Manually driven assets: integration-test.sh, mock-upstream.mjs
 ```
+
+- Tests that open SQLite must write to `tmpdir()` (via mocked `@/config` `DB_PATH` or env) — never the repository root. `vitest.setup.ts` provides a per-worker tmp fallback for otherwise-unmocked paths.
+- `integration/e2e.test.ts` spawns its own `next dev` and skips when another dev-server instance holds the project lock or the sandbox blocks `listen`.
 
 ### Test Structure (AAA Pattern)
 
