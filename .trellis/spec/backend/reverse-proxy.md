@@ -79,6 +79,8 @@ Both builder and runner stages in Dockerfile must use the same base image for AB
 
 > **Warning**: Never scan binary payloads (image/file base64) as text. Token-style regexes such as `BASE64_TOKEN` (`eyJ[A-Za-z0-9_-]{40,}`) match random base64 data at a non-trivial rate (~2% at 22 KB, ~17% at 240 KB), and masking corrupts the base64 — upstream token counters then fail with `failed to decode base64 data: illegal base64 data at input byte N`. Before running the secret scan, skip data URIs (`data:<mime>;base64,`) and long pure-base64 `data` fields (Anthropic `source.data` / Gemini `inline_data.data`). Restrict the exemption to these shapes so pasted base64 tokens in ordinary text fields are still masked.
 
+> **Warning**: Never scan or rewrite upstream-owned model state in requests. Anthropic assistant `thinking`/`redacted_thinking` content blocks, Chat assistant `reasoning_content`/`reasoning`/`reasoning_details`, and Responses `input[]` items of `type` `reasoning`/`compaction` are produced by the upstream; masking them breaks protocol round-trips (Anthropic validates the signature over the thinking text, so any rewrite yields a 400). `json-mask.ts` skips these nodes via `isUpstreamModelState` — the decision must stay protocol + path + role + type aware; a field name alone (e.g. `signature` outside a thinking block) must never bypass scanning. Skipped nodes produce no findings, no placeholders, and no registry entries.
+
 ### 6. Wrong vs Correct
 
 #### Wrong — Byte size from string length

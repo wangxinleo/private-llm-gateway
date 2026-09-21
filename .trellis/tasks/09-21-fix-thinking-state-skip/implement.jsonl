@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "扫描契约:json-mask 只脱敏敏感值/不改写协议状态;新增跳过面的边界与防劈开语义"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "改动落点(src/scanner)与模块职责约定"}

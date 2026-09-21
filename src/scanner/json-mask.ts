@@ -112,6 +112,51 @@ function isBinaryPayload(value: string, key: string | undefined): boolean {
   return BASE64_BLOB_RE.test(value);
 }
 
+// 上游自产模型状态(CosyRedactGateway 09-18 设计):assistant 的推理/思考字段由上游生成,
+// 改写会破坏协议(Anthropic thinking signature 覆盖内容,改写即验签失败 → 400)。
+// 判定必须协议 + 路径 + 角色 + 类型多重感知;字段名单独出现不构成豁免。
+const CHAT_REASONING_KEYS: ReadonlySet<string> = new Set(["reasoning_content", "reasoning", "reasoning_details"]);
+const ANTHROPIC_MODEL_STATE_TYPES: ReadonlySet<string> = new Set(["thinking", "redacted_thinking"]);
+const RESPONSES_MODEL_STATE_TYPES: ReadonlySet<string> = new Set(["reasoning", "compaction"]);
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function assistantMessageAt(root: unknown, index: string | undefined): boolean {
+  if (!index || !/^\d+$/.test(index)) return false;
+  const messages = asRecord(root)?.messages;
+  if (!Array.isArray(messages)) return false;
+  return asRecord(messages[Number(index)])?.role === "assistant";
+}
+
+function isUpstreamModelState(path: string[], value: unknown, root: unknown): boolean {
+  const node = asRecord(value);
+  const type = typeof node?.type === "string" ? (node.type as string) : null;
+  // Anthropic Messages:assistant 的 content 块 type ∈ {thinking, redacted_thinking} → 整块跳过
+  if (
+    path.length === 4 &&
+    path[0] === "messages" &&
+    path[2] === "content" &&
+    type !== null &&
+    ANTHROPIC_MODEL_STATE_TYPES.has(type) &&
+    assistantMessageAt(root, path[1])
+  ) {
+    return true;
+  }
+  // OpenAI Chat:assistant 的 reasoning_content / reasoning / reasoning_details 子树
+  if (path.length === 3 && path[0] === "messages" && CHAT_REASONING_KEYS.has(path[2] ?? "") && assistantMessageAt(root, path[1])) {
+    return true;
+  }
+  // OpenAI Responses:input[] 中 type ∈ {reasoning, compaction} 的项
+  if (path.length === 2 && path[0] === "input" && type !== null && RESPONSES_MODEL_STATE_TYPES.has(type)) {
+    return true;
+  }
+  return false;
+}
+
 function appendFindings(target: Finding[], additions: Finding[]): void {
   const seen = new Set(target.map((finding) => `${finding.category}\0${finding.action}\0${finding.matched}`));
   for (const finding of additions) {
@@ -140,12 +185,13 @@ function scanObjectContext(
   obj: Record<string, unknown>,
   scan: ScanFn,
   findings: Finding[],
-  path: string[]
+  path: string[],
+  root: unknown
 ): Finding[] {
   const contextLines: string[] = [];
   for (const key of Object.keys(obj)) {
     const value = obj[key];
-    if (typeof value === "string" && !isBinaryPayload(value, key)) {
+    if (typeof value === "string" && !isBinaryPayload(value, key) && !isUpstreamModelState([...path, key], value, root)) {
       contextLines.push(buildContextText(value, [...path, key]));
     }
   }
@@ -167,8 +213,14 @@ function scanValue(
   path: string[] = [],
   siblingFindings: Finding[] = [],
   registry?: MaskRegistry,
-  pairs?: Map<string, string>
+  pairs?: Map<string, string>,
+  root?: unknown
 ): unknown {
+  // 上游自产模型状态整块跳过:不扫描、不产生 findings、不改写
+  if (isUpstreamModelState(path, value, root)) {
+    return value;
+  }
+
   if (typeof value === "string") {
     if (isBinaryPayload(value, path.at(-1))) {
       return value;
@@ -189,18 +241,18 @@ function scanValue(
 
   if (Array.isArray(value)) {
     return value.map((item, index) =>
-      scanValue(item, scan, findings, [...path, String(index)], [], registry, pairs)
+      scanValue(item, scan, findings, [...path, String(index)], [], registry, pairs, root)
     );
   }
 
   if (value !== null && typeof value === "object") {
     const obj = value as Record<string, unknown>;
     const result: Record<string, unknown> = {};
-    const localFindings = scanObjectContext(obj, scan, findings, path);
+    const localFindings = scanObjectContext(obj, scan, findings, path, root);
     for (const key of Object.keys(obj)) {
       const child = obj[key];
       const childSiblingFindings = typeof child === "string" ? localFindings : [];
-      result[key] = scanValue(child, scan, findings, [...path, key], childSiblingFindings, registry, pairs);
+      result[key] = scanValue(child, scan, findings, [...path, key], childSiblingFindings, registry, pairs, root);
     }
     return result;
   }
@@ -218,7 +270,7 @@ export function maskJsonBody(body: string, scan: ScanFn, registry?: MaskRegistry
 
   const findings: Finding[] = [];
   const pairs = new Map<string, string>();
-  const masked = scanValue(parsed, scan, findings, [], [], registry, pairs);
+  const masked = scanValue(parsed, scan, findings, [], [], registry, pairs, parsed);
 
   if (findings.some((finding) => isBlockCategory(finding.category))) {
     return { findings, maskedBody: body, action: "block", maskSummary: { applied: false, categories: [], replacementCount: 0 }, registry };
