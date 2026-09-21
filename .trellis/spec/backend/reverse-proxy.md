@@ -83,6 +83,8 @@ Both builder and runner stages in Dockerfile must use the same base image for AB
 
 > **Warning**: undici's fetch auto-decompresses `gzip`/`deflate`/`br` but keeps the `content-encoding` header, and does not decode `zstd` at all. Every response re-emission path (restored text path, SSE passthrough, binary passthrough, bypass) must normalize headers via `src/proxy/content-encoding.ts`: strip `content-encoding` when it is a client-decoded coding, decompress `zstd` ourselves (Node ≥ 22.15; unsupported runtimes degrade to opaque passthrough), and keep original bytes + header for unknown codings. On the request side `forwardRequest` filters `accept-encoding` to the decodable set (zstd removed) — advertising zstd invites undecodable responses. Regression tests must cover the no-mask/passthrough paths, not only the restore path.
 
+> **Warning**: Private-IPv6 detection (`IPV6_PRIVATE`, default off) must stay validator-driven: never use "is private" semantics that include `2001:db8::/32` or `::1` (they would mask public/doc text) — accept only `fe80::/10` link-local and `fc00::/7` ULA. Match via a wide run (`[0-9A-Fa-f:]{2,45}`) plus a structured sticky sub-match so a greedy candidate cannot swallow the real address (`IPV6:fe80::1` prefix case), and keep the keyword prefilter case-insensitive (`Fe80::1` must not be skipped) and colon-gated (`:` alone would run the wide regex on every URL/JSON).
+
 ### 6. Wrong vs Correct
 
 #### Wrong — Byte size from string length

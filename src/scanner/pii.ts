@@ -17,6 +17,81 @@ const USCC_RE = /(?<![0-9A-Za-z])[0-9A-HJ-NPQRTUWXY]{2}\d{6}[0-9A-HJ-NPQRTUWXY]{
 const MAC_RE = /(?<![0-9A-Fa-f:.-])(?:[0-9A-Fa-f]{2}([-:]))(?:[0-9A-Fa-f]{2}\1){4}[0-9A-Fa-f]{2}(?![0-9A-Fa-f:.-])/gi;
 const HKID_RE = /(?<![A-Za-z0-9])[A-HJ-NP-Z]{1,2}\d{6}(?:\([0-9A]\)|[0-9A])?(?![A-Za-z0-9])/g;
 
+// 内网 IPv6(默认关):宽候选段 + 结构化子匹配 + 语义校验。
+// - 宽段 `[0-9A-Fa-f:]{2,45}` 先切出含冒号 hex 片段,再在段内从左到右用
+//   结构化正则 sticky 匹配,避免贪婪候选吞掉后续地址(maskit 同款宽正则会被
+//   `IPV6:fe80::1` 前缀的 `6:` 整段吃掉,校验不过就漏检);
+// - 起始边界:段首要求外部非 hex/非点,段内起点必须紧跟 `:`——键值形态
+//   `IPV6:fe80::1` / `gateway:fd00::5` 可命中,长 hex 串内部不会误切;
+// - 只放行 fe80::/10(链路本地)与 fc00::/7(ULA)。刻意不用 is_private:
+//   它把 2001:db8::/32 文档段、::1 环回也当私网,会误脱公网讨论文本(maskit 实测)。
+const IPV6_RUN_RE = /[0-9A-Fa-f:]{2,45}/g;
+const HEX_CHAR_RE = /[0-9A-Fa-f]/;
+// 结构化形态:8 组全写 / 压缩(含尾组优先于纯尾 `::`)/ 尾部 `::`;zone 后缀可选
+const IPV6_ADDR_RE = new RegExp(
+  "(?:" +
+    [
+      "(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}",
+      "(?:[0-9A-Fa-f]{1,4}:){1,6}:[0-9A-Fa-f]{1,4}",
+      "(?:[0-9A-Fa-f]{1,4}:){1,5}(?::[0-9A-Fa-f]{1,4}){1,2}",
+      "(?:[0-9A-Fa-f]{1,4}:){1,4}(?::[0-9A-Fa-f]{1,4}){1,3}",
+      "(?:[0-9A-Fa-f]{1,4}:){1,3}(?::[0-9A-Fa-f]{1,4}){1,4}",
+      "(?:[0-9A-Fa-f]{1,4}:){1,2}(?::[0-9A-Fa-f]{1,4}){1,5}",
+      "[0-9A-Fa-f]{1,4}:(?::[0-9A-Fa-f]{1,4}){1,6}",
+      "(?:[0-9A-Fa-f]{1,4}:){1,7}:",
+    ].join("|") +
+    ")(?:%[0-9A-Za-z._-]+)?",
+  "y"
+);
+// 预过滤(必要条件):含冒号且含私网首组前缀 fe8x/fe9x/feax/febx 或 fc/fd。
+// 大小写不敏感(fe80::1 / Fe80::1 / FE80::1 一致);用 ':' 单独做特征会在
+// 任意 URL/JSON 上全量跑宽正则,故前缀必须参与(maskit 大小写静默跳过教训)。
+const IPV6_PREFIX_RE = /[fF][eE][89aAbB]|[fF][cCdD]/;
+
+function ipv6Prefilter(text: string): boolean {
+  return text.includes(":") && IPV6_PREFIX_RE.test(text);
+}
+
+function ipv6PrivateOk(addr: string): boolean {
+  const clean = addr.split("%", 1)[0] ?? "";
+  if (!clean.includes(":")) return false;
+  const parts = clean.split("::");
+  if (parts.length > 2) return false;
+  const head = parts[0] ? (parts[0] as string).split(":") : [];
+  const tail = parts.length === 2 && parts[1] ? (parts[1] as string).split(":") : [];
+  if (parts.length === 1 && head.length !== 8) return false;
+  if (parts.length === 2 && head.length + tail.length > 7) return false;
+  for (const group of [...head, ...tail]) {
+    if (!/^[0-9A-Fa-f]{1,4}$/.test(group)) return false;
+  }
+  const first = parseInt(head[0] ?? "0", 16);
+  return (first >= 0xfe80 && first <= 0xfebf) || (first >= 0xfc00 && first <= 0xfdff);
+}
+
+function findIpv6Private(text: string): string[] {
+  const out: string[] = [];
+  IPV6_RUN_RE.lastIndex = 0;
+  let run: RegExpExecArray | null;
+  while ((run = IPV6_RUN_RE.exec(text)) !== null) {
+    const seg = run[0];
+    const segStart = run.index;
+    const boundaryBeforeOk =
+      segStart === 0 || (text[segStart - 1] !== "." && !HEX_CHAR_RE.test(text[segStart - 1] as string));
+    for (let i = 0; i < seg.length; i++) {
+      if (!HEX_CHAR_RE.test(seg[i] as string)) continue;
+      if (i === 0 ? !boundaryBeforeOk : seg[i - 1] !== ":") continue;
+      IPV6_ADDR_RE.lastIndex = segStart + i;
+      const m = IPV6_ADDR_RE.exec(text);
+      if (!m || m.index !== segStart + i) continue;
+      if (ipv6PrivateOk(m[0])) {
+        out.push(m[0]);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 function idCardCheck(num: string): boolean {
   if (num.length !== 18) return false;
   const weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
@@ -130,6 +205,10 @@ interface PiiRule {
   category: Finding["category"];
   pattern: RegExp;
   validate?: (match: string) => boolean;
+  // 必要条件预过滤(keyword/前缀),不满足则整条规则跳过(只影响性能,不影响正确性)
+  prefilter?: (text: string) => boolean;
+  // 自定义取匹配(结构复杂、单正则不足以表达的规则,如 IPv6);优先于 pattern
+  findAll?: (text: string) => string[];
 }
 
 const PII_RULES: PiiRule[] = [
@@ -141,6 +220,7 @@ const PII_RULES: PiiRule[] = [
   { category: "PLATE", pattern: PLATE_RE, validate: plateCheck },
   { category: "IP_PRIVATE", pattern: IPV4_RE, validate: isIpPrivate },
   { category: "IP_INTERNAL", pattern: IPV4_RE, validate: isIpInternal },
+  { category: "IPV6_PRIVATE", pattern: IPV6_RUN_RE, prefilter: ipv6Prefilter, findAll: findIpv6Private },
   { category: "IBAN", pattern: IBAN_RE, validate: ibanCheck },
   { category: "USCC", pattern: USCC_RE, validate: usccCheck },
   { category: "MAC", pattern: MAC_RE },
@@ -151,19 +231,28 @@ export function scanPii(text: string): Finding[] {
   const findings: Finding[] = [];
   for (const rule of PII_RULES) {
     if (!isRuleEnabled(rule.category)) continue;
-    rule.pattern.lastIndex = 0;
-    let m: RegExpExecArray | null;
-    while ((m = rule.pattern.exec(text)) !== null) {
-      if (rule.validate && !rule.validate(m[0])) continue;
+    if (rule.prefilter && !rule.prefilter(text)) continue;
+    for (const matched of rule.findAll ? rule.findAll(text) : matchAll(rule, text)) {
       findings.push({
         category: rule.category,
         action: "mask",
-        matched: m[0],
+        matched,
         maskTag: buildMaskTag(rule.category),
       });
     }
   }
   return findings;
+}
+
+function matchAll(rule: PiiRule, text: string): string[] {
+  const out: string[] = [];
+  rule.pattern.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = rule.pattern.exec(text)) !== null) {
+    if (rule.validate && !rule.validate(m[0])) continue;
+    out.push(m[0]);
+  }
+  return out;
 }
 
 export interface MaskResult {

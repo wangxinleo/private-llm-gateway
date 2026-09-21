@@ -30,6 +30,7 @@ export type FindingCategory =
   | "PLATE"
   | "IP_PRIVATE"
   | "IP_INTERNAL"
+  | "IPV6_PRIVATE"
   | "IBAN"
   | "USCC"
   | "MAC"

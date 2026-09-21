@@ -4,7 +4,7 @@ const DB_PATH = process.env.DB_PATH ?? "audit.sqlite";
 const DEBUG = process.env.DEBUG === "true" || process.env.NODE_ENV !== "production";
 const SECRET_SCANNER_MODE = process.env.PRIVACY_SECRET_SCANNER_MODE === "strict" ? "strict" : "balanced";
 
-// 内置规则默认启停:对齐 maskit 预设(IP_INTERNAL/USCC/MAC/HKID 默认关,防误报)
+// 内置规则默认启停:对齐 maskit 预设(IP_INTERNAL/IPV6_PRIVATE/USCC/MAC/HKID 默认关,防误报)
 export const DEFAULT_RULE_TOGGLES: Record<FindingCategory, boolean> = {
   PRIVATE_KEY: true,
   BEARER_TOKEN: true,
@@ -35,6 +35,7 @@ export const DEFAULT_RULE_TOGGLES: Record<FindingCategory, boolean> = {
   PLATE: true,
   IP_PRIVATE: true,
   IP_INTERNAL: false,
+  IPV6_PRIVATE: false,
   IBAN: true,
   USCC: false,
   MAC: false,

@@ -42,6 +42,7 @@ export const CATEGORY_SHORTCODES: Readonly<Record<FindingCategory, string>> = {
   PLATE: "PLATE",
   IP_PRIVATE: "IPPRIVATE",
   IP_INTERNAL: "IPINTERN",
+  IPV6_PRIVATE: "IPV6PRIV",
   IBAN: "IBAN",
   USCC: "USCC",
   MAC: "MAC",
