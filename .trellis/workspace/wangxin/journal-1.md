@@ -938,3 +938,25 @@ maskit/Cosy 09-21 差异逐项立项完成:①T1 请求侧跳过上游自产模�
 ### Status
 
 [OK] **Completed**
+
+
+## Session 26: 修复 F1:去重按值子串吸收致独立出现明文泄漏
+<!-- trellis-session: v=2 fp=14d2601410e5bfd0 -->
+
+**Date**: 2026-09-21
+**Task**: 修复 F1:去重按值子串吸收致独立出现明文泄漏
+**Branch**: `master`
+
+### Summary
+
+桌面验证 F1 根因修复:scanContextWindows.push() 的位置盲子串吸收(短值 finding 因与它处更长值同值子串被丢弃 → 该出现明文上行且审计显示已脱敏)。改为仅精确同值去重,重叠/嵌套交由 applyMasks 位置级最长优先;applyMasksSequential(>512 回退路径)同步按长度降序防短值打碎长值。5 个新回归用例(IPv6 独立出现/卡号内含手机号/精确去重保持/同位置嵌套保持/顺序路径守护);桌面复验:例1 fe80::1+fe80::1%eth0 两处均脱敏、例2 卡号与独立手机号均脱敏且审计 findings=[PHONE,BANK_CARD]、嵌套仅长值占位符;517 全量测试 + build 绿;spec 增补'finding 层不得按值子串吸收' Gotcha。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e81e896` | fix(scanner): 去重不再按值子串吸收,修复独立出现明文泄漏(F1) |
+
+### Status
+
+[OK] **Completed**
