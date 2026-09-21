@@ -142,10 +142,12 @@ Runtime env keys in `docker-compose.yaml` interpolate from the repository-root `
 | `UPSTREAM_URL` | no | empty (anti-enumeration) | Base URL reachable from inside the container; empty means only `/<channel-prefix>/...` paths are reachable. |
 | `DB_PATH` | yes | `/data/audit.sqlite` | SQLite audit database path under the bind-mounted `/data`. |
 | `ADMIN_KEY` | yes | `${ADMIN_KEY:?...}` fail-fast | Required for `/dashboard`; compose refuses to start when unset. |
-| `PRIVACY_SUFFIX_SECRET` | no | empty (random per process) | Fixed placeholder-derivation secret for stable prompt-cache prefixes. |
-| `TRUST_PROXY` | no | empty | `1` trusts `X-Forwarded-Proto/Host` for the admin origin check (needed when the proxy rewrites `Host`). |
+| `PRIVACY_SUFFIX_SECRET` | no | empty (random per process) | Fixed placeholder-derivation secret for stable prompt-cache prefixes. Values shorter than 16 chars are ignored (with a startup warning) and fall back to the per-process random key. |
+| `TRUST_PROXY` | no | empty | `1` trusts `X-Forwarded-Proto/Host` for the admin origin check (needed when the proxy rewrites `Host`). Any value other than `1` is ignored and produces a startup warning. |
 | `ALLOWED_ORIGINS` | no | empty | Extra exact origins allowed to call `/api/admin/*`, comma-separated. |
-| `DISABLE_ORIGIN_CHECK` | no | empty | Escape hatch: `1` disables the admin origin check entirely. |
+| `DISABLE_ORIGIN_CHECK` | no | empty | Escape hatch: `1` disables the admin origin check entirely. Any value other than `1` is ignored and produces a startup warning. |
+
+Env-validation contract: enum/constrained env values are parsed leniently (invalid values fall back to the default) but must never fail silently — every lenient fallback of a security-relevant env key belongs in `src/lib/env-check.ts`, which runs once per process from `initializeConfigs()` and reports each ignored value to stderr with expected values and the resulting fallback behaviour.
 
 Audit raw-value contract:
 - `logAudit` must persist `matchedValues` for every finding so private deployments can measure real leakage.

@@ -1,6 +1,7 @@
 import { getConfig, setConfig, getAllConfigs } from "@/audit";
 import { CONTEXT_KEY, PATH_PREFIX_OPTIONS, CONTEXT_WINDOW_SIZE, DEFAULT_CONFIG_VALUES, SCANNER_RULES, RUNTIME } from "@/config";
 import type { EditableConfigType, Severity, FindingCategory } from "@/types";
+import { warnInvalidEnv } from "@/lib/env-check";
 import { Logger } from "@/log";
 
 let configsInitialized = false;
@@ -9,6 +10,9 @@ const log = new Logger("config");
 export function initializeConfigs(): void {
   if (configsInitialized) return;
   configsInitialized = true;
+
+  // 非法 env 可见化(每进程一轮):拼写错误的值会静默回退,这里是唯一的出口
+  warnInvalidEnv();
 
   try {
     const configs = getAllConfigs();
