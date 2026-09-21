@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "secrets 阶段结构与规则接入面(关键词预过滤例外、无标签检测的落点依据)"}
+{"file": ".trellis/spec/backend/performance.md", "reason": "性能基线与基准方法论(1MB 427ms;新增评分器的预算口径)"}
