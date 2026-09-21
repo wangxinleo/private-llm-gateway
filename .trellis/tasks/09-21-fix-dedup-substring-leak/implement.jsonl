@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "扫描语义契约:findings 去重与 applyMasks 位置级重叠处理的边界(不得在 finding 层按值吸收)"}
+{"file": ".trellis/spec/backend/performance.md", "reason": "合并交替 ≤512 走组合路径/超限顺序回退的性能约定与基准口径"}
