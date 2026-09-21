@@ -960,3 +960,25 @@ maskit/Cosy 09-21 差异逐项立项完成:①T1 请求侧跳过上游自产模�
 ### Status
 
 [OK] **Completed**
+
+
+## Session 27: F1 补充:完整桌面回归(全批次场景)结果与边界归档
+<!-- trellis-session: v=2 fp=d266d19ce7607578 -->
+
+**Date**: 2026-09-21
+**Task**: F1 补充:完整桌面回归(全批次场景)结果与边界归档
+**Branch**: `master`
+
+### Summary
+
+补齐 F1 修复(e81e896)的完整桌面回归并在修复后构建上重跑全批次场景:全新 DB+双实例(T7 非法 env 2 条告警/合法 0 条)、T1 thinking 原样且文本照常脱敏、T5 默认关→管理面开启→4 处私网全脱敏(含 F1 首处独立出现)+负例全放行、T2 gzip/zstd JSON+SSE 还原与 unknown 透传+accept-encoding 过滤(zstd 剔除)、F1 三例(含审计 findings=[PHONE,BANK_CARD])、16 并发全 200 无编码头、GUI 登录/词库(IPV6_PRIVATE)/审计渲染、517 tests+build 绿。18 项结果表与内联原始证据写入归档任务 research/full-regression-report.md,并明确未覆盖路径边界(multipart/自定义词 UI 写/reveal/真实第三方上游,均与 F1 无交集或另有覆盖)。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3bb389a` | docs(task): 归档 F1 完整桌面回归结果与边界说明 |
+
+### Status
+
+[OK] **Completed**
