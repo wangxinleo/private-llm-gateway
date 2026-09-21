@@ -20,23 +20,13 @@ export function scanContextWindows(text: string): Finding[] {
   const allFindings: Finding[] = [];
   const seen = new Set<string>();
 
-  const longerMatchPresent = (candidate: string): boolean => {
-    for (const f of allFindings) {
-      if (f.matched.length > candidate.length && f.matched.includes(candidate)) return true;
-    }
-    return false;
-  };
-
+  // 仅做"精确同值去重"(全量 pass 与窗口 pass 会重复命中同一值)。
+  // 刻意不做按值子串吸收(F1,2026-09-21):位置盲的 includes 比较会把"短值在别处
+  // 独立出现"的 finding 一并丢弃 → 该处明文上行。同位置嵌套/重叠由 applyMasks
+  // 的合并交替(长度降序)在文本位置层面吸收,不需要在 finding 层做子串剪枝。
   const push = (findings: Finding[]) => {
     for (const f of findings) {
       if (seen.has(f.matched)) continue;
-      if (longerMatchPresent(f.matched)) continue;
-      for (const existing of [...allFindings]) {
-        if (existing.matched.length < f.matched.length && f.matched.includes(existing.matched)) {
-          seen.delete(existing.matched);
-          allFindings.splice(allFindings.indexOf(existing), 1);
-        }
-      }
       seen.add(f.matched);
       allFindings.push(f);
     }

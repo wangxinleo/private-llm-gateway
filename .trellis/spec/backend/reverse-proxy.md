@@ -85,6 +85,8 @@ Both builder and runner stages in Dockerfile must use the same base image for AB
 
 > **Warning**: Private-IPv6 detection (`IPV6_PRIVATE`, default off) must stay validator-driven: never use "is private" semantics that include `2001:db8::/32` or `::1` (they would mask public/doc text) — accept only `fe80::/10` link-local and `fc00::/7` ULA. Match via a wide run (`[0-9A-Fa-f:]{2,45}`) plus a structured sticky sub-match so a greedy candidate cannot swallow the real address (`IPV6:fe80::1` prefix case), and keep the keyword prefilter case-insensitive (`Fe80::1` must not be skipped) and colon-gated (`:` alone would run the wide regex on every URL/JSON).
 
+> **Warning**: Never dedupe findings by value-substring absorption. `scanContextWindows` merges the full-text pass and windowed passes and must keep only exact-value dedup: the old `longerMatchPresent` heuristic dropped a short finding whenever a longer matched value elsewhere contained it as a substring, so the short value's *independent* occurrences stayed in plaintext while the audit reported "masked" (F1, 2026-09-21 — reproduced with `fe80::1`/`fe80::1%eth0` and with a Luhn card containing a phone number). Overlap/nesting is absorbed positionally by `applyMasks` (longest-first combined alternation); the >512-value fallback `applyMasksSequential` must therefore stay length-descending, and auditing may list both nested categories — that is expected, not a regression.
+
 ### 6. Wrong vs Correct
 
 #### Wrong — Byte size from string length

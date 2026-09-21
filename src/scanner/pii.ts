@@ -368,7 +368,10 @@ function applyMasksSequential(
   let result = text;
   let replacementCount = 0;
   const pairs = new Map<string, string>();
-  for (const f of maskFindings) {
+  // 长度降序:短值先替换会把长值字面量打碎(如手机号在卡号内部),导致长值
+  // `includes` 检查失败而漏脱。与 applyMasksCombined 的最长优先语义对齐(F1)。
+  const ordered = [...maskFindings].sort((a, b) => b.matched.length - a.matched.length);
+  for (const f of ordered) {
     if (!result.includes(f.matched)) continue;
     const tag = registry ? registry.tagFor(f.category, f.matched, f.shortCode) : f.maskTag!;
     const applied = replaceOutsidePlaceholders(result, f.matched, tag);
