@@ -12,6 +12,7 @@ import { createStreamingResponse } from "@/proxy/streaming";
 import { classifyContentEncoding, decodeZstdBuffer, stripDecodedContentEncoding } from "@/proxy/content-encoding";
 import { SseChannelRestorer, restoreText } from "@/proxy/restore";
 import { analyzeResponse, StreamResponseAnalyzer } from "@/proxy/response-analysis";
+import { analyzeRequestInjection } from "@/proxy/request-analysis";
 import { applyDisambiguation } from "@/proxy/disambiguation";
 import { logAudit } from "@/audit/logger";
 import { insertSignals } from "@/audit/signals-store";
@@ -271,7 +272,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
       const bypassDurationMs = performance.now() - startTime;
       log.info(`${method} ${path} | action: allow (bypass) | hits: ${bypassHitCategories || "none"} | ${bypassDurationMs.toFixed(2)}ms`);
 
-      logAudit({
+      const auditId = logAudit({
         path,
         method,
         contentType,
@@ -283,9 +284,10 @@ async function handleRequest(request: NextRequest): Promise<Response> {
         bypassApplied: true,
         duration: bypassDurationMs,
       });
+      insertSignals(auditId, analyzeRequestInjection(bodyText));
     } else {
       const durationMs = performance.now() - startTime;
-      logAudit({
+      const auditId = logAudit({
         path,
         method,
         contentType,
@@ -297,6 +299,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
         bypassApplied: true,
         duration: durationMs,
       });
+      insertSignals(auditId, analyzeRequestInjection(bodyText));
     }
 
     try {
@@ -371,6 +374,9 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     scanResult: result,
     duration: durationMs,
   });
+
+  // 请求侧注入被动审计(只记录不阻断):分析未脱敏原文,避免脱敏改变字面量
+  insertSignals(auditId, analyzeRequestInjection(bodyText));
 
   if (result.action === "block") {
     const blocked = blockedResponse(result.findings);

@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/logging.md", "reason": "审计信号 detail 不含原文的既有口径"}
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "请求处理序列与 logAudit/insertSignals 挂接点"}
