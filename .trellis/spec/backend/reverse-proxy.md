@@ -162,6 +162,8 @@ Audit raw-value contract:
 - SQLite may contain raw secrets/PII; protect `./data/audit.sqlite` and do not log or SSE-broadcast raw values.
 - Admin audit API returns raw `matchedValues` only after reveal auth.
 - Admin UI displays partial masks containing `**`; copy actions copy the raw value from the reveal-auth response.
+- Reveal failures must surface visibly in the dialog (`role=alert` with `audit.revealError`); a wrong password that silently leaves the dialog open reads as a broken button (F-C1, 2026-09-21).
+- Multipart requests: string fields are rebuilt and masked, file blobs pass through byte-identical and are never scanned, and sensitive filenames block the request with 403 `blocked_by_privacy_proxy`. File contents are a declared boundary, not a gap.
 
 Compose topology contract:
 - Use the published image (`image:`) only; do not add local build configuration.

@@ -447,6 +447,7 @@ export function AuditTable() {
   const handleRevealAuth = useCallback(async () => {
     if (!adminKey) return;
     setRevealLoading(true);
+    setRevealError(false);
     try {
       const res = await authedFetch("/api/admin/reveal-auth", {
         method: "POST",
@@ -459,6 +460,9 @@ export function AuditTable() {
         setRevealExpiry(expiresAt);
         setRevealDialog({ open: false, password: "" });
         fetchData(data.page);
+      } else {
+        // 失败必须可见:此前静默停留会让人以为按钮没生效
+        setRevealError(true);
       }
     } finally {
       setRevealLoading(false);
@@ -926,10 +930,18 @@ export function AuditTable() {
           <input
             type="password"
             value={revealDialog.password}
-            onChange={(e) => setRevealDialog((d) => ({ ...d, password: e.target.value }))}
+            onChange={(e) => {
+              setRevealDialog((d) => ({ ...d, password: e.target.value }));
+              setRevealError(false);
+            }}
             placeholder={t("audit.revealPasswordPlaceholder")}
             className="h-9 rounded-md border border-input bg-card px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
+          {revealError && (
+            <p role="alert" className="rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {t("audit.revealError")}
+            </p>
+          )}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" size="sm" onClick={() => { setRevealError(false); setRevealDialog({ open: false, password: "" }); }}>{t("audit.cancel")}</Button>
             <Button variant="outline" size="sm" onClick={handleRevealAuth} disabled={revealLoading || !revealDialog.password.trim()}>
