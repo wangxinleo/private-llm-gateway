@@ -2,6 +2,7 @@ import type { Finding } from "@/types";
 import { scanSecrets, scanSecretPrefixes } from "./secrets";
 import { scanContextKey, locateSensitiveHits } from "./context-key";
 import { scanPii } from "./pii";
+import { scanHighEntropy } from "./entropy";
 import { CONTEXT_WINDOW_SIZE } from "@/config";
 
 export const CONTEXT_WINDOW = CONTEXT_WINDOW_SIZE.value;
@@ -34,6 +35,9 @@ export function scanContextWindows(text: string): Finding[] {
 
   // 仅 PHONE/ID_CARD/BANK_CARD 全文扫描(用户确认保留);EMAIL 收窄到窗口锚点内
   push(scanPii(text).filter((f) => f.category !== "EMAIL"));
+
+  // 无标签随机凭据(默认关):无锚点语义,按需全文扫描;关闭时 scanHighEntropy 内部门控短路
+  push(scanHighEntropy(text));
 
   // 窗口锚点:敏感键值对(secret/encoded key=value);高风险资产白名单已下线
   const hits: WindowAnchor[] = locateSensitiveHits(text).map((h) => ({ value: h.value, start: h.start, end: h.end }));

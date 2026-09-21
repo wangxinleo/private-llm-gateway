@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "扫描规则接入面与 finding 语义(不得按值吸收等)"}
+{"file": ".trellis/spec/backend/performance.md", "reason": "基准方法论与性能预算口径(1MB 基线)"}

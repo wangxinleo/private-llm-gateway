@@ -21,6 +21,7 @@ export type FindingCategory =
   | "STRIPE_KEY"
   | "SENDGRID_KEY"
   | "CONTEXTUAL_SECRET"
+  | "HIGH_ENTROPY"
   | "SENSITIVE_FILENAME"
   | "PHONE"
   | "EMAIL"
