@@ -982,3 +982,27 @@ maskit/Cosy 09-21 差异逐项立项完成:①T1 请求侧跳过上游自产模�
 ### Status
 
 [OK] **Completed**
+
+
+## Session 28: 高熵检测+注入信号+回归补测(1M 压力门槛,含两处实测缺陷修复)
+<!-- trellis-session: v=2 fp=ff2ab86e7f02b769 -->
+
+**Date**: 2026-09-21
+**Task**: 高熵检测+注入信号+回归补测(1M 压力门槛,含两处实测缺陷修复)
+**Branch**: `master`
+
+### Summary
+
+三项落地:①HIGH_ENTROPY 默认关规则——自算 Gutenberg bigram 表+自校准锚点(p99.9),标准哈希守卫;FP 留出 0.02%/拼接 0.17%,召回 base62 99-100%/hex 84-96%;1M 基准增量 4.64ms、桌面 1.5MB +13~27ms。②请求侧注入审计信号 3 族(audit-only,HIGH/MEDIUM,挂主+bypass 路径,分析未脱敏原文,detail 仅打码 preview);1M 基准 0.63/1.69ms、桌面 1.58MB 57-67ms 且 3 信号落库;仓库负例集 0 信号(同现窗按 README 实测收紧至 ±80、泛化词剔除、.env 非单词前界)。③桌面回归补测:multipart 文本脱敏+文件字节完整+敏感名 403、词库 UI 写闭环、reveal 两路。压测顺带发现并修复:F-A1 Expect:100-continue 透传致 undici UND_ERR_NOT_SUPPORTED→大请求全 502(转发前丢弃 expect+逐跳头);F-C1 reveal 错密码静默失败(失败渲染 role=alert)。父任务+3 子任务归档;536 测试+build 绿;spec 新增 3 条 Gotcha 与审计/reveal/multipart 契约。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `811ca00` | feat(scanner): HIGH_ENTROPY 无标签凭据检测（自算表+自校准，默认关）+ Expect 头 502 修复 |
+| `f96d3e6` | feat(proxy): 请求侧注入审计信号（3 族,audit-only,含 1M 压力门槛） |
+| `671fb1f` | test(verify): 桌面回归补测 multipart/词库UI写/reveal + 修复 reveal 静默失败(F-C1) |
+
+### Status
+
+[OK] **Completed**

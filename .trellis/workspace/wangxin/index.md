@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 27
+- **Total Sessions**: 28
 - **Last Active**: 2026-09-21
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~984 | Active |
+| `journal-1.md` | ~1008 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 28 | 2026-09-21 | 高熵检测+注入信号+回归补测(1M 压力门槛,含两处实测缺陷修复) | `811ca00`, `f96d3e6`, `671fb1f` | `master` |
 | 27 | 2026-09-21 | F1 补充:完整桌面回归(全批次场景)结果与边界归档 | `3bb389a` | `master` |
 | 26 | 2026-09-21 | 修复 F1:去重按值子串吸收致独立出现明文泄漏 | `e81e896` | `master` |
 | 25 | 2026-09-21 | 竞品借鉴批次:7 项差异落项(T1/T2 修复 + T5/T7 实现 + T3/T4/T6 评估) | `721d6ca`, `aa433a1`, `051dc8f`, `7619a7e`, `8157a8e`, `9c35a60`, `48304fe` | `master` |
