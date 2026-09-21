@@ -910,3 +910,31 @@ benchmarks/ 与手测脚本 git mv 至 src/__tests__/{benchmarks,manual}，同�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 25: 竞品借鉴批次:7 项差异落项(T1/T2 修复 + T5/T7 实现 + T3/T4/T6 评估)
+<!-- trellis-session: v=2 fp=7fa056b8330fa808 -->
+
+**Date**: 2026-09-21
+**Task**: 竞品借鉴批次:7 项差异落项(T1/T2 修复 + T5/T7 实现 + T3/T4/T6 评估)
+**Branch**: `master`
+
+### Summary
+
+maskit/Cosy 09-21 差异逐项立项完成:①T1 请求侧跳过上游自产模型状态(Anthropic thinking 签名 400 修复,协议+路径+角色感知,10 用例);②T2 压缩响应头体一致性(content-encoding 归一+zstd 自解压+accept-encoding 过滤,13 用例,实测复现驱动);③T5 IPV6_PRIVATE 规则(fe80::/10+fc00::/7 默认关,结构化 sticky 子匹配防贪婪吞地址,5 用例);④T7 非法 env 可见化(6 类校验+短密钥告警,stderr 每进程一轮,6 用例);⑤T3 本地 NER 评估=no-go(触发条件+实施草图,关键判断:我方单遍替换天然免疫其坐标漂移类 bug);⑥T4 高熵检测评估=go(默认关,bigram 交叉熵,自算表路径优先);⑦T6 注入信号评估=go(3 族 audit-only,≥MEDIUM 过 default floor,负例含本仓库文档自测)。最终门禁 512 测试 + build 绿,git 干净,父任务与 7 子任务全部归档。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `721d6ca` | fix(scanner): 跳过请求侧模型自产推理状态,防 Anthropic thinking 签名失效 400 |
+| `aa433a1` | fix(proxy): 压缩响应头体一致性——content-encoding 归一 + zstd 解压 + accept-encoding 过滤 |
+| `051dc8f` | feat(scanner): IPV6_PRIVATE 内网 IPv6 规则（fe80::/10 + fc00::/7,默认关） |
+| `7619a7e` | feat(config): 非法 env 可见化——启动校验告警(不改变解析行为) |
+| `8157a8e` | docs(eval): 本地 NER 评估——no-go,记录触发条件与实施草图 |
+| `9c35a60` | docs(eval): 高熵凭据检测升级评估——go(默认关,自算表优先) |
+| `48304fe` | docs(eval): 提示词注入审计信号评估——go(窄范围 3 族,audit-only) |
+
+### Status
+
+[OK] **Completed**

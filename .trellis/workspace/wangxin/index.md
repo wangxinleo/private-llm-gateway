@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 24
-- **Last Active**: 2026-09-17
+- **Total Sessions**: 25
+- **Last Active**: 2026-09-21
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~912 | Active |
+| `journal-1.md` | ~940 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 25 | 2026-09-21 | 竞品借鉴批次:7 项差异落项(T1/T2 修复 + T5/T7 实现 + T3/T4/T6 评估) | `721d6ca`, `aa433a1`, `051dc8f`, `7619a7e`, `8157a8e`, `9c35a60`, `48304fe` | `master` |
 | 24 | 2026-09-17 | 收敛测试目录至 src/__tests__ 并清理根目录冗余 | `174cf21`, `38f554d`, `006b3b3` | `master` |
 | 23 | 2026-09-16 | 部署来源校验误杀修复(Host 头同源判定)与 spec 校准 | `0191a28`, `07ef225` | `master` |
 | 22 | 2026-09-16 | 部署配置同步(.env/compose/Dockerfile)与登录失败归因修复 | `f9b0d88`, `8336e15` | `master` |
