@@ -81,6 +81,8 @@ Both builder and runner stages in Dockerfile must use the same base image for AB
 
 > **Warning**: Never scan or rewrite upstream-owned model state in requests. Anthropic assistant `thinking`/`redacted_thinking` content blocks, Chat assistant `reasoning_content`/`reasoning`/`reasoning_details`, and Responses `input[]` items of `type` `reasoning`/`compaction` are produced by the upstream; masking them breaks protocol round-trips (Anthropic validates the signature over the thinking text, so any rewrite yields a 400). `json-mask.ts` skips these nodes via `isUpstreamModelState` — the decision must stay protocol + path + role + type aware; a field name alone (e.g. `signature` outside a thinking block) must never bypass scanning. Skipped nodes produce no findings, no placeholders, and no registry entries.
 
+> **Warning**: undici's fetch auto-decompresses `gzip`/`deflate`/`br` but keeps the `content-encoding` header, and does not decode `zstd` at all. Every response re-emission path (restored text path, SSE passthrough, binary passthrough, bypass) must normalize headers via `src/proxy/content-encoding.ts`: strip `content-encoding` when it is a client-decoded coding, decompress `zstd` ourselves (Node ≥ 22.15; unsupported runtimes degrade to opaque passthrough), and keep original bytes + header for unknown codings. On the request side `forwardRequest` filters `accept-encoding` to the decodable set (zstd removed) — advertising zstd invites undecodable responses. Regression tests must cover the no-mask/passthrough paths, not only the restore path.
+
 ### 6. Wrong vs Correct
 
 #### Wrong — Byte size from string length

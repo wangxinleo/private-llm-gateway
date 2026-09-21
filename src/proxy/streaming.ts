@@ -1,5 +1,9 @@
 import type { SseChannelRestorer } from "./restore";
 import type { StreamResponseAnalyzer } from "./response-analysis";
+import { classifyContentEncoding, decodeZstdStream } from "./content-encoding";
+import { Logger } from "@/log";
+
+const log = new Logger("streaming");
 
 export function createStreamingResponse(
   upstream: Response,
@@ -7,10 +11,26 @@ export function createStreamingResponse(
   analyzer?: StreamResponseAnalyzer
 ): Response {
   const headers = new Headers(upstream.headers);
-  headers.delete("content-encoding");
   headers.delete("content-length");
+  const encoding = classifyContentEncoding(headers);
+  // 客户端已解压的编码必须摘头(头体一致性);zstd 由网关解压后再摘头
+  if (encoding === "decoded" || encoding === "zstd") {
+    headers.delete("content-encoding");
+  }
+  // 未知编码无解码手段:原样字节透传,放弃还原/分析(否则按文本处理会产出乱码),保留原头
+  const opaque = encoding === "unknown";
+  if (opaque) {
+    log.warn(`unsupported content-encoding, streaming passthrough: ${headers.get("content-encoding")}`);
+    restorer = undefined;
+    analyzer = undefined;
+  }
 
-  const reader = upstream.body?.getReader();
+  let body = upstream.body;
+  if (encoding === "zstd" && body) {
+    body = decodeZstdStream(body);
+  }
+
+  const reader = body?.getReader();
   if (!reader) {
     return new Response(null, { status: upstream.status, headers });
   }

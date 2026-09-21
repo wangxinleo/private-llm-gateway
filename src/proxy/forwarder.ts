@@ -1,4 +1,5 @@
 import { getDefaultUpstream } from "@/config";
+import { filterAcceptEncoding } from "./content-encoding";
 import type { ResolvedChannel } from "./channels";
 
 export async function forwardRequest(
@@ -14,6 +15,12 @@ export async function forwardRequest(
     : `${fallback ?? ""}${path}`;
   const headers = new Headers(request.headers);
   headers.delete("host");
+  // 只向上游宣告网关能解码的编码:undici 解 gzip/deflate/br 但不解 zstd,
+  // 透传 zstd 会让还原链读到未解压字节(实测)。
+  const acceptEncoding = headers.get("accept-encoding");
+  if (acceptEncoding !== null) {
+    headers.set("accept-encoding", filterAcceptEncoding(acceptEncoding));
+  }
 
   if (channel) {
     // 仅补调用方未持有的头(大小写不敏感),绝不覆盖真 Key/协议头(maskit 教训 #8)

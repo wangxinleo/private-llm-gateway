@@ -9,6 +9,7 @@ import { blockedResponse } from "@/engine/policy";
 import { forwardRequest } from "@/proxy/forwarder";
 import { resolveChannel, type ResolvedChannel } from "@/proxy/channels";
 import { createStreamingResponse } from "@/proxy/streaming";
+import { classifyContentEncoding, decodeZstdBuffer, stripDecodedContentEncoding } from "@/proxy/content-encoding";
 import { SseChannelRestorer, restoreText } from "@/proxy/restore";
 import { analyzeResponse, StreamResponseAnalyzer } from "@/proxy/response-analysis";
 import { applyDisambiguation } from "@/proxy/disambiguation";
@@ -102,6 +103,19 @@ function runScanProtected(operation: string, scan: () => ScanResult): ScanResult
   }
 }
 
+// 透传上游响应前的头归一:客户端已解压的编码(gzip/deflate/br)必须摘掉
+// content-encoding(undici 已解压但保留头,不摘会让客户端二次解压明文而失败)
+function reemitUpstream(upstream: Response): Response {
+  if (!upstream.body) return upstream;
+  const headers = new Headers(upstream.headers);
+  stripDecodedContentEncoding(headers);
+  return new Response(upstream.body, {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers,
+  });
+}
+
 async function finalizeUpstream(
   upstream: Response,
   registry: MaskRegistry | undefined,
@@ -112,7 +126,7 @@ async function finalizeUpstream(
   const hasRegistry = !!(registry && registry.size > 0);
 
   if (contentType.includes("text/event-stream")) {
-    if (!hasRegistry) return upstream;
+    if (!hasRegistry) return reemitUpstream(upstream);
     const restorer = new SseChannelRestorer(registry);
     const analyzer = analysis
       ? new StreamResponseAnalyzer(
@@ -122,11 +136,20 @@ async function finalizeUpstream(
       : undefined;
     return createStreamingResponse(upstream, restorer, analyzer);
   }
-  if (!upstream.body || isBinaryContentType(contentType)) return upstream;
+  if (!upstream.body || isBinaryContentType(contentType)) return reemitUpstream(upstream);
   // 还原与响应分析共用这次全文读取;两者都不需要时保持零拷贝透传
-  if (!hasRegistry && !analysis) return upstream;
+  if (!hasRegistry && !analysis) return reemitUpstream(upstream);
 
-  const raw = await upstream.text();
+  const encoding = classifyContentEncoding(upstream.headers);
+  // 未知编码(非 gzip/deflate/br/zstd):无解码手段,原样透传且不做还原/分析
+  if (encoding === "unknown") {
+    log.warn(`upstream content-encoding unsupported, passthrough without restore: ${upstream.headers.get("content-encoding")}`);
+    return reemitUpstream(upstream);
+  }
+
+  const raw = encoding === "zstd"
+    ? decodeZstdBuffer(new Uint8Array(await upstream.arrayBuffer()))
+    : await upstream.text();
   const restored = hasRegistry ? restoreText(raw, registry!) : raw;
   if (analysis) {
     insertSignals(
@@ -142,6 +165,9 @@ async function finalizeUpstream(
 
   const headers = new Headers(upstream.headers);
   headers.delete("content-length");
+  if (encoding === "decoded" || encoding === "zstd") {
+    headers.delete("content-encoding");
+  }
   if (PRIVACY_DEBUG_HEADERS && maskSummary.applied) {
     headers.set("X-Privacy-Masked", "true");
     headers.set("X-Privacy-Mask-Types", maskSummary.categories.join(","));
@@ -284,7 +310,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
       if (upstreamContentType.includes("text/event-stream")) {
         return createStreamingResponse(upstream);
       }
-      return upstream;
+      return reemitUpstream(upstream);
     } catch (err) {
       const cause = err instanceof Error && "cause" in err ? (err.cause as Error) : undefined;
       const code = cause && "code" in cause ? (cause as { code: string }).code : undefined;

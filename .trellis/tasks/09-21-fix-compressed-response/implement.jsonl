@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "代理转发/SSE 透传契约;压缩头归一的落点"}
+{"file": ".trellis/spec/backend/performance.md", "reason": "流式路径不得引入整段缓冲;zstd 解压需流式桥接"}
