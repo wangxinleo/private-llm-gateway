@@ -1,0 +1,30 @@
+{
+  "id": "perf-additions",
+  "name": "perf-additions",
+  "title": "高熵检测+注入信号+回归补测（含 1M 上下文压力门槛）",
+  "description": "三项落地:①HIGH_ENTROPY 规则(默认关,自算 bigram 表);②请求侧注入审计信号(3 族,audit-only);③桌面回归未覆盖路径补测。全部以 1M 上下文压测为硬门槛。",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "wangxin",
+  "assignee": "wangxin",
+  "createdAt": "2026-09-21",
+  "completedAt": "2026-09-21",
+  "branch": null,
+  "base_branch": "master",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "09-21-high-entropy-rule",
+    "09-21-injection-signals",
+    "09-21-regression-gap-verify"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}
