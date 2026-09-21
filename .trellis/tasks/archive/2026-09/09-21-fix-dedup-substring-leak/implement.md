@@ -9,7 +9,8 @@
 - [x] 5. `npm run build` 绿。
 - [x] 6. spec：`.trellis/spec/backend/reverse-proxy.md` Gotcha 增补"finding 层不得按值子串吸收"（R5）。
 - [x] 7. 桌面复验（生产构建 + mock 上游）：例 1 两处 IPv6 均占位符；例 2 卡号+手机号均占位符且审计 `findings:["PHONE","BANK_CARD"]`；嵌套保持性用例仅长值占位符。
-- [ ] 8. 提交 + 归档。
+- [x] 8. 提交 + 归档（`e81e896` + `4f22495`）。
+- [x] 补充（归档后）：**全批次完整桌面回归**（T1/T2/T5/T7 + F1 + 并发 + GUI，修复后构建、全新 DB、双实例）结果与边界说明见 `research/full-regression-report.md`（修复前仅做定点复验，已由该报告补齐）。
 
 ## 验证命令
 
