@@ -1006,3 +1006,47 @@ maskit/Cosy 09-21 差异逐项立项完成:①T1 请求侧跳过上游自产模�
 ### Status
 
 [OK] **Completed**
+
+
+## Session 29: 竞品更新复查:maskit v0.4.0 四项差异落地(父+4 子任务归档)
+<!-- trellis-session: v=2 fp=58c8188c21d563f5 -->
+
+**Date**: 2026-09-23
+**Task**: 竞品更新复查:maskit v0.4.0 四项差异落地(父+4 子任务归档)
+**Branch**: `master`
+
+### Summary
+
+复查竞品增量:CosyRedactGateway 零更新(HEAD 仍 0e2be2e);maskit v0.4.0(12 提交)梳理出 4 项与我方相关差异,全部立项落地并归档。T1 响应 content-type 判定归一化(探针实测两触发面:Text/Event-Stream 响应挂起、Application/Octet-Stream 响应体 12B→18B 不可逆损坏);T2 响应体还原体积闸(探针实测:超限永不结束流挂起 + 整读零痕迹);T3 响应还原可观测性(计数/未还原样本落库 + 面板实时回填);T4 上游/流式错误诊断(err/code/resp/req/out/ms 元数据;顺带实测暴露并修复 T4-AP1)。全量 572+1 绿、build 绿、git 干净;父任务集成复核记录含逐子提交链与验收数据。
+
+### Main Changes
+
+- T1 响应 content-type 判定归一化:normalizeContentType/isSseContentType/isBinaryContentType 收口为唯一判据入口(大小写/空白归一),探针钉死两触发面
+- T2 响应体还原体积闸:readBodyCapped 按 RUNTIME.maxBodyBytes 封顶,越限字节原样透传 + restore_skipped 留痕(仅 reason/bytes/limit);content-length 快速跳过仅限 none/zstd(decoded 不跳过)
+- T3 响应还原可观测性:findResolved 单一检测器同源喂 response_poison 信号与 restore_unresolved 列;LOOSE_RX 加宽(1-2 花括号/内空白/小写标签,裸 token 不吞邻接空白);样本≤5 仅存占位符;未跑还原四列 NULL 而非 0
+- T4 上游/流式错误诊断:err/code/resp/req/out/ms 入 warn 日志与 upstream_error(HIGH) 审计信号(元数据,零客户端泄漏);实测暴露并修复 T4-AP1——return promise 不经 try/catch,缓冲路径读体失败曾以未捕获异常逃逸(非 502/零痕迹),改 return await 并以探针钉死
+- spec 增补 4 段 Gotcha(content-type 归一/体积闸/还原可观测/错误诊断);竞品合规:maskit(AGPL)仅借鉴设计思路零代码复制
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1a929ae` | chore(task): 竞品更新检查批次立项（父任务 + 4 个子任务） |
+| `2db3f80` | fix(proxy): 响应 content-type 判定归一化（SSE 挂起/二进制损坏） |
+| `41c5f11` | fix(proxy): 响应体还原体积闸 + 跳过留痕（超限不再整流阻塞） |
+| `7b9d0a3` | fix(proxy): 响应还原可观测性(计数/未还原样本落库 + 面板实时回填) |
+| `16648b6` | fix(proxy): 上游/流式错误诊断(err/code/resp/req/out/ms + 修复 promise-return 吞噬) |
+
+### Testing
+
+- [OK] 4 子任务各自全量绿 + build 绿(T1 548+1 / T2 553 / T3 565+1 / T4 572+1)
+- [OK] 整合后终态复核:60 文件 572 passed | 1 skipped, build exit 0, git status 干净, 4 子任务 task.json 均 completed
+- [OK] 探针证据(隔离 DB + mock 上游 + warn 日志/DB 信号双向核对)入各子任务 research/probe-evidence.md
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 用户统一验收(沿用 09-21 批次方式)
