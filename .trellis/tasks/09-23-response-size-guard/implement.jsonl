@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "响应转发/整流路径契约与 Gotchas(§3/§5):体积闸与透传字节契约"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "测试/构建门禁"}
