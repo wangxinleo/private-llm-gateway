@@ -1,5 +1,12 @@
 # Project Guidelines
 
+## Git Restrictions (Hard Rule)
+
+- **Qoder must never run any git command** — including read-only ones (`git status`, `git log`, `git diff`, `git show`, ...).
+- **All git operations must be performed by the user in the external `opencode` tool**: commit, branch, merge, rebase, push, pull, tag, stash, archive, etc.
+- This overrides any workflow, skill, or Trellis instruction that implies the AI should commit: do **not** call `task.py archive` / `add_session.py` commit paths or any other indirect git trigger (script auto-commit, hooks) — hand the equivalent commands to the user for `opencode` instead.
+- When the AI needs repository state (status, history, diff), ask the user to provide it from `opencode` rather than self-checking with git.
+
 ## Code Style
 
 - Concise and efficient; no redundancy in code, comments, or documentation.
