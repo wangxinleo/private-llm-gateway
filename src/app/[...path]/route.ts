@@ -128,6 +128,60 @@ function reemitUpstream(upstream: Response): Response {
   });
 }
 
+// 整流路径会把整条响应读进内存并同步还原+分析,超大响应会占住事件循环:
+// 超限即跳过还原/分析但绝不改 body,并留痕(restore_skipped 信号)
+type CappedRead =
+  | { kind: "within"; bytes: Uint8Array; text: string }
+  | { kind: "oversized"; stream: ReadableStream<Uint8Array>; bytes: number };
+
+async function readBodyCapped(body: ReadableStream<Uint8Array>, limit: number): Promise<CappedRead> {
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    chunks.push(value);
+    total += value.byteLength;
+    if (total > limit) {
+      // 越限:停止累积,已缓冲分片 + 剩余上游流重组为透传流(字节原样、顺序不变)
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          for (const chunk of chunks) controller.enqueue(chunk);
+        },
+        async pull(controller) {
+          const next = await reader.read();
+          if (next.done) {
+            controller.close();
+            return;
+          }
+          if (next.value) controller.enqueue(next.value);
+        },
+        cancel(reason) {
+          return reader.cancel(reason);
+        },
+      });
+      return { kind: "oversized", stream, bytes: total };
+    }
+  }
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return { kind: "within", bytes: merged, text: new TextDecoder().decode(merged) };
+}
+
+// 跳过留痕:只记数字与原因,不含任何正文(信号挂本次请求,事件页展开可见)
+function traceRestoreSkipped(analysis: { auditId: number } | undefined, bytes: number): void {
+  log.warn(`response restore skipped: response_too_large (bytes=${bytes}, limit=${RUNTIME.maxBodyBytes})`);
+  insertSignals(analysis?.auditId ?? null, [
+    { signal: "restore_skipped", severity: "MEDIUM", detail: { reason: "response_too_large", bytes, limit: RUNTIME.maxBodyBytes } },
+  ]);
+}
+
 async function finalizeUpstream(
   upstream: Response,
   registry: MaskRegistry | undefined,
@@ -159,9 +213,26 @@ async function finalizeUpstream(
     return reemitUpstream(upstream);
   }
 
-  const raw = encoding === "zstd"
-    ? decodeZstdBuffer(new Uint8Array(await upstream.arrayBuffer()))
-    : await upstream.text();
+  // 声明体积快速跳过:仅 none/zstd 的 content-length 是可靠代理(无解压增益);
+  // decoded(gzip/br)wire 体积≠解码体积,不做快速跳过以免误跳过
+  const declared = parseInt(upstream.headers.get("content-length") ?? "", 10);
+  if ((encoding === "none" || encoding === "zstd") && Number.isFinite(declared) && declared > RUNTIME.maxBodyBytes) {
+    traceRestoreSkipped(analysis, declared);
+    return reemitUpstream(upstream);
+  }
+
+  const capped = await readBodyCapped(upstream.body, RUNTIME.maxBodyBytes);
+  if (capped.kind === "oversized") {
+    traceRestoreSkipped(analysis, capped.bytes);
+    const wrapped = new Response(capped.stream, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers: upstream.headers,
+    });
+    return reemitUpstream(wrapped);
+  }
+
+  const raw = encoding === "zstd" ? decodeZstdBuffer(capped.bytes) : capped.text;
   const restored = hasRegistry ? restoreText(raw, registry!) : raw;
   if (analysis) {
     insertSignals(
