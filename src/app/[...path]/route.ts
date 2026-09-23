@@ -78,8 +78,19 @@ async function rebuildMaskedMultipart(
   return rebuilt;
 }
 
+// 上游 content-type 大小写不保证(实测 Text/Event-Stream、Application/Octet-Stream):
+// 响应侧判定必须归一化后再匹配,否则二进制被当文本解码破坏、SSE 被当普通响应整流缓冲
+function normalizeContentType(contentType: string): string {
+  return contentType.toLowerCase().trim();
+}
+
+function isSseContentType(contentType: string): boolean {
+  return normalizeContentType(contentType).includes("text/event-stream");
+}
+
 function isBinaryContentType(contentType: string): boolean {
-  return /^(?:image|audio|video)\//.test(contentType) || contentType.includes("application/octet-stream");
+  const ct = normalizeContentType(contentType);
+  return /^(?:image|audio|video)\//.test(ct) || ct.includes("application/octet-stream");
 }
 
 function isTooLarge(contentLength: string | null): boolean {
@@ -126,7 +137,7 @@ async function finalizeUpstream(
   const contentType = upstream.headers.get("content-type") ?? "";
   const hasRegistry = !!(registry && registry.size > 0);
 
-  if (contentType.includes("text/event-stream")) {
+  if (isSseContentType(contentType)) {
     if (!hasRegistry) return reemitUpstream(upstream);
     const restorer = new SseChannelRestorer(registry);
     const analyzer = analysis
@@ -310,7 +321,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
         channel
       );
       const upstreamContentType = upstream.headers.get("content-type") ?? "";
-      if (upstreamContentType.includes("text/event-stream")) {
+      if (isSseContentType(upstreamContentType)) {
         return createStreamingResponse(upstream);
       }
       return reemitUpstream(upstream);
