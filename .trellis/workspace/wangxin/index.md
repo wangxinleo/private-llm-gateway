@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 29
+- **Total Sessions**: 30
 - **Last Active**: 2026-09-23
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1052 | Active |
+| `journal-1.md` | ~1091 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 30 | 2026-09-23 | 09-23 验证缺陷修复：正则回溯挂起 / 越限透传截断 / 客户端取消误报 | `ac141c3`, `aa49385` | `master` |
 | 29 | 2026-09-23 | 竞品更新复查:maskit v0.4.0 四项差异落地(父+4 子任务归档) | `1a929ae`, `2db3f80`, `41c5f11`, `7b9d0a3`, `16648b6` | `master` |
 | 28 | 2026-09-21 | 高熵检测+注入信号+回归补测(1M 压力门槛,含两处实测缺陷修复) | `811ca00`, `f96d3e6`, `671fb1f` | `master` |
 | 27 | 2026-09-21 | F1 补充:完整桌面回归(全批次场景)结果与边界归档 | `3bb389a` | `master` |

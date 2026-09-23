@@ -1050,3 +1050,42 @@ maskit/Cosy 09-21 差异逐项立项完成:①T1 请求侧跳过上游自产模�
 ### Next Steps
 
 - 用户统一验收(沿用 09-21 批次方式)
+
+
+## Session 30: 09-23 验证缺陷修复：正则回溯挂起 / 越限透传截断 / 客户端取消误报
+<!-- trellis-session: v=2 fp=14d2e02639f91dd4 -->
+
+**Date**: 2026-09-23
+**Task**: 09-23 验证缺陷修复：正则回溯挂起 / 越限透传截断 / 客户端取消误报
+**Branch**: `master`
+
+### Summary
+
+本地 E2E 验证(FAIL)暴露的三项缺陷全部修复:先红后绿,复跑 harness 全过,spec Gotchas 已回写,任务归档
+
+### Main Changes
+
+- F1: LOOSE_CORE/TAG_CORE 标签体量词收紧为 {0,MAX_SHORTCODE_LEN},100KB 词串 3541ms→2.5ms(线性)
+- F2: reemitUpstream 统一在 decoded 分支删 wire content-length,2.1MB 解码体不再截断为 2117B
+- F3: streaming cancel 钩子标记 clientCancelled,客户端断开不再写 HIGH upstream_error
+- 新增 benchmarks/regex-linear-guard.test.ts、streaming-client-cancel.test.ts,response-size-guard 增 decoded 越限用例
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ac141c3` | fix(proxy): 修复 E2E 验证三缺陷——标签正则 O(n²) 回溯 / 解码体透传 stale CL / 客户端取消误报 |
+| `aa49385` | chore(task): archive 09-23-verify-findings-fix |
+
+### Testing
+
+- [OK] npm test 62 文件/578 通过|1 跳过;npm run build exit 0
+- [OK] E2E: edge-at?ch=a 0.114s(修复前 12s 挂死);big-gzip 完整 2,100,039B 无 CL;sse 取消仅 response_poison,upstream_error 仅存于 sse-abort
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 用户统一验收(修复批次)
