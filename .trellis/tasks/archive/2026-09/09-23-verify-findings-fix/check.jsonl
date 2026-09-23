@@ -1,0 +1,2 @@
+{"file": ".trellis/tasks/09-23-verify-findings-fix/research/probe-evidence.md", "reason": "验收须复跑同一 harness 逐项对照修复前证据"}
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "复核 Gotchas 是否已补充三项教训"}

@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "代理/还原/流式层的既有约定与 Gotchas，修复 F2/F3 需遵循并回写新教训"}
+{"file": ".trellis/spec/backend/performance.md", "reason": "性能红线与护栏测试的写法约定（F1 线性化需对齐）"}
+{"file": ".trellis/spec/backend/quality.md", "reason": "测试与质量门要求（先红后绿、npm test/build 验收）"}
+{"file": ".trellis/tasks/09-23-verify-findings-fix/research/probe-evidence.md", "reason": "三缺陷的复现证据、根因与 mock harness 速查（本任务唯一事实来源）"}
