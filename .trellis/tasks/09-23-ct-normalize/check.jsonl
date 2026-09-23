@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "核对 SSE/二进制透传契约与既有 Gotcha 不回归"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "质量门禁:测试/构建"}

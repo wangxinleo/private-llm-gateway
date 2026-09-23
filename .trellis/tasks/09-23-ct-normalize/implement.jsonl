@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "响应转发/SSE 契约与 Gotchas(§3/§5):判定归一化与不回归边界"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "测试/构建门禁"}

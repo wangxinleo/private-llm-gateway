@@ -1,0 +1,31 @@
+{
+  "id": "competitor-update-review",
+  "name": "competitor-update-review",
+  "title": "竞品更新复查：maskit/Cosy 增量差异（09-23）",
+  "description": "复查两个竞品仓库（xiaYuTian11/maskit、CassiopeiaCode/CosyRedactGateway）自上轮调研（2026-09-21）以来的更新，做 diff 级差异分析，输出可立项的借鉴项清单；本轮只调研不写生产代码。",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "wangxin",
+  "assignee": "wangxin",
+  "createdAt": "2026-09-23",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "master",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "09-23-ct-normalize",
+    "09-23-response-size-guard",
+    "09-23-restore-observability",
+    "09-23-stream-error-trace"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}
