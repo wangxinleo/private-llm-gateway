@@ -1,6 +1,7 @@
 import type { SseChannelRestorer } from "./restore";
 import type { StreamResponseAnalyzer } from "./response-analysis";
 import { classifyContentEncoding, decodeZstdStream } from "./content-encoding";
+import { describeUpstreamError, formatUpstreamError } from "./error-trace";
 import { Logger } from "@/log";
 
 const log = new Logger("streaming");
@@ -37,9 +38,15 @@ export function createStreamingResponse(
 
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
+  const startedAt = performance.now();
+  let outBytes = 0;
 
   const stream = new ReadableStream({
     async pull(controller) {
+      const emit = (chunk: Uint8Array) => {
+        outBytes += chunk.byteLength;
+        controller.enqueue(chunk);
+      };
       try {
         for (;;) {
           const { done, value } = await reader.read();
@@ -48,7 +55,7 @@ export function createStreamingResponse(
               const tail = restorer.flush();
               if (tail) {
                 analyzer?.observe(tail);
-                controller.enqueue(encoder.encode(tail));
+                emit(encoder.encode(tail));
               }
             }
             analyzer?.finish();
@@ -56,7 +63,7 @@ export function createStreamingResponse(
             return;
           }
           if (!restorer) {
-            controller.enqueue(value);
+            emit(value);
             return;
           }
           const decoded = decoder.decode(value, { stream: true });
@@ -64,11 +71,16 @@ export function createStreamingResponse(
           const frames = restorer.pushBytes(decoded);
           if (frames) {
             analyzer?.observe(frames);
-            controller.enqueue(encoder.encode(frames));
+            emit(encoder.encode(frames));
             return;
           }
         }
       } catch (err) {
+        // 流式中断此前完全静默(仅 controller.error):先留痕再 error。
+        // 诊断只含元数据;客户端截断语义不变
+        const trace = describeUpstreamError(err, { resp: 1, out: outBytes, ms: performance.now() - startedAt });
+        log.warn(`stream aborted mid-response ${formatUpstreamError(trace)}`);
+        analyzer?.recordAbort(trace);
         controller.error(err);
       }
     },

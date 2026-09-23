@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "错误诊断契约与 Gotchas(§5):resp 语义、零泄漏、await 陷阱、流式中断留痕"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "测试/构建门禁"}

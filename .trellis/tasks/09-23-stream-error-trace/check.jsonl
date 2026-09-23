@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "核对诊断字段/零泄漏/截断语义不回归"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "质量门禁:测试/构建"}

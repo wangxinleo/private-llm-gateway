@@ -8,6 +8,7 @@ import { applyMasks } from "@/scanner/pii";
 import { blockedResponse } from "@/engine/policy";
 import { forwardRequest } from "@/proxy/forwarder";
 import { resolveChannel, type ResolvedChannel } from "@/proxy/channels";
+import { describeUpstreamError, formatUpstreamError } from "@/proxy/error-trace";
 import { createStreamingResponse } from "@/proxy/streaming";
 import { classifyContentEncoding, decodeZstdBuffer, stripDecodedContentEncoding } from "@/proxy/content-encoding";
 import { SseChannelRestorer, restoreText, type RestoreStats } from "@/proxy/restore";
@@ -181,6 +182,27 @@ function traceRestoreSkipped(analysis: { auditId: number } | undefined, bytes: n
   insertSignals(analysis?.auditId ?? null, [
     { signal: "restore_skipped", severity: "MEDIUM", detail: { reason: "response_too_large", bytes, limit: RUNTIME.maxBodyBytes } },
   ]);
+}
+
+// 请求体字节:已实测值优先;multipart 直通(bypass)未提前解析,退回声明 content-length
+function requestBytes(bodySize: number, contentLength: string | null): number {
+  if (bodySize > 0) return bodySize;
+  const declared = parseInt(contentLength ?? "", 10);
+  return Number.isFinite(declared) && declared > 0 ? declared : 0;
+}
+
+// 上游失败留痕:err/code/resp/req/ms 只进 warn 日志与审计信号(元数据),
+// 绝不进客户端响应体(主机名/端口/错误消息零泄漏,route-upstream-error.test.ts 钉死)
+function traceUpstreamError(
+  err: unknown,
+  ctx: { method: string; path: string; resp: 0 | 1; req: number; ms: number; auditId?: number | null }
+): void {
+  const trace = describeUpstreamError(err, { resp: ctx.resp, req: ctx.req, ms: ctx.ms });
+  log.warn(`${ctx.method} ${ctx.path} | upstream error: fetch_failed ${formatUpstreamError(trace)}`);
+  log.debug(`upstream error detail: ${err instanceof Error ? err.message : String(err)}`);
+  if (ctx.auditId != null) {
+    insertSignals(ctx.auditId, [{ signal: "upstream_error", severity: "HIGH", detail: trace }]);
+  }
 }
 
 async function finalizeUpstream(
@@ -362,12 +384,13 @@ async function handleRequest(request: NextRequest): Promise<Response> {
       if (outcome instanceof Response) return outcome;
       bypassResult = outcome;
     }
+    let bypassAuditId: number;
     if (bypassResult) {
       const bypassHitCategories = bypassResult.findings.map(f => f.category).join(", ");
       const bypassDurationMs = performance.now() - startTime;
       log.info(`${method} ${path} | action: allow (bypass) | hits: ${bypassHitCategories || "none"} | ${bypassDurationMs.toFixed(2)}ms`);
 
-      const auditId = logAudit({
+      bypassAuditId = logAudit({
         path,
         method,
         contentType,
@@ -379,10 +402,10 @@ async function handleRequest(request: NextRequest): Promise<Response> {
         bypassApplied: true,
         duration: bypassDurationMs,
       });
-      insertSignals(auditId, analyzeRequestInjection(bodyText));
+      insertSignals(bypassAuditId, analyzeRequestInjection(bodyText));
     } else {
       const durationMs = performance.now() - startTime;
-      const auditId = logAudit({
+      bypassAuditId = logAudit({
         path,
         method,
         contentType,
@@ -394,9 +417,10 @@ async function handleRequest(request: NextRequest): Promise<Response> {
         bypassApplied: true,
         duration: durationMs,
       });
-      insertSignals(auditId, analyzeRequestInjection(bodyText));
+      insertSignals(bypassAuditId, analyzeRequestInjection(bodyText));
     }
 
+    let upstreamReceived = false;
     try {
       const upstream = await forwardToUpstream(
         path,
@@ -404,16 +428,21 @@ async function handleRequest(request: NextRequest): Promise<Response> {
         hasBody && !multipart ? bodyText : multipart ? await request.formData() : undefined,
         channel
       );
+      upstreamReceived = true;
       const upstreamContentType = upstream.headers.get("content-type") ?? "";
       if (isSseContentType(upstreamContentType)) {
         return createStreamingResponse(upstream);
       }
       return reemitUpstream(upstream);
     } catch (err) {
-      const cause = err instanceof Error && "cause" in err ? (err.cause as Error) : undefined;
-      const code = cause && "code" in cause ? (cause as { code: string }).code : undefined;
-      log.warn(`${method} ${path} | upstream error: fetch_failed${code ? ` (${code})` : ""}`);
-      log.debug(`upstream error detail: ${err instanceof Error ? err.message : String(err)}`);
+      traceUpstreamError(err, {
+        method,
+        path,
+        resp: upstreamReceived ? 1 : 0,
+        req: requestBytes(bodySize, request.headers.get("content-length")),
+        ms: performance.now() - startTime,
+        auditId: bypassAuditId,
+      });
       return Response.json(
         { error: "upstream_error" },
         { status: 502 }
@@ -477,6 +506,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     const blocked = blockedResponse(result.findings);
     return Response.json(blocked.body, { status: blocked.status });
   }
+  let upstreamReceived = false;
   try {
     let forwardBody: BodyInit | undefined;
     if (multipart) {
@@ -492,14 +522,21 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     }
 
     const upstream = await forwardToUpstream(path, request, forwardBody, channel);
+    upstreamReceived = true;
 
     // legacy 格式(registry undefined)不做响应分析(R3.6)
-    return finalizeUpstream(upstream, registry, result.maskSummary, registry ? { auditId, requestModel: model } : undefined);
+    // 必须 await:直接 return promise 时其 rejection 不进本 try/catch
+    // (finalizeUpstream 读体失败曾因此变成未捕获异常而非 502,2026-09-23 实测)
+    return await finalizeUpstream(upstream, registry, result.maskSummary, registry ? { auditId, requestModel: model } : undefined);
   } catch (err) {
-    const cause = err instanceof Error && "cause" in err ? (err.cause as Error) : undefined;
-    const code = cause && "code" in cause ? (cause as { code: string }).code : undefined;
-    log.warn(`${method} ${path} | upstream error: fetch_failed${code ? ` (${code})` : ""}`);
-    log.debug(`upstream error detail: ${err instanceof Error ? err.message : String(err)}`);
+    traceUpstreamError(err, {
+      method,
+      path,
+      resp: upstreamReceived ? 1 : 0,
+      req: requestBytes(bodySize, request.headers.get("content-length")),
+      ms: performance.now() - startTime,
+      auditId,
+    });
     return Response.json(
       { error: "upstream_error" },
       { status: 502 }

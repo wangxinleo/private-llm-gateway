@@ -7,6 +7,7 @@ import type { AuditSignal } from "@/audit/signals-store";
 import { insertSignals } from "@/audit/signals-store";
 import { recordRestoreStats } from "@/audit/logger";
 import type { SseChannelRestorer } from "./restore";
+import type { UpstreamErrorTrace } from "./error-trace";
 
 // 分析窗口截断:只用于只读信号分析,截断不影响响应转发
 const TEXT_ANALYSIS_LIMIT = 2_000_000;
@@ -216,5 +217,10 @@ export class StreamResponseAnalyzer {
       });
     }
     return inserted;
+  }
+
+  // 流式中断留痕:resp=1(上游已开始回包),只存元数据
+  recordAbort(trace: UpstreamErrorTrace): void {
+    insertSignals(this.auditId, [{ signal: "upstream_error", severity: "HIGH", detail: { ...trace } }]);
   }
 }
