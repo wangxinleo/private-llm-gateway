@@ -1,6 +1,6 @@
 import type { Finding, ActionType, AuditEntry, ScanResult } from "@/types";
-import { insertAudit } from "./store";
-import { broadcastAudit } from "./sse";
+import { insertAudit, updateRestoreStats, type RestoreStatsRecord } from "./store";
+import { broadcastAudit, broadcastAuditUpdate } from "./sse";
 
 export function logAudit(params: {
   path: string;
@@ -68,4 +68,16 @@ export function logAudit(params: {
   });
 
   return id;
+}
+
+// 响应侧还原统计回填(响应处理完成后):落库 + 实时面板按 id 合并更新
+export function recordRestoreStats(id: number, stats: RestoreStatsRecord): void {
+  updateRestoreStats(id, stats);
+  broadcastAuditUpdate({
+    id,
+    restoreCount: stats.restored,
+    restoreDegraded: stats.degraded,
+    restoreUnresolved: stats.unresolved,
+    restoreSamples: stats.samples,
+  });
 }

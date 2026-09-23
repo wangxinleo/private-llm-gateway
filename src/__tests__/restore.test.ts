@@ -51,26 +51,39 @@ describe("restoreText", () => {
 
   it("loose-repairs stripped braces and counts degraded separately", () => {
     const { registry } = makeLoadedRegistry();
-    const stats = { degraded: 0 };
+    const stats = { restored: 0, degraded: 0 };
     expect(restoreText("{PHONE_trwmq} and PHONE_trwmq", registry, stats)).toBe(
       "13912345678 and 13912345678"
     );
     expect(stats.degraded).toBe(2);
+    expect(stats.restored).toBe(2);
+  });
+
+  it("loose-repairs widened forms: inner whitespace and lowercase label", () => {
+    const { registry } = makeLoadedRegistry();
+    const stats = { restored: 0, degraded: 0 };
+    expect(restoreText("{{ PHONE_trwmq }} + {{phone_trwmq}}", registry, stats)).toBe(
+      "13912345678 + 13912345678"
+    );
+    expect(stats.degraded).toBe(2);
+    expect(stats.restored).toBe(2);
   });
 
   it("does not count strict hits as degraded", () => {
     const { registry, phone } = makeLoadedRegistry();
-    const stats = { degraded: 0 };
+    const stats = { restored: 0, degraded: 0 };
     expect(restoreText(`call ${phone}`, registry, stats)).toBe("call 13912345678");
     expect(stats.degraded).toBe(0);
+    expect(stats.restored).toBe(1);
   });
 
   it("never guesses unissued loose tokens and leaves them verbatim", () => {
     const { registry } = makeLoadedRegistry();
-    const stats = { degraded: 0 };
+    const stats = { restored: 0, degraded: 0 };
     const text = "PHONE_zzzzq {{PHONE_zzzzq}}";
     expect(restoreText(text, registry, stats)).toBe(text);
     expect(stats.degraded).toBe(0);
+    expect(stats.restored).toBe(0);
   });
 });
 

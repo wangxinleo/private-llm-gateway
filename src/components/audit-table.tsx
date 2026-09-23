@@ -62,6 +62,10 @@ interface AuditRow {
   action: ActionType;
   bypassApplied?: boolean;
   duration?: number;
+  restoreCount?: number;
+  restoreDegraded?: number;
+  restoreUnresolved?: number;
+  restoreSamples?: string[];
 }
 
 interface AuditResponse {
@@ -390,6 +394,33 @@ export function AuditTable() {
       } catch { /* ignore malformed stream events */ }
     };
 
+    // 响应侧还原统计是对既有行的回填:按 id 就地合并,不重复插行
+    const handleAuditUpdateEvent = (dataText: string) => {
+      try {
+        const patch = JSON.parse(dataText) as Pick<
+          AuditRow,
+          "id" | "restoreCount" | "restoreDegraded" | "restoreUnresolved" | "restoreSamples"
+        >;
+        setData((prev) => {
+          if (!prev.rows.some((r) => r.id === patch.id)) return prev;
+          return {
+            ...prev,
+            rows: prev.rows.map((r) =>
+              r.id === patch.id
+                ? {
+                    ...r,
+                    restoreCount: patch.restoreCount,
+                    restoreDegraded: patch.restoreDegraded,
+                    restoreUnresolved: patch.restoreUnresolved,
+                    restoreSamples: patch.restoreSamples,
+                  }
+                : r
+            ),
+          };
+        });
+      } catch { /* ignore malformed stream events */ }
+    };
+
     const connectStream = async () => {
       if (closed) return;
 
@@ -419,6 +450,7 @@ export function AuditTable() {
             const parsed = parseSseEvent(buffer.slice(0, boundary));
             buffer = buffer.slice(boundary + 2);
             if (parsed?.event === "audit") handleAuditEvent(parsed.data);
+            else if (parsed?.event === "audit_update") handleAuditUpdateEvent(parsed.data);
             boundary = buffer.indexOf("\n\n");
           }
         }
@@ -734,6 +766,12 @@ export function AuditTable() {
               const findingSummaries = summarizeItems(row.findings);
               const findingItems = findingSummaries.map(({ item }) => item);
               const findingCounts = new Map<string, number>(findingSummaries.map(({ item, count }) => [item, count]));
+              // NULL=未发生还原遍(零拷贝/超限跳过);四列全 0 表示发生过但无置换/残留,均不渲染
+              const restoreCount = row.restoreCount ?? 0;
+              const restoreDegraded = row.restoreDegraded ?? 0;
+              const restoreUnresolved = row.restoreUnresolved ?? 0;
+              const restoreSamples = row.restoreSamples ?? [];
+              const showRestore = row.restoreCount != null && (restoreCount > 0 || restoreDegraded > 0 || restoreUnresolved > 0);
               const clickRow = (e: React.MouseEvent) => { e.stopPropagation(); toggleExpand(row.id); };
               return (
                 <Fragment key={row.id}>
@@ -804,6 +842,33 @@ export function AuditTable() {
                                 {signalsByAudit.get(row.id)!.map((sig) => (
                                   <Badge key={sig.id} variant={sig.severity === "CRITICAL" || sig.severity === "HIGH" ? "destructive" : sig.severity === "MEDIUM" ? "warning" : "outline"} className="shrink-0 whitespace-nowrap font-mono text-xs">
                                     {sig.signal} · {sig.severity}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {showRestore && (
+                            <div className="mt-3 min-w-0">
+                              <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t("audit.restoreLabel")}</p>
+                              <div className="flex max-h-24 min-w-0 flex-wrap items-center gap-1.5 overflow-y-auto overflow-x-hidden rounded-md border border-border/40 bg-muted/20 p-2">
+                                <Badge variant="outline" className="shrink-0 whitespace-nowrap font-mono text-xs">
+                                  {t("audit.restoreRestored", { count: restoreCount })}
+                                </Badge>
+                                <Badge variant="outline" className="shrink-0 whitespace-nowrap font-mono text-xs">
+                                  {t("audit.restoreDegraded", { count: restoreDegraded })}
+                                </Badge>
+                                <Badge
+                                  variant={restoreUnresolved > 0 ? "warning" : "outline"}
+                                  className="shrink-0 whitespace-nowrap font-mono text-xs"
+                                >
+                                  {t("audit.restoreUnresolved", { count: restoreUnresolved })}
+                                </Badge>
+                                {restoreSamples.length > 0 && (
+                                  <span className="ms-1 shrink-0 text-[11px] text-muted-foreground">{t("audit.restoreSamples")}:</span>
+                                )}
+                                {restoreSamples.map((sample) => (
+                                  <Badge key={sample} variant="destructive" className="shrink-0 whitespace-nowrap font-mono text-xs">
+                                    {sample}
                                   </Badge>
                                 ))}
                               </div>

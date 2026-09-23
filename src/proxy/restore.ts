@@ -1,22 +1,35 @@
 import type { MaskRegistry } from "@/scanner/mask-registry";
 import { LOOSE_RX, MAX_TAG_LEN, TAG_PARTIAL_RE, TAG_RE } from "@/scanner/mask-tag";
+import { canonicalTag } from "@/scanner/placeholder-scan";
 import { classifyEnvelope, semanticChannelKey, terminalPrefixes, type Envelope } from "./restore-channels";
 
 const STRICT_TAG_GLOBAL = new RegExp(TAG_RE.source, "g");
 const STRICT_TAG_STICKY = new RegExp(TAG_RE.source, "y");
 
 export interface RestoreStats {
+  // 已还原的占位符出现次数(严格 + 降级)
+  restored: number;
+  // 其中经宽松遍修复降级形态的次数
   degraded: number;
 }
 
 export function restoreText(text: string, registry: MaskRegistry, stats?: RestoreStats): string {
   const tags = registry.tagToValue;
-  const strict = text.replace(STRICT_TAG_GLOBAL, (tag) => tags.get(tag) ?? tag);
+  const strict = text.replace(STRICT_TAG_GLOBAL, (tag) => {
+    const value = tags.get(tag);
+    if (value === undefined) return tag;
+    if (stats) stats.restored += 1;
+    return value;
+  });
   return strict.replace(LOOSE_RX, (match) => {
-    const core = match.replace(/^\{+/, "").replace(/\}+$/, "");
-    const value = tags.get(`{{${core}}}`);
+    // 降级形态(缺/多花括号、花括号内空白、标签大小写)归一后查 registry;未命中原样保留
+    const canonical = canonicalTag(match);
+    const value = canonical === null ? undefined : tags.get(canonical);
     if (value === undefined) return match;
-    if (stats) stats.degraded += 1;
+    if (stats) {
+      stats.restored += 1;
+      stats.degraded += 1;
+    }
     return value;
   });
 }
@@ -30,14 +43,14 @@ interface ChannelState {
 export class SseChannelRestorer {
   private buffer = "";
   private readonly channels = new Map<string, ChannelState>();
-  private readonly stats: RestoreStats = { degraded: 0 };
+  private readonly stats: RestoreStats = { restored: 0, degraded: 0 };
   // 当前帧内已独立还原的 .done 快照字段路径(restoreDeep 跳过其通道缓冲)
   private freshPaths: string[][] = [];
 
   constructor(private readonly registry: MaskRegistry) {}
 
-  getDegraded(): number {
-    return this.stats.degraded;
+  getStats(): RestoreStats {
+    return { ...this.stats };
   }
 
   pushBytes(text: string): string {
@@ -223,6 +236,7 @@ export class SseChannelRestorer {
       if (strict) {
         const tag = strict[0];
         const value = this.registry.tagToValue.get(tag);
+        if (value !== undefined) this.stats.restored += 1;
         out += value !== undefined ? value : tag;
         pending = pending.slice(tag.length);
         continue;

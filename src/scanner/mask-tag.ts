@@ -99,7 +99,17 @@ export const deriveConsonantSuffix: SuffixDeriver = createSuffixDeriver();
 
 export const TAG_RE = /\{\{[A-Z][A-Z0-9_]*_[bcdfghjkmnpqrstvwxzBCDFGHJKMNPQRSTVWXZ]{5}\}\}/;
 export const TAG_PARTIAL_RE = /\{\{(?:[A-Z][A-Z0-9_]*)?(?:_[bcdfghjkmnpqrstvwxzBCDFGHJKMNPQRSTVWXZ]{0,5})?\}?$/;
-export const LOOSE_RX = /\{{0,2}[A-Z][A-Z0-9_]*_[bcdfghjkmnpqrstvwxzBCDFGHJKMNPQRSTVWXZ]{5}\}{0,2}/g;
+// 标签主体(宽松):大小写不敏感 + 后缀必须是 5 个辅音字母。
+// 空白只作为花括号内衬消耗(`{{ PHONE_x }}`),裸 token 不吞邻接空白,
+// 否则 "and PHONE_x" 会把分隔空格一起替换掉
+const LOOSE_CORE = "[A-Za-z][A-Za-z0-9_]*_[bcdfghjkmnpqrstvwxzBCDFGHJKMNPQRSTVWXZ]{5}";
+// 宽松遍(修复降级形态),按优先级:带括号(1-2 重、括号内可空白)/ 悬空开括号 / 裸 token。
+// 空白只随花括号消耗;裸 token 与悬空形态都不吞邻接空白,否则 "and PHONE_x" 会把
+// 分隔空格一起替换掉。命中与否由调用方按规范标签查 registry 决定
+export const LOOSE_RX = new RegExp(
+  `\\{\\{?\\s?${LOOSE_CORE}\\s?\\}?\\}|\\{\\{?\\s?${LOOSE_CORE}|${LOOSE_CORE}`,
+  "g"
+);
 export const EXPLICIT_TAG_RE = /<<PRIVACY_MASK:[A-Z][A-Z0-9_]*(?::\d+)?>>/g;
 export const LEGACY_TAG_RE = /\[[A-Z][A-Z0-9_]*\]/g;
 export const MAX_TAG_LEN = 2 + MAX_SHORTCODE_LEN + 1 + SUFFIX_LEN + 2;

@@ -24,6 +24,10 @@ interface AdminAuditResponseRow {
   maskApplied?: boolean;
   maskCategories?: string[];
   maskCount?: number;
+  restoreCount?: number;
+  restoreDegraded?: number;
+  restoreUnresolved?: number;
+  restoreSamples?: string[];
 }
 
 export async function GET(request: NextRequest) {
@@ -63,6 +67,11 @@ export async function GET(request: NextRequest) {
         maskApplied: r.mask_applied === 1,
         maskCategories: r.mask_categories ? (JSON.parse(r.mask_categories) as string[]) : undefined,
         maskCount: r.mask_count != null ? r.mask_count : undefined,
+        // NULL 与 0 语义不同:NULL=本次未发生还原遍,0=发生了但无置换/残留
+        restoreCount: r.restore_count != null ? r.restore_count : undefined,
+        restoreDegraded: r.restore_degraded != null ? r.restore_degraded : undefined,
+        restoreUnresolved: r.restore_unresolved != null ? r.restore_unresolved : undefined,
+        restoreSamples: r.restore_samples ? (JSON.parse(r.restore_samples) as string[]) : undefined,
       };
 
       if (isRevealed) {

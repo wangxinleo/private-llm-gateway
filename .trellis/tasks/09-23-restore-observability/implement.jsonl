@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "响应还原可观测契约与 Gotchas(§5):单一残留检测器、信号=列一致性、NULL 语义、LOOSE_RX 空白约束"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "测试/构建门禁"}

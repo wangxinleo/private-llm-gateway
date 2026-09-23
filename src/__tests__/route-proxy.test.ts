@@ -19,6 +19,7 @@ vi.mock("@/proxy/forwarder", () => ({
 
 vi.mock("@/audit/logger", () => ({
   logAudit: vi.fn(),
+  recordRestoreStats: vi.fn(),
 }));
 
 vi.mock("@/bypass/store", () => ({

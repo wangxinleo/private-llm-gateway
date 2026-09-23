@@ -9,9 +9,7 @@ export function subscribeAudit(fn: AuditSubscriber): () => void {
   };
 }
 
-export function broadcastAudit(event: Record<string, unknown>): void {
-  const data = JSON.stringify(event);
-  const msg = `event: audit\ndata: ${data}\n\n`;
+function dispatch(msg: string): void {
   for (const fn of subscribers) {
     try {
       fn(msg);
@@ -19,4 +17,13 @@ export function broadcastAudit(event: Record<string, unknown>): void {
       subscribers.delete(fn);
     }
   }
+}
+
+export function broadcastAudit(event: Record<string, unknown>): void {
+  dispatch(`event: audit\ndata: ${JSON.stringify(event)}\n\n`);
+}
+
+// 既有行的字段回填(如响应侧还原统计):客户端按 id 就地合并,不重复插入
+export function broadcastAuditUpdate(event: Record<string, unknown>): void {
+  dispatch(`event: audit_update\ndata: ${JSON.stringify(event)}\n\n`);
 }

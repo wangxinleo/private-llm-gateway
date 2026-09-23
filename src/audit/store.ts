@@ -21,7 +21,11 @@ export function getDb(): Database.Database {
         findings TEXT NOT NULL DEFAULT '[]',
         matched_values TEXT NOT NULL DEFAULT '{}',
         action TEXT NOT NULL,
-        duration REAL
+        duration REAL,
+        restore_count INTEGER,
+        restore_degraded INTEGER,
+        restore_unresolved INTEGER,
+        restore_samples TEXT
       );
 
       CREATE TABLE IF NOT EXISTS system_config (
@@ -85,6 +89,18 @@ export function getDb(): Database.Database {
     if (!columns.some((column) => column.name === "mask_count")) {
       db.exec("ALTER TABLE audit_log ADD COLUMN mask_count INTEGER");
     }
+    if (!columns.some((column) => column.name === "restore_count")) {
+      db.exec("ALTER TABLE audit_log ADD COLUMN restore_count INTEGER");
+    }
+    if (!columns.some((column) => column.name === "restore_degraded")) {
+      db.exec("ALTER TABLE audit_log ADD COLUMN restore_degraded INTEGER");
+    }
+    if (!columns.some((column) => column.name === "restore_unresolved")) {
+      db.exec("ALTER TABLE audit_log ADD COLUMN restore_unresolved INTEGER");
+    }
+    if (!columns.some((column) => column.name === "restore_samples")) {
+      db.exec("ALTER TABLE audit_log ADD COLUMN restore_samples TEXT");
+    }
   }
   return db;
 }
@@ -133,6 +149,24 @@ export interface AuditRow {
   mask_applied: number | null;
   mask_categories: string | null;
   mask_count: number | null;
+  restore_count: number | null;
+  restore_degraded: number | null;
+  restore_unresolved: number | null;
+  restore_samples: string | null;
+}
+
+export interface RestoreStatsRecord {
+  restored: number;
+  degraded: number;
+  unresolved: number;
+  samples: string[];
+}
+
+// 响应侧还原发生在审计行插入之后:响应体处理完成时回填本行
+export function updateRestoreStats(id: number, stats: RestoreStatsRecord): void {
+  getDb()
+    .prepare("UPDATE audit_log SET restore_count=?, restore_degraded=?, restore_unresolved=?, restore_samples=? WHERE id=?")
+    .run(stats.restored, stats.degraded, stats.unresolved, JSON.stringify(stats.samples), id);
 }
 
 export interface QueryParams {

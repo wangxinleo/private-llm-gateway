@@ -102,6 +102,13 @@ describe("v3 semantic tag grammar", () => {
     expect("MYSECRET_TRWMQ".match(LOOSE_RX)).toEqual(["MYSECRET_TRWMQ"]);
   });
 
+  it("LOOSE_RX tolerates inner whitespace without eating adjacent separators", () => {
+    expect("x {{ PHONE_TRWMQ }} y".match(LOOSE_RX)).toEqual(["{{ PHONE_TRWMQ }}"]);
+    expect("x { PHONE_TRWMQ } y".match(LOOSE_RX)).toEqual(["{ PHONE_TRWMQ }"]);
+    // 裸 token 两侧的空格必须保留在 match 之外(修复替换不得吞分隔空格)
+    expect("and PHONE_TRWMQ end".match(LOOSE_RX)).toEqual(["PHONE_TRWMQ"]);
+  });
+
   it("LOOSE_RX rejects template-like text", () => {
     expect("{{ user.name }}".match(LOOSE_RX)).toBeNull();
     expect("{{PHONE_FAKE1}}".match(LOOSE_RX)).toBeNull();

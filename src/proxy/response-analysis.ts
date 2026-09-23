@@ -1,22 +1,15 @@
 import type { Severity } from "@/types";
-import { TAG_RE } from "@/scanner/mask-tag";
+import { findResidualPlaceholders } from "@/scanner/placeholder-scan";
 import { scanSecrets } from "@/scanner/secrets";
 import { scanPii } from "@/scanner/pii";
 import { scanCustomWords } from "@/scanner/custom-words";
-import { PRIVACY_NOTICE_TEXT } from "@/config";
 import type { AuditSignal } from "@/audit/signals-store";
 import { insertSignals } from "@/audit/signals-store";
+import { recordRestoreStats } from "@/audit/logger";
+import type { SseChannelRestorer } from "./restore";
 
 // 分析窗口截断:只用于只读信号分析,截断不影响响应转发
 const TEXT_ANALYSIS_LIMIT = 2_000_000;
-
-const TAG_GLOBAL = new RegExp(TAG_RE.source, "g");
-
-// notice 自带的示例占位符(默认文本含 {{EMAIL_trwmq}} 等):模型回显 notice 属常态,
-// 不应计入 placeholder_residual,否则真实占位符泄漏会淹没在例行假警报里
-const NOTICE_EXAMPLE_TAGS: ReadonlySet<string> = new Set(
-  [...PRIVACY_NOTICE_TEXT.matchAll(new RegExp(TAG_RE.source, "g"))].map((m) => m[0]!)
-);
 
 export interface ResponseAnalysisInput {
   status: number;
@@ -124,9 +117,10 @@ export function analyzeResponse(input: ResponseAnalysisInput): AuditSignal[] {
       if (zeroWidth && zeroWidth.length >= 8) {
         signals.push(signal("response_poison", "MEDIUM", { kind: "zero_width", count: zeroWidth.length }));
       }
-      const residualTags = (text.match(TAG_GLOBAL) ?? []).filter((tag) => !NOTICE_EXAMPLE_TAGS.has(tag));
-      if (residualTags.length > 0) {
-        signals.push(signal("response_poison", "MEDIUM", { kind: "placeholder_residual", count: residualTags.length }));
+      // 容忍形态检测(计数面 = 检出面),notice 示例占位符已在检测器内豁免
+      const residual = findResidualPlaceholders(text);
+      if (residual.count > 0) {
+        signals.push(signal("response_poison", "MEDIUM", { kind: "placeholder_residual", count: residual.count }));
       }
     } catch {
       /* 忽略 */
@@ -180,7 +174,9 @@ export class StreamResponseAnalyzer {
 
   constructor(
     private readonly base: Omit<ResponseAnalysisInput, "text" | "streamStats">,
-    private readonly auditId: number
+    private readonly auditId: number,
+    // 还原统计来源:流结束时读取 restored/degraded,并在累积文本上补算 unresolved
+    private readonly restorer?: SseChannelRestorer
   ) {}
 
   observe(frameOutput: string): void {
@@ -207,6 +203,18 @@ export class StreamResponseAnalyzer {
 
   finish(): number {
     const signals = analyzeResponse({ ...this.base, text: this.text, streamStats: { frames: this.frames, parseFailures: this.parseFailures } });
-    return insertSignals(this.auditId, signals);
+    const inserted = insertSignals(this.auditId, signals);
+    if (this.restorer) {
+      // 未还原 = 还原后输出里仍呈占位符形态者(累积文本截断处可能切开 token,计数为下界)
+      const stats = this.restorer.getStats();
+      const residual = findResidualPlaceholders(this.text);
+      recordRestoreStats(this.auditId, {
+        restored: stats.restored,
+        degraded: stats.degraded,
+        unresolved: residual.count,
+        samples: residual.samples,
+      });
+    }
+    return inserted;
   }
 }

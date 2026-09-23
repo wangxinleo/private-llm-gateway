@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 
 vi.mock("@/config-loader", () => ({ initializeConfigs: vi.fn() }));
 vi.mock("@/audit/retention", () => ({ initRetentionScheduler: vi.fn() }));
-vi.mock("@/audit/logger", () => ({ logAudit: vi.fn(() => 1) }));
+vi.mock("@/audit/logger", () => ({ logAudit: vi.fn(() => 1), recordRestoreStats: vi.fn() }));
 vi.mock("@/bypass/store", () => ({ findMatchingBypassRule: vi.fn(() => null) }));
 vi.mock("@/proxy/channels", () => ({ resolveChannel: vi.fn() }));
 vi.mock("@/proxy/forwarder", () => ({ forwardRequest: vi.fn() }));

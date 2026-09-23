@@ -7,7 +7,7 @@ import { SseChannelRestorer } from "@/proxy/restore";
 
 vi.mock("@/config-loader", () => ({ initializeConfigs: vi.fn() }));
 vi.mock("@/proxy/forwarder", () => ({ forwardRequest: vi.fn() }));
-vi.mock("@/audit/logger", () => ({ logAudit: vi.fn() }));
+vi.mock("@/audit/logger", () => ({ logAudit: vi.fn(), recordRestoreStats: vi.fn() }));
 vi.mock("@/bypass/store", () => ({ findMatchingBypassRule: vi.fn() }));
 
 import { forwardRequest } from "@/proxy/forwarder";

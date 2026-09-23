@@ -96,6 +96,11 @@ const zh: Record<string, string> = {
   "audit.revealConfirm": "确认揭示",
   "audit.copyRaw": "复制原始值",
   "audit.bypassAllowed": "放行(跳过拦截)",
+  "audit.restoreLabel": "响应还原",
+  "audit.restoreRestored": "已还原 {count}",
+  "audit.restoreDegraded": "降级修复 {count}",
+  "audit.restoreUnresolved": "未还原 {count}",
+  "audit.restoreSamples": "残留样本",
 
   // Rules page
   "rules.title": "临时放行规则",
@@ -388,6 +393,11 @@ const en: Record<string, string> = {
   "audit.revealConfirm": "Confirm Reveal",
   "audit.copyRaw": "Copy raw value",
   "audit.bypassAllowed": "Bypass",
+  "audit.restoreLabel": "Response Restore",
+  "audit.restoreRestored": "Restored {count}",
+  "audit.restoreDegraded": "Degraded {count}",
+  "audit.restoreUnresolved": "Unresolved {count}",
+  "audit.restoreSamples": "Residual samples",
 
   // Rules page
   "rules.title": "Timed Bypass Rules",

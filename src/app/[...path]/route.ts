@@ -10,11 +10,12 @@ import { forwardRequest } from "@/proxy/forwarder";
 import { resolveChannel, type ResolvedChannel } from "@/proxy/channels";
 import { createStreamingResponse } from "@/proxy/streaming";
 import { classifyContentEncoding, decodeZstdBuffer, stripDecodedContentEncoding } from "@/proxy/content-encoding";
-import { SseChannelRestorer, restoreText } from "@/proxy/restore";
+import { SseChannelRestorer, restoreText, type RestoreStats } from "@/proxy/restore";
 import { analyzeResponse, StreamResponseAnalyzer } from "@/proxy/response-analysis";
 import { analyzeRequestInjection } from "@/proxy/request-analysis";
 import { applyDisambiguation } from "@/proxy/disambiguation";
-import { logAudit } from "@/audit/logger";
+import { findResidualPlaceholders } from "@/scanner/placeholder-scan";
+import { logAudit, recordRestoreStats } from "@/audit/logger";
 import { insertSignals } from "@/audit/signals-store";
 import { Logger } from "@/log";
 import { PRIVACY_DEBUG_HEADERS, PRIVACY_MASK_FORMAT, RUNTIME, getDefaultUpstream } from "@/config";
@@ -197,7 +198,8 @@ async function finalizeUpstream(
     const analyzer = analysis
       ? new StreamResponseAnalyzer(
           { status: upstream.status, forwardValues: [...registry!.tagToValue.values()], requestModel: analysis.requestModel },
-          analysis.auditId
+          analysis.auditId,
+          restorer
         )
       : undefined;
     return createStreamingResponse(upstream, restorer, analyzer);
@@ -233,7 +235,8 @@ async function finalizeUpstream(
   }
 
   const raw = encoding === "zstd" ? decodeZstdBuffer(capped.bytes) : capped.text;
-  const restored = hasRegistry ? restoreText(raw, registry!) : raw;
+  const restoreStats: RestoreStats = { restored: 0, degraded: 0 };
+  const restored = hasRegistry ? restoreText(raw, registry!, restoreStats) : raw;
   if (analysis) {
     insertSignals(
       analysis.auditId,
@@ -244,6 +247,16 @@ async function finalizeUpstream(
         requestModel: analysis.requestModel,
       })
     );
+    // 计数只在本次请求签发过占位符(registry 非空)时落库:零拷贝/空 registry 不产生还原遍
+    if (hasRegistry) {
+      const residual = findResidualPlaceholders(restored);
+      recordRestoreStats(analysis.auditId, {
+        restored: restoreStats.restored,
+        degraded: restoreStats.degraded,
+        unresolved: residual.count,
+        samples: residual.samples,
+      });
+    }
   }
 
   const headers = new Headers(upstream.headers);
