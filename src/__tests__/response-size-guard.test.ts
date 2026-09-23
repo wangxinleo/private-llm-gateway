@@ -159,6 +159,35 @@ describe("route: 响应体还原体积闸 + 跳过留痕", () => {
     expect(signalsOf(104)).toHaveLength(0);
   });
 
+  it("decoded 编码(gzip)实测超限:capped 透传不得携带 wire content-length(否则客户端静默截断)", async () => {
+    mockLogAudit.mockReturnValue(106);
+    const decoded = new TextEncoder().encode("y".repeat(4096));
+    mockForward.mockImplementation(async () => {
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(decoded);
+          controller.close();
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: { "content-type": "application/json", "content-encoding": "gzip", "content-length": "2117" },
+      });
+    });
+
+    const res = await POST(chatRequest());
+
+    // wire CL(2117)是压缩体积,与已解压 body 不符:保留会让客户端按旧值截断
+    expect(res.headers.get("content-length")).toBeNull();
+    expect(res.headers.get("content-encoding")).toBeNull();
+    const body = new Uint8Array(await res.arrayBuffer());
+    expect(body).toEqual(decoded);
+
+    const [signal] = signalsOf(106);
+    expect(signal.signal).toBe("restore_skipped");
+    expect(JSON.parse(signal.detail)).toMatchObject({ reason: "response_too_large", bytes: 4096, limit: LIMIT });
+  });
+
   it("未超限对照:照旧整读还原,无跳过信号", async () => {
     mockLogAudit.mockReturnValue(105);
     mockForward.mockImplementation(async (_path, _request, body) => {

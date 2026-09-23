@@ -1,11 +1,12 @@
 import { PRIVACY_NOTICE_TEXT } from "@/config";
-import { CATEGORY_SHORTCODES, TAG_RE } from "./mask-tag";
+import { CATEGORY_SHORTCODES, MAX_SHORTCODE_LEN, TAG_RE } from "./mask-tag";
 
 // 容忍形态检测:计数面不得窄于修复面(maskit 教训——{{ EMAIL_x }} 加空格、
 // {{email_x}} 小写标签全漏会导致「页面满屏未还原、事件页只报 1」)。
 // 形态与 LOOSE_RX 同宽:2 重花括号 / 1 重花括号 / 裸 token;空白只作为
-// 花括号内衬消耗(裸 token 不吞邻接空白)
-const TAG_CORE = "[A-Za-z][A-Za-z0-9_]*_[bcdfghjkmnpqrstvwxzBCDFGHJKMNPQRSTVWXZ]{5}";
+// 花括号内衬消耗(裸 token 不吞邻接空白)。标签体量词必须与 LOOSE_CORE 同样有界:
+// 无界量词在长词串上 O(n²) 回溯(2026-09-23 E2E 实测 1MB run 冻结事件循环)
+const TAG_CORE = `[A-Za-z][A-Za-z0-9_]{0,${MAX_SHORTCODE_LEN}}_[bcdfghjkmnpqrstvwxzBCDFGHJKMNPQRSTVWXZ]{5}`;
 const RESIDUAL_TAG_RX = new RegExp(
   `\\{\\{?\\s?${TAG_CORE}\\s?\\}?\\}|\\{\\{?\\s?${TAG_CORE}|${TAG_CORE}`,
   "g"

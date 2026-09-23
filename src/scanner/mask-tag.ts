@@ -99,10 +99,13 @@ export const deriveConsonantSuffix: SuffixDeriver = createSuffixDeriver();
 
 export const TAG_RE = /\{\{[A-Z][A-Z0-9_]*_[bcdfghjkmnpqrstvwxzBCDFGHJKMNPQRSTVWXZ]{5}\}\}/;
 export const TAG_PARTIAL_RE = /\{\{(?:[A-Z][A-Z0-9_]*)?(?:_[bcdfghjkmnpqrstvwxzBCDFGHJKMNPQRSTVWXZ]{0,5})?\}?$/;
-// 标签主体(宽松):大小写不敏感 + 后缀必须是 5 个辅音字母。
+// 标签主体(宽松):大小写不敏感 + 后缀必须是 5 个辅音字母。标签体量词有界:
+// 无界 [A-Za-z0-9_]* 在长词串上对每个起始位全长扫描后失败 → O(n²) 回溯
+// (1MB 纯字母 run 可冻结事件循环,2026-09-23 E2E 实测);上界取 MAX_SHORTCODE_LEN,
+// 真实短码最长 "PRIVATE_KEY"=11,收紧无语义损失。
 // 空白只作为花括号内衬消耗(`{{ PHONE_x }}`),裸 token 不吞邻接空白,
 // 否则 "and PHONE_x" 会把分隔空格一起替换掉
-const LOOSE_CORE = "[A-Za-z][A-Za-z0-9_]*_[bcdfghjkmnpqrstvwxzBCDFGHJKMNPQRSTVWXZ]{5}";
+const LOOSE_CORE = `[A-Za-z][A-Za-z0-9_]{0,${MAX_SHORTCODE_LEN}}_[bcdfghjkmnpqrstvwxzBCDFGHJKMNPQRSTVWXZ]{5}`;
 // 宽松遍(修复降级形态),按优先级:带括号(1-2 重、括号内可空白)/ 悬空开括号 / 裸 token。
 // 空白只随花括号消耗;裸 token 与悬空形态都不吞邻接空白,否则 "and PHONE_x" 会把
 // 分隔空格一起替换掉。命中与否由调用方按规范标签查 registry 决定

@@ -40,6 +40,9 @@ export function createStreamingResponse(
   const encoder = new TextEncoder();
   const startedAt = performance.now();
   let outBytes = 0;
+  // 客户端主动断开标记:取消后 pull 循环的 close/enqueue 会抛 ERR_INVALID_STATE,
+  // 那不是上游故障,不得记为 upstream_error(HIGH)
+  let clientCancelled = false;
 
   const stream = new ReadableStream({
     async pull(controller) {
@@ -76,6 +79,13 @@ export function createStreamingResponse(
           }
         }
       } catch (err) {
+        // 客户端取消:连接已断,不 warn、不落信号、不 error
+        if (clientCancelled) {
+          log.debug(
+            `client cancelled stream mid-response (out=${outBytes}B, ms=${(performance.now() - startedAt).toFixed(1)})`
+          );
+          return;
+        }
         // 流式中断此前完全静默(仅 controller.error):先留痕再 error。
         // 诊断只含元数据;客户端截断语义不变
         const trace = describeUpstreamError(err, { resp: 1, out: outBytes, ms: performance.now() - startedAt });
@@ -84,8 +94,9 @@ export function createStreamingResponse(
         controller.error(err);
       }
     },
-    cancel() {
-      reader.cancel();
+    cancel(reason) {
+      clientCancelled = true;
+      return reader.cancel(reason).catch(() => {});
     },
   });
 

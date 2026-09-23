@@ -118,11 +118,15 @@ function runScanProtected(operation: string, scan: () => ScanResult): ScanResult
 }
 
 // 透传上游响应前的头归一:客户端已解压的编码(gzip/deflate/br)必须摘掉
-// content-encoding(undici 已解压但保留头,不摘会让客户端二次解压明文而失败)
+// content-encoding(undici 已解压但保留头,不摘会让客户端二次解压明文而失败);
+// 同时 wire content-length 也失效——它是压缩体积、与已解压 body 不符,
+// 保留会让客户端按旧值静默截断(2026-09-23 E2E:2.1MB 解码体只收到 2117B)
 function reemitUpstream(upstream: Response): Response {
   if (!upstream.body) return upstream;
   const headers = new Headers(upstream.headers);
+  const decoded = classifyContentEncoding(headers) === "decoded";
   stripDecodedContentEncoding(headers);
+  if (decoded) headers.delete("content-length");
   return new Response(upstream.body, {
     status: upstream.status,
     statusText: upstream.statusText,
