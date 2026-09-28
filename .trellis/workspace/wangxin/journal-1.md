@@ -1117,9 +1117,9 @@ maskit/Cosy 09-21 差异逐项立项完成:①T1 请求侧跳过上游自产模�
 
 ### Testing
 
-- [OK] [OK] npm ci / npm test(全量绿)/ npm run build 全过;tsc 基线比对零新增错误
-- [OK] [OK] E2E 三探针:上游可见载荷逐字单格式;CUSTOM_TERM 首命中通知样例 = {{PROJECTX_cbgrb}};回显全还原
-- [OK] [OK] 桌面验证:词库 UI 写入 / 审计列表与详情 / 揭示流程(错密码报错 + 正密码生效)/ CSV 导出,零 PRIVACY_MASK
+- [OK] npm ci / npm test(全量绿)/ npm run build 全过;tsc 基线比对零新增错误
+- [OK] E2E 三探针:上游可见载荷逐字单格式;CUSTOM_TERM 首命中通知样例 = {{PROJECTX_cbgrb}};回显全还原
+- [OK] 桌面验证:词库 UI 写入 / 审计列表与详情 / 揭示流程(错密码报错 + 正密码生效)/ CSV 导出,零 PRIVACY_MASK
 
 ### Status
 
