@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/backend/reverse-proxy.md", "reason": "核验代理注入/还原契约与不变式未被破坏（无掩码/空 registry/legacy/multipart 四情形不注入）"}
+{"file": ".trellis/spec/backend/quality.md", "reason": "完成前质量清单：敏感数据不入日志、类型与校验要求"}
+{"file": ".trellis/tasks/09-23-custom-term-legacy-tag-leak/prd.md", "reason": "对照 AC1-AC4 逐条核验，含 AC4 服务端复测交接口径"}
