@@ -1089,3 +1089,43 @@ maskit/Cosy 09-21 差异逐项立项完成:①T1 请求侧跳过上游自产模�
 ### Next Steps
 
 - 用户统一验收(修复批次)
+
+
+## Session 31: 09-23 占位符统一 {{LABEL_suffix}}:通知真实标签 + 彻底移除旧格式机制(含桌面验证)
+<!-- trellis-session: v=2 fp=460de04cca9b16ca -->
+
+**Date**: 2026-09-28
+**Task**: 09-23 占位符统一 {{LABEL_suffix}}:通知真实标签 + 彻底移除旧格式机制(含桌面验证)
+**Branch**: `master`
+
+### Summary
+
+两任务合并为一次工作提交:通知样例改用真实签发标签;旧格式全链路移除;官方门绿 + 桌面 E2E 单格式验证 PASS;两任务归档
+
+### Main Changes
+
+- 通知文本样例改用本请求真实签发标签(消除 <<PRIVACY_MASK:CUSTOM_TERM>> 旧格式示范)
+- 彻底移除旧格式机制:PRIVACY_MASK_FORMAT knob / buildMaskTag / Finding.maskTag / 防御识别规则全删,字面零存在
+- registry 签名必填化(applyMasks/runPipeline/maskJsonBody);22 个测试文件与 README×2 / spec 同步收敛
+- 桌面验证(Edge CDP + mock 上游):上游载荷/通知/审计 UI/揭示/CSV 全部仅 {{LABEL_suffix}} 单格式,零旧格式
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `47d2bc4` | fix(proxy): 占位符统一为 {{LABEL_suffix}} 单格式——通知改用真实签发标签、彻底移除旧格式机制 |
+
+### Testing
+
+- [OK] [OK] npm ci / npm test(全量绿)/ npm run build 全过;tsc 基线比对零新增错误
+- [OK] [OK] E2E 三探针:上游可见载荷逐字单格式;CUSTOM_TERM 首命中通知样例 = {{PROJECTX_cbgrb}};回显全还原
+- [OK] [OK] 桌面验证:词库 UI 写入 / 审计列表与详情 / 揭示流程(错密码报错 + 正密码生效)/ CSV 导出,零 PRIVACY_MASK
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 用户统一验收(本地链路全绿,服务端 AC4 复测由用户侧执行)
+- AGENTS.md(hooks 政策更新)仍未提交,留待用户处理
