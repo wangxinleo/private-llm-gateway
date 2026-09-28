@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { applyDisambiguation } from "@/proxy/disambiguation";
+import { restoreText } from "@/proxy/restore";
 import { MaskRegistry } from "@/scanner/mask-registry";
 import type { ScanResult, FindingCategory } from "@/types";
 
@@ -11,7 +12,6 @@ function makeMaskResult(categories: FindingCategory[], maskedBody: string): Scan
       category: c,
       action: "mask" as const,
       matched: "test",
-      maskTag: `<<PRIVACY_MASK:${c}>>`,
     })),
     maskedBody,
     action: "mask",
@@ -68,10 +68,10 @@ describe("applyDisambiguation", () => {
     expect(output).toBe("hello");
   });
 
-  it("skips injection when scanResult carries no populated registry (legacy/no-restore mode)", () => {
+  it("skips injection when scanResult carries no registry", () => {
     const result: ScanResult = {
       findings: [
-        { category: "EMAIL", action: "mask", matched: "test", maskTag: "<<PRIVACY_MASK:EMAIL>>" },
+        { category: "EMAIL", action: "mask", matched: "test" },
       ],
       maskedBody: "hello",
       action: "mask",
@@ -98,14 +98,14 @@ describe("applyDisambiguation", () => {
   });
 
   it("appends notice as suffix for plain text content type", () => {
-    const result = makeMaskResult(["EMAIL"], "Contact <<PRIVACY_MASK:EMAIL>> for details");
+    const result = makeMaskResult(["EMAIL"], "Contact {{EMAIL_trwmq}} for details");
     const output = applyDisambiguation({
       contentType: "text/plain",
       maskedBody: result.maskedBody,
       scanResult: result,
     });
     expect(output).toContain("[Privacy notice]");
-    expect(output).toContain("Contact <<PRIVACY_MASK:EMAIL>> for details");
+    expect(output).toContain("Contact {{EMAIL_trwmq}} for details");
     const noticeIdx = output.indexOf("[Privacy notice]");
     const bodyIdx = output.indexOf("Contact");
     expect(noticeIdx).toBeGreaterThan(bodyIdx);
@@ -116,7 +116,7 @@ describe("applyDisambiguation", () => {
       model: "gpt-4",
       messages: [
         { role: "system", content: "You are helpful." },
-        { role: "user", content: "My email is <<PRIVACY_MASK:EMAIL>>" },
+        { role: "user", content: "My email is {{EMAIL_trwmq}}" },
       ],
     });
     const result = makeMaskResult(["EMAIL"], body);
@@ -127,7 +127,7 @@ describe("applyDisambiguation", () => {
     });
     const parsed = JSON.parse(output);
     expect(parsed.messages[0].content).toBe("You are helpful.");
-    expect(parsed.messages[1].content).toBe("My email is <<PRIVACY_MASK:EMAIL>>");
+    expect(parsed.messages[1].content).toBe("My email is {{EMAIL_trwmq}}");
     expect(parsed.messages[2].role).toBe("system");
     expect(parsed.messages[2].content).toContain("[Privacy notice]");
     assertNoCustomMeta(parsed);
@@ -137,7 +137,7 @@ describe("applyDisambiguation", () => {
     const body = JSON.stringify({
       model: "claude",
       system: "You are careful.",
-      messages: [{ role: "user", content: "email <<PRIVACY_MASK:EMAIL>>" }],
+      messages: [{ role: "user", content: "email {{EMAIL_trwmq}}" }],
     });
     const result = makeMaskResult(["EMAIL"], body);
     const output = applyDisambiguation({
@@ -151,14 +151,14 @@ describe("applyDisambiguation", () => {
     const originalIdx = parsed.system.indexOf("You are careful.");
     const noticeIdx = parsed.system.indexOf("[Privacy notice]");
     expect(noticeIdx).toBeGreaterThan(originalIdx);
-    expect(parsed.messages[0].content).toBe("email <<PRIVACY_MASK:EMAIL>>");
+    expect(parsed.messages[0].content).toBe("email {{EMAIL_trwmq}}");
     assertNoCustomMeta(parsed);
   });
 
   it("injects notice into top-level system field for plain JSON object", () => {
     const body = JSON.stringify({
       system: "Treat privacy mask tokens as redacted values.",
-      data: "email: <<PRIVACY_MASK:EMAIL>>",
+      data: "email: {{EMAIL_trwmq}}",
     });
     const result = makeMaskResult(["EMAIL"], body);
     const output = applyDisambiguation({
@@ -183,7 +183,7 @@ describe("applyDisambiguation", () => {
   });
 
   it("falls back to text suffix for invalid JSON in application/json content type", () => {
-    const result = makeMaskResult(["PHONE"], "call <<PRIVACY_MASK:PHONE>>");
+    const result = makeMaskResult(["PHONE"], "call {{PHONE_bcdfg}}");
     const output = applyDisambiguation({
       contentType: "application/json",
       maskedBody: "not valid json",
@@ -198,7 +198,7 @@ describe("applyDisambiguation", () => {
 
   it("appends notice into prompt field without adding custom JSON properties", () => {
     const body = JSON.stringify({
-      prompt: "contact <<PRIVACY_MASK:EMAIL>> at <<PRIVACY_MASK:PHONE>>",
+      prompt: "contact {{EMAIL_trwmq}} at {{PHONE_bcdfg}}",
     });
     const result = makeMaskResult(["EMAIL", "PHONE"], body);
     const output = applyDisambiguation({
@@ -208,8 +208,8 @@ describe("applyDisambiguation", () => {
     });
     const parsed = JSON.parse(output);
     expect(parsed.prompt).toContain("[Privacy notice]");
-    expect(parsed.prompt).toContain("<<PRIVACY_MASK:EMAIL>>");
-    expect(parsed.prompt).toContain("<<PRIVACY_MASK:PHONE>>");
+    expect(parsed.prompt).toContain("{{EMAIL_trwmq}}");
+    expect(parsed.prompt).toContain("{{PHONE_bcdfg}}");
     assertNoCustomMeta(parsed);
   });
 
@@ -219,7 +219,7 @@ describe("applyDisambiguation", () => {
         {
           role: "user",
           content: [
-            { type: "text", text: "hello <<PRIVACY_MASK:EMAIL>>" },
+            { type: "text", text: "hello {{EMAIL_trwmq}}" },
             { type: "image_url", image_url: { url: "https://example.com/a.png" } },
           ],
         },
@@ -237,7 +237,7 @@ describe("applyDisambiguation", () => {
     expect(lastMsg.role).toBe("system");
     expect(lastMsg.content).toContain("[Privacy notice]");
     // Original messages preserved
-    expect(parsed.messages[0].content[0].text).toBe("hello <<PRIVACY_MASK:EMAIL>>");
+    expect(parsed.messages[0].content[0].text).toBe("hello {{EMAIL_trwmq}}");
     expect(parsed.messages[0].content[1].type).toBe("image_url");
     assertNoCustomMeta(parsed);
   });
@@ -281,7 +281,7 @@ describe("applyDisambiguation", () => {
   });
 
   it("leaves plain JSON unchanged when there is no standard prompt field", () => {
-    const body = JSON.stringify({ data: "email: <<PRIVACY_MASK:EMAIL>>" });
+    const body = JSON.stringify({ data: "email: {{EMAIL_trwmq}}" });
     const result = makeMaskResult(["EMAIL"], body);
     const output = applyDisambiguation({
       contentType: "application/json",
@@ -298,7 +298,7 @@ describe("applyDisambiguation", () => {
         { type: "text", text: "You are careful." },
         { type: "text", text: "Additional context." },
       ],
-      messages: [{ role: "user", content: "email <<PRIVACY_MASK:EMAIL>>" }],
+      messages: [{ role: "user", content: "email {{EMAIL_trwmq}}" }],
     });
     const result = makeMaskResult(["EMAIL"], body);
     const output = applyDisambiguation({
@@ -310,12 +310,12 @@ describe("applyDisambiguation", () => {
     expect(parsed.system[parsed.system.length - 1].text).toContain("[Privacy notice]");
     expect(parsed.system[0].text).toBe("You are careful.");
     expect(parsed.system[1].text).toContain("Additional context.");
-    expect(parsed.messages[0].content).toBe("email <<PRIVACY_MASK:EMAIL>>");
+    expect(parsed.messages[0].content).toBe("email {{EMAIL_trwmq}}");
     assertNoCustomMeta(parsed);
   });
 
   it("appends notice exactly once per disambiguation call for text", () => {
-    const result = makeMaskResult(["EMAIL"], "<<PRIVACY_MASK:EMAIL>>");
+    const result = makeMaskResult(["EMAIL"], "{{EMAIL_trwmq}}");
     const output = applyDisambiguation({
       contentType: "text/plain",
       maskedBody: result.maskedBody,
@@ -333,7 +333,7 @@ describe("applyDisambiguation", () => {
         {
           type: "message",
           role: "user",
-          content: [{ type: "input_text", text: "email <<PRIVACY_MASK:EMAIL>>" }],
+          content: [{ type: "input_text", text: "email {{EMAIL_trwmq}}" }],
         },
       ],
     });
@@ -350,7 +350,7 @@ describe("applyDisambiguation", () => {
       {
         type: "message",
         role: "user",
-        content: [{ type: "input_text", text: "email <<PRIVACY_MASK:EMAIL>>" }],
+        content: [{ type: "input_text", text: "email {{EMAIL_trwmq}}" }],
       },
     ]);
     expect(parsed.input.some((item: { type?: string }) => item.type === "text")).toBe(false);
@@ -363,7 +363,7 @@ describe("applyDisambiguation", () => {
       role: i % 2 === 0 ? "user" : "assistant",
       content:
         i % 2 === 0
-          ? [{ type: "input_text", text: `turn ${i} secret <<PRIVACY_MASK:CONTEXTUAL_SECRET>>` }]
+          ? [{ type: "input_text", text: `turn ${i} secret {{SECRET_bcdfg}}` }]
           : [{ type: "output_text", text: `reply ${i}` }],
     }));
     longInput.push({
@@ -402,7 +402,7 @@ describe("applyDisambiguation", () => {
     const body = JSON.stringify({
       model: "gpt-5",
       input: [
-        { role: "user", content: "contact <<PRIVACY_MASK:EMAIL>>" },
+        { role: "user", content: "contact {{EMAIL_trwmq}}" },
         { role: "assistant", content: "acknowledged" },
       ],
     });
@@ -415,7 +415,7 @@ describe("applyDisambiguation", () => {
     const parsed = JSON.parse(output);
     expect(parsed.instructions).toContain("[Privacy notice]");
     expect(parsed.input).toHaveLength(2);
-    expect(parsed.input[0]).toEqual({ role: "user", content: "contact <<PRIVACY_MASK:EMAIL>>" });
+    expect(parsed.input[0]).toEqual({ role: "user", content: "contact {{EMAIL_trwmq}}" });
     expect(parsed.input.some((item: { type?: string }) => item?.type === "text")).toBe(false);
     assertNoCustomMeta(parsed);
   });
@@ -428,7 +428,7 @@ describe("applyDisambiguation", () => {
       contents: [
         {
           role: "user",
-          parts: [{ text: "email <<PRIVACY_MASK:EMAIL>>" }],
+          parts: [{ text: "email {{EMAIL_trwmq}}" }],
         },
       ],
     });
@@ -442,7 +442,7 @@ describe("applyDisambiguation", () => {
     const parts = parsed.system_instruction.parts;
     expect(parts[parts.length - 1].text).toContain("[Privacy notice]");
     expect(parts[0].text).toContain("You are careful.");
-    expect(parsed.contents[0].parts[0].text).toBe("email <<PRIVACY_MASK:EMAIL>>");
+    expect(parsed.contents[0].parts[0].text).toBe("email {{EMAIL_trwmq}}");
     assertNoCustomMeta(parsed);
   });
 
@@ -451,7 +451,7 @@ describe("applyDisambiguation", () => {
       contents: [
         {
           role: "user",
-          parts: [{ text: "phone <<PRIVACY_MASK:PHONE>>" }],
+          parts: [{ text: "phone {{PHONE_bcdfg}}" }],
         },
       ],
     });
@@ -464,7 +464,7 @@ describe("applyDisambiguation", () => {
     const parsed = JSON.parse(output);
     expect(parsed.system_instruction.parts[0].text).toContain("[Privacy notice]");
     expect(parsed.system_instruction.parts[0]).not.toHaveProperty("type");
-    expect(parsed.contents[0].parts[0].text).toBe("phone <<PRIVACY_MASK:PHONE>>");
+    expect(parsed.contents[0].parts[0].text).toBe("phone {{PHONE_bcdfg}}");
     assertNoCustomMeta(parsed);
   });
 
@@ -474,7 +474,7 @@ describe("applyDisambiguation", () => {
       contents: [
         {
           role: "user",
-          parts: [{ text: "email <<PRIVACY_MASK:EMAIL>>" }],
+          parts: [{ text: "email {{EMAIL_trwmq}}" }],
         },
       ],
     });
@@ -499,7 +499,7 @@ describe("applyDisambiguation", () => {
         {
           type: "future_unknown_item",
           id: "item_1",
-          payload: "secret <<PRIVACY_MASK:CONTEXTUAL_SECRET>>",
+          payload: "secret {{SECRET_bcdfg}}",
         },
       ],
     });
@@ -515,5 +515,89 @@ describe("applyDisambiguation", () => {
     expect(parsed.input[0].type).toBe("future_unknown_item");
     expect(parsed.input.some((item: { type?: string }) => item.type === "text")).toBe(false);
     assertNoCustomMeta(parsed);
+  });
+});
+
+describe("notice samples (semantic mode)", () => {
+  // 确定性后缀派生,断言可写的真实标签形如 {{CODE_bcdfg}}
+  function makeSemanticResult(
+    entries: Array<{ category: FindingCategory; value: string; shortCode?: string }>,
+    maskedBody: string
+  ): { scanResult: ScanResult; registry: MaskRegistry; tags: string[] } {
+    const registry = new MaskRegistry(() => "bcdfg");
+    const tags = entries.map((entry) => registry.tagFor(entry.category, entry.value, entry.shortCode));
+    return {
+      registry,
+      tags,
+      scanResult: {
+        findings: entries.map((entry) => ({
+          category: entry.category,
+          action: "mask" as const,
+          matched: entry.value,
+        })),
+        maskedBody,
+        action: "mask",
+        maskSummary: {
+          applied: true,
+          categories: entries.map((entry) => entry.category),
+          replacementCount: entries.length,
+        },
+        registry,
+      },
+    };
+  }
+
+  it("replaces the notice sample with the request's real issued tag", () => {
+    const body = JSON.stringify({
+      model: "gpt-4",
+      messages: [{ role: "user", content: "my email is {{EMAIL_bcdfg}}" }],
+    });
+    const { scanResult, tags } = makeSemanticResult([{ category: "EMAIL", value: "alice@example.com" }], body);
+    expect(tags[0]).toBe("{{EMAIL_bcdfg}}");
+
+    const output = applyDisambiguation({ contentType: "application/json", maskedBody: body, scanResult });
+
+    const parsed = JSON.parse(output);
+    const notice = parsed.messages[parsed.messages.length - 1].content;
+    expect(notice).toContain("[Privacy notice]");
+    expect(notice).toContain(tags[0]);
+    expect(notice).not.toContain("{{EMAIL_trwmq}}");
+  });
+
+  it("issues the custom-term notice with the request's real issued tag", () => {
+    const body = JSON.stringify({
+      model: "gpt-4",
+      messages: [{ role: "user", content: "probe {{GFFUND_bcdfg}} stays as-is" }],
+    });
+    const { scanResult, tags } = makeSemanticResult(
+      [{ category: "CUSTOM_TERM", value: "gffund", shortCode: "GFFUND" }],
+      body
+    );
+    expect(tags[0]).toBe("{{GFFUND_bcdfg}}");
+
+    const output = applyDisambiguation({ contentType: "application/json", maskedBody: body, scanResult });
+    const notice = JSON.parse(output).messages[1].content;
+    expect(notice).toContain("{{GFFUND_bcdfg}}");
+    expect(notice).not.toContain("{{EMAIL_trwmq}}");
+  });
+
+  it("restores an echoed notice sample to the original value", () => {
+    const body = JSON.stringify({
+      model: "gpt-4",
+      messages: [{ role: "user", content: "my email is {{EMAIL_bcdfg}}" }],
+    });
+    const { scanResult, registry } = makeSemanticResult([{ category: "EMAIL", value: "alice@example.com" }], body);
+
+    const output = applyDisambiguation({ contentType: "application/json", maskedBody: body, scanResult });
+    const notice = JSON.parse(output).messages[1].content;
+    const restored = restoreText(notice, registry);
+    expect(restored).toContain("alice@example.com");
+    expect(restored).not.toContain("{{EMAIL_bcdfg}}");
+  });
+
+  it("injects the request's real issued tag for plain text bodies", () => {
+    const { scanResult, tags } = makeSemanticResult([{ category: "PHONE", value: "13800000000" }], "masked body");
+    const output = applyDisambiguation({ contentType: "text/plain", maskedBody: "masked body", scanResult });
+    expect(output).toContain(tags[0]);
   });
 });

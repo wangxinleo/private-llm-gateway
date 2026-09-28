@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { maskJsonBody } from "@/scanner/json-mask";
 import { runPipeline } from "@/scanner/pipeline";
+import { MaskRegistry } from "@/scanner/mask-registry";
 import { readFileSync, existsSync } from "fs";
 
 function benchmark(fn: () => void, iterations = 3): number {
@@ -17,8 +18,10 @@ describe("perf regression gate: real captured request (1.18MB)", () => {
     const body = readFileSync("真实请求.md", "utf8");
     const payload = body.slice(body.indexOf("{"));
 
-    const t = benchmark(() => maskJsonBody(payload, (t, s) => runPipeline(t, s)), 3);
-    const result = maskJsonBody(payload, (t, s) => runPipeline(t, s));
+    const registry = new MaskRegistry();
+    const scan = (t: string, s: number) => runPipeline(t, s, [], registry);
+    const t = benchmark(() => maskJsonBody(payload, scan, registry), 3);
+    const result = maskJsonBody(payload, scan, registry);
     // eslint-disable-next-line no-console
     console.log(`real payload: ${(payload.length / 1024 / 1024).toFixed(2)} MB`);
     // eslint-disable-next-line no-console

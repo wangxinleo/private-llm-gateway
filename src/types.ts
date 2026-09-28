@@ -82,7 +82,6 @@ export interface Finding {
   category: FindingCategory;
   action: ActionType;
   matched: string;
-  maskTag?: string;
   // 自定义词库按分类名派生的占位符短码(safe-label);缺省用类别默认短码
   shortCode?: string;
 }

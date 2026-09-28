@@ -33,7 +33,6 @@ describe("logAudit", () => {
           category: "BEARER_TOKEN",
           action: "mask",
           matched: "Bearer sample-token-for-test",
-          maskTag: "<<PRIVACY_MASK:BEARER_TOKEN>>",
         },
       ],
       action: "allow",

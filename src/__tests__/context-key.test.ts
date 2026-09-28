@@ -10,7 +10,6 @@ describe("scanContextKey — SECRET_KEYS solo-trigger", () => {
     expect(f).toHaveLength(1);
     expect(f[0].category).toBe("CONTEXTUAL_SECRET");
     expect(f[0].action).toBe("mask");
-    expect(f[0].maskTag).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
   });
 
   it("detects secret_key with suspicious value", () => {

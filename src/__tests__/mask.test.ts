@@ -4,7 +4,7 @@ import { MaskRegistry } from "@/scanner/mask-registry";
 import type { Finding } from "@/types";
 
 function mask(text: string, findings: Finding[]): string {
-  return applyMasks(text, findings).masked;
+  return applyMasks(text, findings, new MaskRegistry(() => "bcdfg")).masked;
 }
 
 describe("applyMasks — secret masking", () => {
@@ -16,10 +16,9 @@ describe("applyMasks — secret masking", () => {
         category: "PRIVATE_KEY",
         action: "mask",
         matched: text,
-        maskTag: "<<PRIVACY_MASK:PRIVATE_KEY>>",
       },
     ];
-    expect(mask(text, f)).toBe("<<PRIVACY_MASK:PRIVATE_KEY>>");
+    expect(mask(text, f)).toBe("{{PRIVATE_KEY_bcdfg}}");
   });
 
   it("masks Bearer token", () => {
@@ -29,10 +28,9 @@ describe("applyMasks — secret masking", () => {
         category: "BEARER_TOKEN",
         action: "mask",
         matched: "Bearer abc123token",
-        maskTag: "<<PRIVACY_MASK:BEARER_TOKEN>>",
       },
     ];
-    expect(mask(text, f)).toBe("Authorization: <<PRIVACY_MASK:BEARER_TOKEN>>");
+    expect(mask(text, f)).toBe("Authorization: {{BEARER_bcdfg}}");
   });
 
   it("masks Basic auth", () => {
@@ -42,10 +40,9 @@ describe("applyMasks — secret masking", () => {
         category: "BASIC_AUTH",
         action: "mask",
         matched: "Basic dXNlcjpwYXNz",
-        maskTag: "<<PRIVACY_MASK:BASIC_AUTH>>",
       },
     ];
-    expect(mask(text, f)).toBe("Authorization: <<PRIVACY_MASK:BASIC_AUTH>>");
+    expect(mask(text, f)).toBe("Authorization: {{BASIC_AUTH_bcdfg}}");
   });
 
   it("masks JWT", () => {
@@ -56,10 +53,9 @@ describe("applyMasks — secret masking", () => {
         category: "JWT",
         action: "mask",
         matched: token,
-        maskTag: "<<PRIVACY_MASK:JWT>>",
       },
     ];
-    expect(mask(text, f)).toBe("token=<<PRIVACY_MASK:JWT>>");
+    expect(mask(text, f)).toBe("token={{JWT_bcdfg}}");
   });
 
   it("masks Cookie header", () => {
@@ -69,10 +65,9 @@ describe("applyMasks — secret masking", () => {
         category: "COOKIE_HEADER",
         action: "mask",
         matched: "Cookie: session=abc",
-        maskTag: "<<PRIVACY_MASK:COOKIE_HEADER>>",
       },
     ];
-    expect(mask(text, f)).toBe("<<PRIVACY_MASK:COOKIE_HEADER>>");
+    expect(mask(text, f)).toBe("{{COOKIE_bcdfg}}");
   });
 
   it("masks Set-Cookie header", () => {
@@ -82,10 +77,9 @@ describe("applyMasks — secret masking", () => {
         category: "SET_COOKIE_HEADER",
         action: "mask",
         matched: "Set-Cookie: sid=xyz",
-        maskTag: "<<PRIVACY_MASK:SET_COOKIE_HEADER>>",
       },
     ];
-    expect(mask(text, f)).toBe("<<PRIVACY_MASK:SET_COOKIE_HEADER>>");
+    expect(mask(text, f)).toBe("{{SET_COOKIE_bcdfg}}");
   });
 
   it("masks DB URI", () => {
@@ -95,10 +89,9 @@ describe("applyMasks — secret masking", () => {
         category: "DB_URI",
         action: "mask",
         matched: "postgres://user:pass@host/db",
-        maskTag: "<<PRIVACY_MASK:DB_URI>>",
       },
     ];
-    expect(mask(text, f)).toBe("<<PRIVACY_MASK:DB_URI>>");
+    expect(mask(text, f)).toBe("{{DB_URI_bcdfg}}");
   });
 
   it("masks AWS access key", () => {
@@ -108,10 +101,9 @@ describe("applyMasks — secret masking", () => {
         category: "AWS_ACCESS_KEY",
         action: "mask",
         matched: "AKIAIOSFODNN7EXAMPLE",
-        maskTag: "<<PRIVACY_MASK:AWS_ACCESS_KEY>>",
       },
     ];
-    expect(mask(text, f)).toBe("<<PRIVACY_MASK:AWS_ACCESS_KEY>>");
+    expect(mask(text, f)).toBe("{{AWS_KEY_bcdfg}}");
   });
 
   it("masks GitHub token", () => {
@@ -121,10 +113,9 @@ describe("applyMasks — secret masking", () => {
         category: "GITHUB_TOKEN",
         action: "mask",
         matched: token,
-        maskTag: "<<PRIVACY_MASK:GITHUB_TOKEN>>",
       },
     ];
-    expect(mask(token, f)).toBe("<<PRIVACY_MASK:GITHUB_TOKEN>>");
+    expect(mask(token, f)).toBe("{{GITHUB_bcdfg}}");
   });
 
   it("masks Slack token", () => {
@@ -134,10 +125,9 @@ describe("applyMasks — secret masking", () => {
         category: "SLACK_TOKEN",
         action: "mask",
         matched: token,
-        maskTag: "<<PRIVACY_MASK:SLACK_TOKEN>>",
       },
     ];
-    expect(mask(token, f)).toBe("<<PRIVACY_MASK:SLACK_TOKEN>>");
+    expect(mask(token, f)).toBe("{{SLACK_bcdfg}}");
   });
 
   it("masks Google API key", () => {
@@ -147,10 +137,9 @@ describe("applyMasks — secret masking", () => {
         category: "GOOGLE_API_KEY",
         action: "mask",
         matched: key,
-        maskTag: "<<PRIVACY_MASK:GOOGLE_API_KEY>>",
       },
     ];
-    expect(mask(key, f)).toBe("<<PRIVACY_MASK:GOOGLE_API_KEY>>");
+    expect(mask(key, f)).toBe("{{GOOGLE_bcdfg}}");
   });
 
   it("masks context key value", () => {
@@ -161,10 +150,9 @@ describe("applyMasks — secret masking", () => {
         category: "CONTEXTUAL_SECRET",
         action: "mask",
         matched: value,
-        maskTag: "<<PRIVACY_MASK:CONTEXTUAL_SECRET>>",
       },
     ];
-    expect(mask(text, f)).toBe(`"api_key": "<<PRIVACY_MASK:CONTEXTUAL_SECRET>>"`);
+    expect(mask(text, f)).toBe(`"api_key": "{{SECRET_bcdfg}}"`);
   });
 });
 
@@ -176,16 +164,14 @@ describe("applyMasks — mixed findings", () => {
         category: "BEARER_TOKEN",
         action: "mask",
         matched: "Bearer abc123token",
-        maskTag: "<<PRIVACY_MASK:BEARER_TOKEN>>",
       },
       {
         category: "PHONE",
         action: "mask",
         matched: "13912345678",
-        maskTag: "<<PRIVACY_MASK:PHONE>>",
       },
     ];
-    expect(mask(text, f)).toBe("<<PRIVACY_MASK:BEARER_TOKEN>> phone <<PRIVACY_MASK:PHONE>>");
+    expect(mask(text, f)).toBe("{{BEARER_bcdfg}} phone {{PHONE_bcdfg}}");
   });
 
   it("masks PII types correctly", () => {
@@ -194,10 +180,9 @@ describe("applyMasks — mixed findings", () => {
         category: "PHONE",
         action: "mask",
         matched: "13912345678",
-        maskTag: "<<PRIVACY_MASK:PHONE>>",
       },
     ];
-    expect(mask("call 13912345678 now", f)).toBe("call <<PRIVACY_MASK:PHONE>> now");
+    expect(mask("call 13912345678 now", f)).toBe("call {{PHONE_bcdfg}} now");
   });
 
   it("masks email", () => {
@@ -206,10 +191,9 @@ describe("applyMasks — mixed findings", () => {
         category: "EMAIL",
         action: "mask",
         matched: "user@example.com",
-        maskTag: "<<PRIVACY_MASK:EMAIL>>",
       },
     ];
-    expect(mask("contact user@example.com", f)).toBe("contact <<PRIVACY_MASK:EMAIL>>");
+    expect(mask("contact user@example.com", f)).toBe("contact {{EMAIL_bcdfg}}");
   });
 
   it("masks ID card", () => {
@@ -219,10 +203,9 @@ describe("applyMasks — mixed findings", () => {
         category: "ID_CARD",
         action: "mask",
         matched: id,
-        maskTag: "<<PRIVACY_MASK:ID_CARD>>",
       },
     ];
-    expect(mask(`身份证${id}`, f)).toBe("身份证<<PRIVACY_MASK:ID_CARD>>");
+    expect(mask(`身份证${id}`, f)).toBe("身份证{{ID_CARD_bcdfg}}");
   });
 
   it("masks bank card", () => {
@@ -232,10 +215,9 @@ describe("applyMasks — mixed findings", () => {
         category: "BANK_CARD",
         action: "mask",
         matched: card,
-        maskTag: "<<PRIVACY_MASK:BANK_CARD>>",
       },
     ];
-    expect(mask(`卡号${card}`, f)).toBe("卡号<<PRIVACY_MASK:BANK_CARD>>");
+    expect(mask(`卡号${card}`, f)).toBe("卡号{{BANK_CARD_bcdfg}}");
   });
 
   it("returns original text when no mask findings", () => {
@@ -249,7 +231,6 @@ describe("applyMasks — registry mode", () => {
     category: "PHONE",
     action: "mask",
     matched: "13912345678",
-    maskTag: "<<PRIVACY_MASK:PHONE>>",
   };
 
   it("assigns instance tags via registry and records the mapping", () => {
@@ -265,7 +246,7 @@ describe("applyMasks — registry mode", () => {
   it("dedupes repeated values to one tag and counts each replacement", () => {
     const registry = new MaskRegistry();
     const result = applyMasks("a@x.com and a@x.com", [
-      { category: "EMAIL", action: "mask", matched: "a@x.com", maskTag: "<<PRIVACY_MASK:EMAIL>>" },
+      { category: "EMAIL", action: "mask", matched: "a@x.com" },
     ], registry);
     const [first, second] = result.masked.split(" and ");
     expect(first).toBe(second);
@@ -277,7 +258,7 @@ describe("applyMasks — registry mode", () => {
   it("protects already-formed placeholders from later replacements", () => {
     const registry = new MaskRegistry();
     const result = applyMasks("keep {{PHONE_TRWMQ}} intact, phone 13912345678", [
-      { category: "CONTEXTUAL_SECRET", action: "mask", matched: "PHONE_TRWMQ", maskTag: "<<PRIVACY_MASK:CONTEXTUAL_SECRET>>" },
+      { category: "CONTEXTUAL_SECRET", action: "mask", matched: "PHONE_TRWMQ" },
       phoneFinding,
     ], registry);
     expect(result.masked).toContain("{{PHONE_TRWMQ}}");
@@ -285,13 +266,14 @@ describe("applyMasks — registry mode", () => {
     expect(result.masked).toMatch(/\{\{PHONE_[bcdfghjkmnpqrstvwxz]{5}\}\}/);
   });
 
-  it("segment protection also works without a registry (template tags)", () => {
+  it("segment protection keeps an existing placeholder intact with a deterministic registry", () => {
+    const registry = new MaskRegistry(() => "bcdfg");
     const result = applyMasks("keep {{PHONE_TRWMQ}} intact, phone 13912345678", [
-      { category: "CONTEXTUAL_SECRET", action: "mask", matched: "PHONE_TRWMQ", maskTag: "<<PRIVACY_MASK:CONTEXTUAL_SECRET>>" },
+      { category: "CONTEXTUAL_SECRET", action: "mask", matched: "PHONE_TRWMQ" },
       phoneFinding,
-    ]);
+    ], registry);
     expect(result.masked).toContain("{{PHONE_TRWMQ}}");
-    expect(result.masked).toContain("<<PRIVACY_MASK:PHONE>>");
+    expect(result.masked).toContain("{{PHONE_bcdfg}}");
   });
 
   it("does not register mappings for values absent from the text", () => {

@@ -1,5 +1,5 @@
 import type { Finding } from "@/types";
-import { buildMaskTag, TAG_RE } from "./mask-tag";
+import { TAG_RE } from "./mask-tag";
 import type { MaskRegistry } from "./mask-registry";
 import { isRuleEnabled } from "@/config";
 
@@ -237,7 +237,6 @@ export function scanPii(text: string): Finding[] {
         category: rule.category,
         action: "mask",
         matched,
-        maskTag: buildMaskTag(rule.category),
       });
     }
   }
@@ -269,10 +268,10 @@ const REGEX_SPECIALS = /[.*+?^${}()|[\]\\]/g;
 export function applyMasks(
   text: string,
   findings: Finding[],
-  registry?: MaskRegistry,
+  registry: MaskRegistry,
   pairsOut?: Map<string, string>
 ): MaskResult {
-  const maskFindings = findings.filter((f) => f.action === "mask" && f.maskTag && f.matched);
+  const maskFindings = findings.filter((f) => f.action === "mask" && f.matched);
   if (!text || maskFindings.length === 0) {
     return { masked: text, replacementCount: 0, registry };
   }
@@ -307,7 +306,7 @@ function applyMasksCombined(
   text: string,
   alts: string[],
   literalToFinding: Map<string, Finding>,
-  registry?: MaskRegistry,
+  registry: MaskRegistry,
   pairsOut?: Map<string, string>
 ): MaskResult {
   alts.sort((a, b) => b.length - a.length);
@@ -338,7 +337,7 @@ function applyMasksCombined(
       let tag = pairs.get(hit.value);
       if (tag === undefined) {
         const finding = literalToFinding.get(hit.value)!;
-        tag = registry ? registry.tagFor(finding.category, finding.matched, finding.shortCode) : finding.maskTag!;
+        tag = registry.tagFor(finding.category, finding.matched, finding.shortCode);
         if (tag === hit.value) {
           // 防套娃:值本身是占位符文法且 tagFor 原样返回——原样保留
           tag = hit.value;
@@ -362,7 +361,7 @@ function applyMasksCombined(
 function applyMasksSequential(
   text: string,
   maskFindings: Finding[],
-  registry?: MaskRegistry,
+  registry: MaskRegistry,
   pairsOut?: Map<string, string>
 ): MaskResult {
   let result = text;
@@ -373,7 +372,7 @@ function applyMasksSequential(
   const ordered = [...maskFindings].sort((a, b) => b.matched.length - a.matched.length);
   for (const f of ordered) {
     if (!result.includes(f.matched)) continue;
-    const tag = registry ? registry.tagFor(f.category, f.matched, f.shortCode) : f.maskTag!;
+    const tag = registry.tagFor(f.category, f.matched, f.shortCode);
     const applied = replaceOutsidePlaceholders(result, f.matched, tag);
     result = applied.text;
     replacementCount += applied.count;

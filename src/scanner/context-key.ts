@@ -1,6 +1,5 @@
 import { CONTEXT_KEY, SECRET_SCANNER_MODE, isRuleEnabled } from "@/config";
 import type { Finding, FindingCategory } from "@/types";
-import { buildMaskTag } from "./mask-tag";
 
 const SECRET_KEYS: ReadonlySet<string> = new Set([
   "apikey",
@@ -408,7 +407,6 @@ function toFinding(value: string, category: FindingCategory = "CONTEXTUAL_SECRET
     category,
     action: "mask",
     matched: value,
-    maskTag: buildMaskTag(category),
   };
 }
 

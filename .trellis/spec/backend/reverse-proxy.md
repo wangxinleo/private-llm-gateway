@@ -306,7 +306,7 @@ if (host) {
 ### 2. Signatures
 - Route signature: `src/app/[...path]/route.ts` root catch-all; `extractPath` = `pathname + search` verbatim (no fixed `/api` segment is stripped).
 - Channel routing: `resolveChannel(path: string): ResolvedChannel | null` matches `/<channel-prefix>/**` against enabled upstreams; `forwardPath` is the path after the prefix; reserved root segments `api` / `dashboard` / `admin` / `health` never resolve as channels.
-- Scanner signature: `maskJsonBody(body: string, scan: (text: string, size: number) => ScanResult): ScanResult`.
+- Scanner signature: `maskJsonBody(body: string, scan: (text: string, size: number) => ScanResult, registry: MaskRegistry): ScanResult` (the scan closure carries the same registry).
 - Runtime config signature: call `initializeConfigs()` before scan, bypass, threshold, or exclusion decisions on the proxy request path.
 
 ### 3. Contracts
@@ -315,7 +315,7 @@ if (host) {
 - No channel hit and no default upstream: immediate 404 before reading body, scanning, or auditing (anti-enumeration).
 - JSON string values are scanned with immediate key/path context, but the forwarded JSON must contain only original fields and masked original values.
 - Synthetic scan text such as `api_key=value` or `config.secret=value` must never be inserted into the forwarded body.
-- Default LLM JSON/text secret policy is mask-and-forward. High-risk secrets should be replaced with `<<PRIVACY_MASK:...>>`, not blocked.
+- Default LLM JSON/text secret policy is mask-and-forward. High-risk secrets should be replaced with opaque placeholders (e.g. `{{SECRET_bcdfg}}`), not blocked.
 - Hard block remains reserved for explicit block categories such as `SENSITIVE_FILENAME`.
 
 ### 4. Validation & Error Matrix
@@ -325,7 +325,7 @@ if (host) {
 - Secret categories treated as block by default -> LLM code/log/config analysis is interrupted; policy tests must keep secrets as mask unless explicitly hard-blocked.
 
 ### 5. Good/Base/Bad Cases
-- Good: `/<channel>/v1/chat/completions?trace=1` forwards to `<channel-target>/v1/chat/completions?trace=1` and masks `{ "api_key": "abc12345_67890" }` to `{ "api_key": "<<PRIVACY_MASK:CONTEXTUAL_SECRET>>" }`.
+- Good: `/<channel>/v1/chat/completions?trace=1` forwards to `<channel-target>/v1/chat/completions?trace=1` and masks `{ "api_key": "abc12345_67890" }` to `{ "api_key": "{{SECRET_bcdfg}}" }`.
 - Base: clean JSON with no findings is parsed and re-serialized without changing values.
 - Bad: stripping a fixed `/api` segment (pre-migration behavior), forwarding the channel prefix to the upstream, dropping the query string, or forwarding synthetic text like `api_key=abc12345_67890` inside the JSON payload.
 
@@ -359,7 +359,7 @@ const result = scan(scanText, new TextEncoder().encode(scanText).length);
 
 ### 2. Signatures
 - Scanner signature: `scanContextKey(text: string): Finding[]`.
-- Finding category contract: contextual config findings use `category: "CONTEXTUAL_SECRET"`, `action: "mask"`, and `buildMaskTag("CONTEXTUAL_SECRET")`.
+- Finding category contract: contextual config findings use `category: "CONTEXTUAL_SECRET"` and `action: "mask"`; findings carry no tag — placeholders are minted at apply time via `MaskRegistry.tagFor(category, value)`.
 - JSON scanner contract: `maskJsonBody` may scan synthetic context (`key=value`, `full.path=value`) but must mask only original JSON string values.
 
 ### 3. Contracts
@@ -381,7 +381,7 @@ const result = scan(scanText, new TextEncoder().encode(scanText).length);
 | JSON field value match | output valid JSON with only value replaced | Synthetic context must not leak into forwarded JSON. |
 
 ### 5. Good/Base/Bad Cases
-- Good: `{ "apiKey": "demo-key_1234567890", "baseUrl": "https://api.example.test/v1" }` becomes `{ "apiKey": "<<PRIVACY_MASK:CONTEXTUAL_SECRET>>", "baseUrl": "<<PRIVACY_MASK:CONTEXTUAL_SECRET>>" }`.
+- Good: `{ "apiKey": "demo-key_1234567890", "baseUrl": "https://api.example.test/v1" }` becomes `{ "apiKey": "{{SECRET_bcdfg}}", "baseUrl": "{{SECRET_vwxzh}}" }` (each distinct value gets its own placeholder).
 - Base: `Please read https://api.example.test/v1` remains unchanged when no endpoint key exists.
 - Bad: widening the generic contextual charset and masking every URL-like string in prose.
 

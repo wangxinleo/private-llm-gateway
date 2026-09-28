@@ -1,6 +1,5 @@
 import type { Finding } from "@/types";
 import { isRuleEnabled } from "@/config";
-import { buildMaskTag } from "./mask-tag";
 import { ENTROPY_ANCHORS } from "./entropy-anchors";
 import { ENTROPY_COST_TABLE, ENTROPY_SYMBOL_COUNT } from "./entropy-table";
 
@@ -114,7 +113,7 @@ export function scanHighEntropy(text: string): Finding[] {
     if (isStandardHashHex(value)) continue;
     if (!diversityOk(value)) continue;
     if (scoreBlock(value) > thresholdFor(len)) {
-      findings.push({ category: "HIGH_ENTROPY", action: "mask", matched: value, maskTag: buildMaskTag("HIGH_ENTROPY") });
+      findings.push({ category: "HIGH_ENTROPY", action: "mask", matched: value });
     }
   }
   return findings;

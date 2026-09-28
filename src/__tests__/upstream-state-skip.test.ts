@@ -17,12 +17,10 @@ import { MaskRegistry } from "@/scanner/mask-registry";
 const tmpDir = join(tmpdir(), `upstream-state-${process.pid}`);
 const PHONE = "13812345678";
 
-const scanFn = (text: string, size: number, registry?: MaskRegistry) =>
-  runPipeline(text, size, [], registry);
-
 function maskBody(body: unknown) {
   const raw = JSON.stringify(body);
   const registry = new MaskRegistry();
+  const scanFn = (text: string, size: number) => runPipeline(text, size, [], registry);
   const result = maskJsonBody(raw, scanFn, registry);
   return { raw, result, parsed: JSON.parse(result.maskedBody) as Record<string, any> };
 }

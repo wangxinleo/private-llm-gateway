@@ -10,5 +10,4 @@ export {
   collectMultipartText,
   collectFilenames,
 } from "./multipart";
-export { buildMaskTag } from "./mask-tag";
 export { MaskRegistry } from "./mask-registry";

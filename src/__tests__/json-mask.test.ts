@@ -3,6 +3,15 @@ import { isJsonContentType, maskJsonBody } from "@/scanner/json-mask";
 import { runPipeline } from "@/scanner/pipeline";
 import { MaskRegistry } from "@/scanner/mask-registry";
 
+// 确定性 suffix 用于单值精确断言;同类别多值时仅首值拿到 bcdfg,断言用正则
+const PHONE_TAG = /\{\{PHONE_bcdfg\}\}/;
+const SECRET_TAG = /\{\{SECRET_[bcdfghjkmnpqrstvwxz]{5}\}\}/;
+
+function makeScan() {
+  const registry = new MaskRegistry(() => "bcdfg");
+  return { registry, scan: (text: string) => runPipeline(text, text.length, [], registry) };
+}
+
 describe("isJsonContentType", () => {
   it("returns true for application/json", () => {
     expect(isJsonContentType("application/json")).toBe(true);
@@ -30,8 +39,6 @@ describe("isJsonContentType", () => {
 });
 
 describe("maskJsonBody", () => {
-  const scan = (text: string) => runPipeline(text, text.length);
-
   it("S1: masks PII inside JSON string values, output is valid JSON", () => {
     const body = JSON.stringify({
       model: "gpt-4",
@@ -40,13 +47,14 @@ describe("maskJsonBody", () => {
       ],
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     expect(result.action).toBe("mask");
 
     // Must be parseable as valid JSON
     const parsed = JSON.parse(result.maskedBody);
     expect(parsed.model).toBe("gpt-4");
-    expect(parsed.messages[0].content).toContain("<<PRIVACY_MASK:PHONE>>");
+    expect(parsed.messages[0].content).toContain("{{PHONE_bcdfg}}");
     expect(parsed.messages[0].content).not.toContain("13912345678");
   });
 
@@ -58,7 +66,8 @@ describe("maskJsonBody", () => {
       timestamp: 1648601234567890,
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
 
     // Must be parseable as valid JSON
     const parsed = JSON.parse(result.maskedBody);
@@ -66,7 +75,7 @@ describe("maskJsonBody", () => {
     expect(parsed.timestamp).toBe(1648601234567890);
     expect(parsed.max_tokens).toBe(4096);
     // No mask tags in the body
-    expect(result.maskedBody).not.toContain("<<PRIVACY_MASK:BANK_CARD>>");
+    expect(result.maskedBody).not.toContain("{{");
   });
 
   it("S3: masks PII in deeply nested JSON string values", () => {
@@ -83,12 +92,13 @@ describe("maskJsonBody", () => {
       },
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     expect(result.action).toBe("mask");
 
     const parsed = JSON.parse(result.maskedBody);
-    expect(parsed.data.users[0].profile.contact).toContain("<<PRIVACY_MASK:EMAIL>>");
-    expect(parsed.data.users[0].profile.notes[0]).toContain("<<PRIVACY_MASK:PHONE>>");
+    expect(parsed.data.users[0].profile.contact).toContain("{{EMAIL_bcdfg}}");
+    expect(parsed.data.users[0].profile.notes[0]).toContain("{{PHONE_bcdfg}}");
     expect(parsed.data.users[0].profile.notes[1]).toBe("safe text");
   });
 
@@ -102,11 +112,12 @@ describe("maskJsonBody", () => {
       ],
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     expect(result.action).toBe("mask");
 
     const parsed = JSON.parse(result.maskedBody);
-    expect(parsed.messages[0].content).toContain("<<PRIVACY_MASK:BEARER_TOKEN>>");
+    expect(parsed.messages[0].content).toContain("{{BEARER_bcdfg}}");
     expect(parsed.messages[0].content).not.toContain("abc123def456ghi789");
   });
 
@@ -123,7 +134,8 @@ describe("maskJsonBody", () => {
       n: 1,
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
 
     // Even if no PII found, result must be valid JSON
     const parsed = JSON.parse(result.maskedBody);
@@ -135,7 +147,8 @@ describe("maskJsonBody", () => {
   });
 
   it("S6: handles empty JSON object", () => {
-    const result = maskJsonBody("{}", scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody("{}", scan, registry);
     expect(JSON.parse(result.maskedBody)).toEqual({});
   });
 
@@ -145,19 +158,21 @@ describe("maskJsonBody", () => {
       { text: "no pii here" },
     ]);
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     const parsed = JSON.parse(result.maskedBody);
-    expect(parsed[0].text).toContain("<<PRIVACY_MASK:PHONE>>");
+    expect(parsed[0].text).toContain("{{PHONE_bcdfg}}");
     expect(parsed[1].text).toBe("no pii here");
   });
 
   it("S8: falls back to flat scan for invalid JSON", () => {
     const invalidJson = 'not json at all { phone 13912345678';
-    const result = maskJsonBody(invalidJson, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(invalidJson, scan, registry);
     // Should still produce a result (flat scan fallback)
     expect(result.maskedBody).toBeDefined();
     // Invalid JSON in, flat scan out — should contain mask if PII found
-    expect(result.maskedBody).toContain("<<PRIVACY_MASK:PHONE>>");
+    expect(result.maskedBody).toContain("{{PHONE_bcdfg}}");
   });
 
   it("S9: does not corrupt JSON with valid PII in string value vs number value", () => {
@@ -167,9 +182,10 @@ describe("maskJsonBody", () => {
       phone_number: 13912345678,
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     const parsed = JSON.parse(result.maskedBody);
-    expect(parsed.message).toContain("<<PRIVACY_MASK:PHONE>>");
+    expect(parsed.message).toContain("{{PHONE_bcdfg}}");
     // JSON number value should NOT be matched by digit-based regex
     expect(parsed.phone_number).toBe(13912345678);
   });
@@ -183,10 +199,11 @@ describe("maskJsonBody", () => {
       },
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
 
     const parsed = JSON.parse(result.maskedBody);
-    expect(parsed.config.email).toContain("<<PRIVACY_MASK:EMAIL>>");
+    expect(parsed.config.email).toContain("{{EMAIL_bcdfg}}");
     expect(parsed.config.timeout).toBe(30);
     expect(parsed.config.retries).toBe(5);
   });
@@ -197,7 +214,8 @@ describe("maskJsonBody", () => {
       api_key: rawSecret,
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
 
     expect(result.action).toBe("mask");
     expect(result.findings).toEqual(
@@ -207,7 +225,7 @@ describe("maskJsonBody", () => {
     );
 
     const parsed = JSON.parse(result.maskedBody);
-    expect(parsed.api_key).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed.api_key).toBe("{{SECRET_bcdfg}}");
     expect(result.maskedBody).not.toContain(rawSecret);
     expect(result.maskedBody).not.toContain("api_key=");
   });
@@ -220,7 +238,8 @@ describe("maskJsonBody", () => {
       },
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
 
     expect(result.action).toBe("mask");
     expect(result.findings).toEqual(
@@ -230,7 +249,7 @@ describe("maskJsonBody", () => {
     );
 
     const parsed = JSON.parse(result.maskedBody);
-    expect(parsed.config.secret).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed.config.secret).toBe("{{SECRET_bcdfg}}");
   });
 
 
@@ -244,12 +263,13 @@ describe("maskJsonBody", () => {
       },
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     expect(result.action).toBe("mask");
 
     const parsed = JSON.parse(result.maskedBody);
-    expect(parsed.providers.openai.apiKey).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
-    expect(parsed.providers.openai.baseUrl).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed.providers.openai.apiKey).toMatch(SECRET_TAG);
+    expect(parsed.providers.openai.baseUrl).toMatch(SECRET_TAG);
   });
 
   it("S11: masks separator and case variants in JSON", () => {
@@ -260,21 +280,20 @@ describe("maskJsonBody", () => {
       bashUrl: "https://edge.example.test/v1",
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     expect(result.action).toBe("mask");
 
     const parsed = JSON.parse(result.maskedBody);
-    expect(parsed.APIKEY).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
-    expect(parsed.base_url).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
-    expect(parsed["api-key"]).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
-    expect(parsed.bashUrl).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed.APIKEY).toMatch(SECRET_TAG);
+    expect(parsed.base_url).toMatch(SECRET_TAG);
+    expect(parsed["api-key"]).toMatch(SECRET_TAG);
+    expect(parsed.bashUrl).toMatch(SECRET_TAG);
   });
 
 });
 
 describe("maskJsonBody — expanded compound config masking", () => {
-  const scan = (text: string) => runPipeline(text, text.length);
-
   it("masks Azure client identifiers when sibling clientSecret exists", () => {
     const body = JSON.stringify({
       azure: {
@@ -284,12 +303,14 @@ describe("maskJsonBody — expanded compound config masking", () => {
       },
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     const parsed = JSON.parse(result.maskedBody);
 
-    expect(parsed.azure.clientId).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
-    expect(parsed.azure.tenantId).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
-    expect(parsed.azure.clientSecret).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed.azure.clientId).toMatch(SECRET_TAG);
+    expect(parsed.azure.tenantId).toMatch(SECRET_TAG);
+    expect(parsed.azure.clientSecret).toMatch(SECRET_TAG);
+    expect(result.maskedBody).not.toContain("azure-secret_1234567890");
   });
 
   it("masks GCP service-account identity metadata around private key id", () => {
@@ -300,11 +321,12 @@ describe("maskJsonBody — expanded compound config masking", () => {
       client_email: "svc-gateway-123@example.iam.gserviceaccount.com",
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     const parsed = JSON.parse(result.maskedBody);
 
-    expect(parsed.project_id).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
-    expect(parsed.private_key_id).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed.project_id).toMatch(SECRET_TAG);
+    expect(parsed.private_key_id).toMatch(SECRET_TAG);
     expect(parsed.client_email).not.toContain("svc-gateway-123");
   });
 
@@ -319,20 +341,20 @@ describe("maskJsonBody — expanded compound config masking", () => {
       users: [{ name: "cluster", user: { token: "K9".repeat(20) } }],
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     const parsed = JSON.parse(result.maskedBody);
 
-    expect(parsed.auths["registry.example.test"].auth).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
-    expect(parsed.auths["registry.example.test"].identitytoken).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
-    expect(parsed.users[0].user.token).toBe("<<PRIVACY_MASK:CONTEXTUAL_SECRET>>");
+    expect(parsed.auths["registry.example.test"].auth).toMatch(SECRET_TAG);
+    expect(parsed.auths["registry.example.test"].identitytoken).toMatch(SECRET_TAG);
+    expect(parsed.users[0].user.token).toMatch(SECRET_TAG);
   });
 });
 
 describe("maskJsonBody — registry threading", () => {
-  const scan = (text: string) => runPipeline(text, text.length);
-
   it("masks JSON strings with instance tags from the shared registry", () => {
     const registry = new MaskRegistry();
+    const scan = (text: string) => runPipeline(text, text.length, [], registry);
     const body = JSON.stringify({
       messages: [
         { role: "user", content: "phone 13912345678" },
@@ -353,20 +375,11 @@ describe("maskJsonBody — registry threading", () => {
   });
 
   it("threads registry through the flat-scan fallback for invalid JSON", () => {
-    const registry = new MaskRegistry();
-    const scanFn = (text: string, size: number, reg?: MaskRegistry) => runPipeline(text, size, [], reg);
-    const result = maskJsonBody("phone 13912345678", scanFn, registry);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody("phone 13912345678", scan, registry);
 
     expect(result.registry).toBe(registry);
-    expect(result.maskedBody).toMatch(/\{\{PHONE_[bcdfghjkmnpqrstvwxz]{5}\}\}/);
+    expect(result.maskedBody).toMatch(PHONE_TAG);
     expect(registry.size).toBe(1);
-  });
-
-  it("returns no registry when omitted (template tags unchanged)", () => {
-    const body = JSON.stringify({ message: "phone 13912345678" });
-    const result = maskJsonBody(body, scan);
-    expect(result.registry).toBeUndefined();
-    const parsed = JSON.parse(result.maskedBody);
-    expect(parsed.message).toContain("<<PRIVACY_MASK:PHONE>>");
   });
 });

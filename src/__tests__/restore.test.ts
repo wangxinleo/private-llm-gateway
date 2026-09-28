@@ -37,12 +37,6 @@ describe("restoreText", () => {
     expect(restoreText(`call ${phone} now`, registry)).toBe("call 13912345678 now");
   });
 
-  it("passes legacy and explicit formats through untouched", () => {
-    const { registry } = makeLoadedRegistry();
-    const text = "[PHONE] and <<PRIVACY_MASK:EMAIL>>";
-    expect(restoreText(text, registry)).toBe(text);
-  });
-
   it("passes grammar-valid but unissued tags through verbatim", () => {
     const { registry } = makeLoadedRegistry();
     const text = "{{PHONE_TRWMQ}} stays";

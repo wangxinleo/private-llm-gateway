@@ -74,7 +74,6 @@ describe("F1: 去重不得按值子串吸收（独立出现必须脱敏）", () 
       category,
       action: "mask" as const,
       matched,
-      maskTag: `{{${category}_xxxxx}}`,
     });
 
     // 短值排前 + 511 个不存在的占位 finding，强制走 applyMasksSequential

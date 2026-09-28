@@ -3,7 +3,7 @@ import { isBlockCategory } from "@/types";
 import type { MaskRegistry } from "@/scanner/mask-registry";
 import { applyMasks } from "./pii";
 
-type ScanFn = (text: string, size: number, registry?: MaskRegistry) => ScanResult;
+type ScanFn = (text: string, size: number) => ScanResult;
 
 const PATH_SEPARATOR = ".";
 
@@ -170,8 +170,8 @@ function appendFindings(target: Finding[], additions: Finding[]): void {
 function maskStringValue(
   value: string,
   findings: Finding[],
-  registry?: MaskRegistry,
-  pairs?: Map<string, string>
+  registry: MaskRegistry,
+  pairs: Map<string, string>
 ): string {
   return applyMasks(value, findings, registry, pairs).masked;
 }
@@ -210,10 +210,10 @@ function scanValue(
   value: unknown,
   scan: ScanFn,
   findings: Finding[],
+  registry: MaskRegistry,
+  pairs: Map<string, string>,
   path: string[] = [],
   siblingFindings: Finding[] = [],
-  registry?: MaskRegistry,
-  pairs?: Map<string, string>,
   root?: unknown
 ): unknown {
   // 上游自产模型状态整块跳过:不扫描、不产生 findings、不改写
@@ -241,7 +241,7 @@ function scanValue(
 
   if (Array.isArray(value)) {
     return value.map((item, index) =>
-      scanValue(item, scan, findings, [...path, String(index)], [], registry, pairs, root)
+      scanValue(item, scan, findings, registry, pairs, [...path, String(index)], [], root)
     );
   }
 
@@ -252,7 +252,7 @@ function scanValue(
     for (const key of Object.keys(obj)) {
       const child = obj[key];
       const childSiblingFindings = typeof child === "string" ? localFindings : [];
-      result[key] = scanValue(child, scan, findings, [...path, key], childSiblingFindings, registry, pairs, root);
+      result[key] = scanValue(child, scan, findings, registry, pairs, [...path, key], childSiblingFindings, root);
     }
     return result;
   }
@@ -260,17 +260,17 @@ function scanValue(
   return value;
 }
 
-export function maskJsonBody(body: string, scan: ScanFn, registry?: MaskRegistry): ScanResult {
+export function maskJsonBody(body: string, scan: ScanFn, registry: MaskRegistry): ScanResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(body);
   } catch {
-    return scan(body, byteLength(body), registry);
+    return scan(body, byteLength(body));
   }
 
   const findings: Finding[] = [];
   const pairs = new Map<string, string>();
-  const masked = scanValue(parsed, scan, findings, [], [], registry, pairs, parsed);
+  const masked = scanValue(parsed, scan, findings, registry, pairs, [], [], parsed);
 
   if (findings.some((finding) => isBlockCategory(finding.category))) {
     return { findings, maskedBody: body, action: "block", maskSummary: { applied: false, categories: [], replacementCount: 0 }, registry };

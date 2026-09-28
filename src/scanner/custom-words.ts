@@ -1,5 +1,4 @@
 import type { Finding } from "@/types";
-import { buildMaskTag } from "./mask-tag";
 import { getWordsVersion, type CustomWordRow } from "@/words/store";
 import { listWords } from "@/words/store";
 import { Logger } from "@/log";
@@ -99,7 +98,6 @@ function toFinding(matched: string, shortcode: string): Finding {
     category,
     action: "mask",
     matched,
-    maskTag: buildMaskTag(category),
     shortCode: shortcode,
   };
 }

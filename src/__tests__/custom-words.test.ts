@@ -156,9 +156,10 @@ describe("pipeline integration", () => {
   it("disabling CUSTOM_TERM stops custom findings", () => {
     seed([{ label: "T", value: "凤凰计划" }]);
     const body = JSON.stringify({ messages: [{ role: "user", content: "推进凤凰计划" }] });
-    expect(runPipeline(body, body.length, []).action).toBe("mask");
+    const registry = new MaskRegistry();
+    expect(runPipeline(body, body.length, [], registry).action).toBe("mask");
     SCANNER_RULES.CUSTOM_TERM = false;
-    const result = runPipeline(body, body.length, []);
+    const result = runPipeline(body, body.length, [], registry);
     expect(result.findings.some((f) => f.category === "CUSTOM_TERM")).toBe(false);
     SCANNER_RULES.CUSTOM_TERM = true;
   });

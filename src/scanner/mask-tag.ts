@@ -1,15 +1,6 @@
 import { randomInt, createHmac, randomBytes } from "node:crypto";
 import type { FindingCategory } from "@/types";
 
-const PRIVACY_MASK_FORMAT = process.env.PRIVACY_MASK_FORMAT ?? "explicit";
-
-export function buildMaskTag(category: FindingCategory): string {
-  if (PRIVACY_MASK_FORMAT === "legacy") {
-    return `[${category}]`;
-  }
-  return `<<PRIVACY_MASK:${category}>>`;
-}
-
 export const MAX_SHORTCODE_LEN = 12;
 
 export const CATEGORY_SHORTCODES: Readonly<Record<FindingCategory, string>> = {
@@ -113,6 +104,4 @@ export const LOOSE_RX = new RegExp(
   `\\{\\{?\\s?${LOOSE_CORE}\\s?\\}?\\}|\\{\\{?\\s?${LOOSE_CORE}|${LOOSE_CORE}`,
   "g"
 );
-export const EXPLICIT_TAG_RE = /<<PRIVACY_MASK:[A-Z][A-Z0-9_]*(?::\d+)?>>/g;
-export const LEGACY_TAG_RE = /\[[A-Z][A-Z0-9_]*\]/g;
 export const MAX_TAG_LEN = 2 + MAX_SHORTCODE_LEN + 1 + SUFFIX_LEN + 2;

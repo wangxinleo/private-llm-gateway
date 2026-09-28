@@ -104,8 +104,8 @@ describe("proxy route LLM compatibility", () => {
   });
 
 
-it("never forwards custom privacy meta fields for masked chat requests", async () => {
-    const rawEmail = "<<PRIVACY_MASK:EMAIL>>";
+  it("never forwards custom privacy meta fields for masked chat requests", async () => {
+    const rawPhone = "13912345678";
 
     const response = await POST(makeRequest("/v1/chat/completions", {
       method: "POST",
@@ -114,7 +114,7 @@ it("never forwards custom privacy meta fields for masked chat requests", async (
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: "You are careful." },
-          { role: "user", content: `email: ${rawEmail}` },
+          { role: "user", content: `phone: ${rawPhone}` },
         ],
       }),
     }));
@@ -124,14 +124,16 @@ it("never forwards custom privacy meta fields for masked chat requests", async (
     expect(typeof forwardedBody).toBe("string");
     const parsed = JSON.parse(String(forwardedBody));
     expect(parsed).not.toHaveProperty("_privacy_meta");
-    expect(JSON.stringify(parsed)).not.toContain(rawEmail);
-// Original messages preserved untouched
-      expect(parsed.messages[0].content).toBe("You are careful.");
-      expect(parsed.messages[1].content).not.toContain(rawEmail);
-      expect(parsed.messages[1].content).toContain("email:");
-      // Notice appended as a new system message at the tail
-      const lastMsg = parsed.messages[parsed.messages.length - 1];
-      expect(lastMsg.role).toBe("system");
-      expect(lastMsg.content).toContain("[Privacy notice]");
+    expect(JSON.stringify(parsed)).not.toContain(rawPhone);
+    // Original messages preserved untouched, except the in-place mask
+    expect(parsed.messages[0].content).toBe("You are careful.");
+    const tagMatch = parsed.messages[1].content.match(/\{\{PHONE_[bcdfghjkmnpqrstvwxz]{5}\}\}/);
+    expect(tagMatch).not.toBeNull();
+    expect(parsed.messages[1].content).toContain("phone:");
+    // Notice appended as a new system message at the tail, sampled with the real issued tag
+    const lastMsg = parsed.messages[parsed.messages.length - 1];
+    expect(lastMsg.role).toBe("system");
+    expect(lastMsg.content).toContain("[Privacy notice]");
+    expect(lastMsg.content).toContain(tagMatch![0]);
   });
 });

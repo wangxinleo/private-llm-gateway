@@ -3,7 +3,7 @@ import { maskJsonBody } from "@/scanner/json-mask";
 import { runPipeline } from "@/scanner/pipeline";
 import { MaskRegistry } from "@/scanner/mask-registry";
 
-function makeScan(registry?: MaskRegistry) {
+function makeScan(registry: MaskRegistry) {
   return (text: string, size: number) => runPipeline(text, size, [], registry);
 }
 
@@ -49,8 +49,9 @@ describe("byte-level splice (R2)", () => {
   });
 
   it("allow path returns the original body bytes (no re-serialization)", () => {
+    const registry = new MaskRegistry();
     const body = `{  "loose" :  "formatting"  ,  "n" : 1  }`;
-    const result = maskJsonBody(body, makeScan(new MaskRegistry()));
+    const result = maskJsonBody(body, makeScan(registry), registry);
     expect(result.action).toBe("allow");
     expect(result.maskedBody).toBe(body);
   });

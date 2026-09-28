@@ -13,12 +13,6 @@ interface EnvRule {
 // 这里集中检查并输出可见告警。只告警、不改变解析结果(拒绝启动会破坏存量部署)。
 const ENV_RULES: EnvRule[] = [
   {
-    key: "PRIVACY_MASK_FORMAT",
-    expected: "legacy | semantic",
-    validate: (v) => v === "legacy" || v === "semantic",
-    fallback: "semantic",
-  },
-  {
     key: "PRIVACY_DISAMBIGUATION_MODE",
     expected: "off | auto(旧值 prefix/json-meta 归一为 auto)",
     validate: (v) => v === "off" || v === "auto" || v === "prefix" || v === "json-meta",

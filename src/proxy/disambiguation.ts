@@ -1,4 +1,5 @@
 import { PRIVACY_DISAMBIGUATION_MODE, PRIVACY_NOTICE_TEXT } from "@/config";
+import { TAG_RE } from "@/scanner/mask-tag";
 import type { ScanResult } from "@/types";
 
 export interface DisambiguationContext {
@@ -8,6 +9,8 @@ export interface DisambiguationContext {
 }
 
 const NOTICE_PREFIX = "[Privacy notice]";
+// 通知文本中所有标签形态示例统一替换为真实签发标签,使模型回显示例可被还原
+const NOTICE_SAMPLE_RE = new RegExp(TAG_RE.source, "g");
 const STANDARD_PROMPT_FIELDS = ["system", "instructions", "prompt", "input"] as const;
 const GEMINI_SYSTEM_FIELDS = ["system_instruction", "systemInstruction"] as const;
 
@@ -55,10 +58,9 @@ const RESPONSES_INPUT_ITEM_TYPES = new Set([
 ]);
 
 function buildNotice(scanResult: ScanResult): string {
-  const sampleTag = scanResult.maskSummary.categories[0]
-    ? `<<PRIVACY_MASK:${scanResult.maskSummary.categories[0]}>>`
-    : "<<PRIVACY_MASK:TYPE>>";
-  return PRIVACY_NOTICE_TEXT.replace(/<<PRIVACY_MASK:\w+>>/g, sampleTag);
+  // 样例=本请求实际签发的标签;registry 非空由调用方保证(见 applyDisambiguation 守卫)
+  const sampleTag = scanResult.registry?.tagToValue.keys().next().value ?? "{{EMAIL_trwmq}}";
+  return PRIVACY_NOTICE_TEXT.replace(NOTICE_SAMPLE_RE, sampleTag);
 }
 
 function isJsonContentType(contentType: string): boolean {

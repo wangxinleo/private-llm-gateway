@@ -88,7 +88,6 @@ export const RUNTIME = {
   secretPrefixMinLen: DEFAULT_CONFIG_VALUES.SECRET_PREFIX_MIN_LENGTH,
 };
 
-const PRIVACY_MASK_FORMAT = process.env.PRIVACY_MASK_FORMAT === "legacy" ? "legacy" : "semantic";
 export type PrivacyDisambiguationMode = "off" | "auto";
 
 function resolveDisambiguationMode(raw: string | undefined): PrivacyDisambiguationMode {
@@ -99,7 +98,7 @@ function resolveDisambiguationMode(raw: string | undefined): PrivacyDisambiguati
 
 const PRIVACY_DISAMBIGUATION_MODE = resolveDisambiguationMode(process.env.PRIVACY_DISAMBIGUATION_MODE);
 const PRIVACY_NOTICE_TEXT = process.env.PRIVACY_NOTICE_TEXT ??
-  `Anonymized placeholders like {{EMAIL_trwmq}} or <<PRIVACY_MASK:EMAIL>> were injected by a privacy proxy: never invent, guess, expand, rewrite, translate, or remove them; keep every placeholder exactly as-is where the original value belongs.`;
+  `Anonymized placeholders like {{EMAIL_trwmq}} were injected by a privacy proxy: never invent, guess, expand, rewrite, translate, or remove them; keep every placeholder exactly as-is where the original value belongs.`;
 const PRIVACY_DEBUG_HEADERS = process.env.PRIVACY_DEBUG_HEADERS === "true";
 
 // 默认上游(可选,实时读 env):设置时无渠道前缀请求走它(存量兼容);
@@ -109,4 +108,4 @@ export function getDefaultUpstream(): string | null {
   return value && value.length > 0 ? value : null;
 }
 
-export { DB_PATH, DEBUG, SECRET_SCANNER_MODE, PRIVACY_MASK_FORMAT, PRIVACY_DISAMBIGUATION_MODE, PRIVACY_NOTICE_TEXT, PRIVACY_DEBUG_HEADERS };
+export { DB_PATH, DEBUG, SECRET_SCANNER_MODE, PRIVACY_DISAMBIGUATION_MODE, PRIVACY_NOTICE_TEXT, PRIVACY_DEBUG_HEADERS };

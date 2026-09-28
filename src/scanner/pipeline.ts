@@ -19,8 +19,8 @@ function scanText(text: string): Finding[] {
 export function runPipeline(
   text: string,
   bodySize: number,
-  filenames: string[] = [],
-  registry?: MaskRegistry
+  filenames: string[],
+  registry: MaskRegistry
 ): ScanResult {
   log.debug(`scan start | size: ${bodySize} bytes | filenames: [${filenames.join(", ")}]`);
   log.debug(`body preview (first 200 chars): ${text.slice(0, 200)}`);

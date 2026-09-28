@@ -1,5 +1,4 @@
 import type { Finding, ActionType } from "@/types";
-import { buildMaskTag } from "./mask-tag";
 import { isRuleEnabled, RUNTIME } from "@/config";
 import { Logger } from "@/log";
 
@@ -49,7 +48,6 @@ const CURL_USER_CREDENTIAL_RE = /(?<!\S)(?:-u|--user|--proxy-user)\s+[^\s:'"]+:[
 const BASE64_TOKEN_RE = /eyJ[A-Za-z0-9_-]{40,}/g;
 const STRIPE_KEY_RE = /sk_(?:live|test)_[A-Za-z0-9]{24,}/g;
 const SENDGRID_KEY_RE = /SG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}/g;
-const PRIVACY_MASK_TOKEN_RE = /<<PRIVACY_MASK:[A-Z_]+>>/g;
 
 interface Rule {
   category: Finding["category"];
@@ -94,14 +92,12 @@ const STRONG_RULES: Rule[] = [
   { category: "BASE64_TOKEN", pattern: BASE64_TOKEN_RE, keywords: ["eyJ"] },
   { category: "STRIPE_KEY", pattern: STRIPE_KEY_RE, keywords: ["sk_live_", "sk_test_"] },
   { category: "SENDGRID_KEY", pattern: SENDGRID_KEY_RE, keywords: ["SG."] },
-  { category: "CONTEXTUAL_SECRET", pattern: PRIVACY_MASK_TOKEN_RE, keywords: ["<<PRIVACY_MASK:"] },
 ];
 
 interface IndexedFinding {
   category: Finding["category"];
   action: ActionType;
   matched: string;
-  maskTag: string;
   start: number;
   end: number;
 }
@@ -120,7 +116,6 @@ function collectRuleFindings(rule: Rule, text: string, seen: Set<string>): Index
         category: rule.category,
         action: "mask",
         matched,
-        maskTag: buildMaskTag(rule.category),
         start: match.index,
         end: match.index + matched.length,
       });
@@ -177,7 +172,7 @@ export function scanSecrets(text: string): Finding[] {
   const pruned = pruneContainedBase64JwtFindings(pruneOverlappingSameCategoryFindings(indexed));
 
   log.debug(`secrets scan complete | findings: ${pruned.length} | categories: [${pruned.map((f) => f.category).join(", ")}]`);
-  return pruned.map((f) => ({ category: f.category, action: f.action, matched: f.matched, maskTag: f.maskTag }));
+  return pruned.map((f) => ({ category: f.category, action: f.action, matched: f.matched }));
 }
 
 // 自定义前缀密文(maskit 教训:8~16 位自建短 Key 曾被长最小值整批漏判)。
@@ -199,7 +194,6 @@ export function scanSecretPrefixes(text: string): Finding[] {
       category: "CONTEXTUAL_SECRET",
       action: "mask",
       matched: match[0],
-      maskTag: buildMaskTag("CONTEXTUAL_SECRET"),
     });
     if (match[0].length === 0) pattern.lastIndex += 1;
   }

@@ -1,24 +1,27 @@
 import { describe, it, expect } from "vitest";
 import { scanPii, applyMasks } from "@/scanner/pii";
+import { MaskRegistry } from "@/scanner/mask-registry";
 import type { Finding } from "@/types";
 
+const registry = (): MaskRegistry => new MaskRegistry(() => "bcdfg");
+
 describe("scanPii", () => {
-  it("detects phone and returns explicit maskTag", () => {
+  it("detects phone", () => {
     const f = scanPii("call 13912345678 later");
     expect(f.some((x) => x.category === "PHONE")).toBe(true);
-    expect(f.find((x) => x.category === "PHONE")?.maskTag).toBe("<<PRIVACY_MASK:PHONE>>");
+    expect(f.find((x) => x.category === "PHONE")?.matched).toBe("13912345678");
   });
 
-  it("detects email and returns explicit maskTag", () => {
+  it("detects email", () => {
     const f = scanPii("send to test@example.com please");
     expect(f.some((x) => x.category === "EMAIL")).toBe(true);
-    expect(f.find((x) => x.category === "EMAIL")?.maskTag).toBe("<<PRIVACY_MASK:EMAIL>>");
+    expect(f.find((x) => x.category === "EMAIL")?.matched).toBe("test@example.com");
   });
 
   it("detects ID card", () => {
     const f = scanPii("ID: 110101199003073458");
     expect(f.some((x) => x.category === "ID_CARD")).toBe(true);
-    expect(f.find((x) => x.category === "ID_CARD")?.maskTag).toBe("<<PRIVACY_MASK:ID_CARD>>");
+    expect(f.find((x) => x.category === "ID_CARD")?.matched).toBe("110101199003073458");
   });
 
   it("action is always mask", () => {
@@ -49,27 +52,27 @@ describe("scanPii", () => {
 });
 
 describe("applyMasks", () => {
-  it("replaces phone with explicit tag and counts replacements", () => {
+  it("replaces phone with semantic tag and counts replacements", () => {
     const text = "call 13912345678 later";
     const findings = scanPii(text);
-    const result = applyMasks(text, findings);
-    expect(result.masked).toBe("call <<PRIVACY_MASK:PHONE>> later");
+    const result = applyMasks(text, findings, registry());
+    expect(result.masked).toBe("call {{PHONE_bcdfg}} later");
     expect(result.replacementCount).toBe(1);
   });
 
-  it("replaces email with explicit tag", () => {
+  it("replaces email with semantic tag", () => {
     const text = "send to test@example.com please";
     const findings = scanPii(text);
-    const result = applyMasks(text, findings);
-    expect(result.masked).toContain("<<PRIVACY_MASK:EMAIL>>");
+    const result = applyMasks(text, findings, registry());
+    expect(result.masked).toContain("{{EMAIL_bcdfg}}");
   });
 
   it("handles multiple PII in same text", () => {
     const text = "phone 13912345678 email test@example.com";
     const findings = scanPii(text);
-    const result = applyMasks(text, findings);
-    expect(result.masked).toContain("<<PRIVACY_MASK:PHONE>>");
-    expect(result.masked).toContain("<<PRIVACY_MASK:EMAIL>>");
+    const result = applyMasks(text, findings, registry());
+    expect(result.masked).toContain("{{PHONE_bcdfg}}");
+    expect(result.masked).toContain("{{EMAIL_bcdfg}}");
     expect(result.replacementCount).toBeGreaterThanOrEqual(2);
   });
 
@@ -78,7 +81,7 @@ describe("applyMasks", () => {
     const fakeFindings: Finding[] = [
       { category: "PRIVATE_KEY", action: "block", matched: "PRIVATE_KEY" },
     ];
-    const result = applyMasks(text, fakeFindings);
+    const result = applyMasks(text, fakeFindings, registry());
     expect(result.masked).toBe(text);
     expect(result.replacementCount).toBe(0);
   });
@@ -91,10 +94,9 @@ describe("applyMasks", () => {
         category: "EMAIL",
         action: "mask",
         matched: email,
-        maskTag: "<<PRIVACY_MASK:EMAIL>>",
       },
     ];
-    const result = applyMasks(text, findings);
+    const result = applyMasks(text, findings, registry());
     expect(result.replacementCount).toBe(2);
   });
 });

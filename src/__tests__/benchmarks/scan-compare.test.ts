@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { runPipeline } from "@/scanner/pipeline";
+import { MaskRegistry } from "@/scanner/mask-registry";
 import { scanSecrets } from "@/scanner/secrets";
 import { scanContextKey } from "@/scanner/context-key";
 import { scanPii } from "@/scanner/pii";
@@ -31,10 +32,11 @@ function oldFullScan(text: string): number {
 describe("benchmark: old full-scan vs new window-scan", () => {
   it("278KB payload", () => {
     const payload = buildPayload(278 * 1024);
+    const registry = new MaskRegistry();
     const oldMs = benchmark(() => oldFullScan(payload));
-    const newMs = benchmark(() => runPipeline(payload, payload.length).findings.length);
+    const newMs = benchmark(() => runPipeline(payload, payload.length, [], registry).findings.length);
     const oldFindings = oldFullScan(payload);
-    const newResult = runPipeline(payload, payload.length);
+    const newResult = runPipeline(payload, payload.length, [], registry);
     // eslint-disable-next-line no-console
     console.log(`\npayload: ${(payload.length / 1024).toFixed(1)} KB`);
     // eslint-disable-next-line no-console

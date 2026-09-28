@@ -19,7 +19,7 @@ import { findResidualPlaceholders } from "@/scanner/placeholder-scan";
 import { logAudit, recordRestoreStats } from "@/audit/logger";
 import { insertSignals } from "@/audit/signals-store";
 import { Logger } from "@/log";
-import { PRIVACY_DEBUG_HEADERS, PRIVACY_MASK_FORMAT, RUNTIME, getDefaultUpstream } from "@/config";
+import { PRIVACY_DEBUG_HEADERS, RUNTIME, getDefaultUpstream } from "@/config";
 import { initializeConfigs } from "@/config-loader";
 import { initRetentionScheduler } from "@/audit/retention";
 import { findMatchingBypassRule } from "@/bypass/store";
@@ -66,7 +66,7 @@ async function extractBodyText(
 async function rebuildMaskedMultipart(
   request: NextRequest,
   findings: Finding[],
-  registry?: MaskRegistry
+  registry: MaskRegistry
 ): Promise<FormData> {
   const formData = await request.clone().formData();
   const rebuilt = new FormData();
@@ -211,19 +211,19 @@ function traceUpstreamError(
 
 async function finalizeUpstream(
   upstream: Response,
-  registry: MaskRegistry | undefined,
+  registry: MaskRegistry,
   maskSummary: MaskSummary,
   analysis?: { auditId: number; requestModel?: string }
 ): Promise<Response> {
   const contentType = upstream.headers.get("content-type") ?? "";
-  const hasRegistry = !!(registry && registry.size > 0);
+  const hasRegistry = registry.size > 0;
 
   if (isSseContentType(contentType)) {
     if (!hasRegistry) return reemitUpstream(upstream);
     const restorer = new SseChannelRestorer(registry);
     const analyzer = analysis
       ? new StreamResponseAnalyzer(
-          { status: upstream.status, forwardValues: [...registry!.tagToValue.values()], requestModel: analysis.requestModel },
+          { status: upstream.status, forwardValues: [...registry.tagToValue.values()], requestModel: analysis.requestModel },
           analysis.auditId,
           restorer
         )
@@ -262,14 +262,14 @@ async function finalizeUpstream(
 
   const raw = encoding === "zstd" ? decodeZstdBuffer(capped.bytes) : capped.text;
   const restoreStats: RestoreStats = { restored: 0, degraded: 0 };
-  const restored = hasRegistry ? restoreText(raw, registry!, restoreStats) : raw;
+  const restored = hasRegistry ? restoreText(raw, registry, restoreStats) : raw;
   if (analysis) {
     insertSignals(
       analysis.auditId,
       analyzeResponse({
         status: upstream.status,
         text: restored,
-        forwardValues: [...registry!.tagToValue.values()],
+        forwardValues: [...registry.tagToValue.values()],
         requestModel: analysis.requestModel,
       })
     );
@@ -349,8 +349,7 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     log.warn(`${method} ${path} | rejected: payload_too_large (content-length)`);
     return tooLargeResponse();
   }
-  // legacy 格式歧义不可还原(R7):不分配实例映射,连带禁用响应还原与指令注入
-  const registry = PRIVACY_MASK_FORMAT === "legacy" ? undefined : new MaskRegistry();
+  const registry = new MaskRegistry();
 
   const hasBody = method !== "GET" && method !== "HEAD";
   let bodyText = "";
@@ -381,9 +380,11 @@ async function handleRequest(request: NextRequest): Promise<Response> {
   if (bypassRule) {
     let bypassResult: ScanResult | null = null;
     if (hasBody && !multipart) {
-      const scanFn = (text: string, size: number) => runPipeline(text, size, filenames);
+      // bypass 只出审计信号、转发原文:独立 scratch registry 仅满足签名,输出不受影响
+      const scratch = new MaskRegistry();
+      const scanFn = (text: string, size: number) => runPipeline(text, size, filenames, scratch);
       const outcome = runScanProtected("bypass", () =>
-        isJsonContentType(contentType) ? maskJsonBody(bodyText, scanFn) : runPipeline(bodyText, bodySize, filenames)
+        isJsonContentType(contentType) ? maskJsonBody(bodyText, scanFn, scratch) : runPipeline(bodyText, bodySize, filenames, scratch)
       );
       if (outcome instanceof Response) return outcome;
       bypassResult = outcome;
@@ -528,10 +529,9 @@ async function handleRequest(request: NextRequest): Promise<Response> {
     const upstream = await forwardToUpstream(path, request, forwardBody, channel);
     upstreamReceived = true;
 
-    // legacy 格式(registry undefined)不做响应分析(R3.6)
     // 必须 await:直接 return promise 时其 rejection 不进本 try/catch
     // (finalizeUpstream 读体失败曾因此变成未捕获异常而非 502,2026-09-23 实测)
-    return await finalizeUpstream(upstream, registry, result.maskSummary, registry ? { auditId, requestModel: model } : undefined);
+    return await finalizeUpstream(upstream, registry, result.maskSummary, { auditId, requestModel: model });
   } catch (err) {
     traceUpstreamError(err, {
       method,

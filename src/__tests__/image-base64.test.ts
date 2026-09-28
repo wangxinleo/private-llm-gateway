@@ -2,8 +2,13 @@ import { describe, it, expect } from "vitest";
 import zlib from "node:zlib";
 import { maskJsonBody } from "@/scanner/json-mask";
 import { runPipeline } from "@/scanner/pipeline";
+import { MaskRegistry } from "@/scanner/mask-registry";
 
-const scan = (text: string) => runPipeline(text, text.length);
+// 每用例独立确定性 registry:同类别多值不会触发随机兜底,精确断言 {{LABEL_bcdfg}}
+function makeScan() {
+  const registry = new MaskRegistry(() => "bcdfg");
+  return { registry, scan: (text: string) => runPipeline(text, text.length, [], registry) };
+}
 
 /** 构造一个真实 PNG 的 base64,并在前部注入 `eyJ`+45 字符来强制触发 BASE64_TOKEN 规则。 */
 function pngBase64WithEyJ(seed = 0): string {
@@ -61,7 +66,8 @@ describe("image base64 payloads are not scanned as text (R1/R2)", () => {
       max_tokens: 1000,
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     expect(result.action).toBe("allow");
     expect(result.findings).toEqual([]);
     expect(result.maskedBody).toBe(body);
@@ -83,7 +89,8 @@ describe("image base64 payloads are not scanned as text (R1/R2)", () => {
       ],
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     expect(result.action).toBe("allow");
     expect(result.findings).toEqual([]);
     expect(result.maskedBody).toBe(body);
@@ -101,7 +108,8 @@ describe("image base64 payloads are not scanned as text (R1/R2)", () => {
       ],
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     expect(result.action).toBe("allow");
     expect(result.findings).toEqual([]);
     expect(result.maskedBody).toBe(body);
@@ -121,7 +129,8 @@ describe("image base64 payloads are not scanned as text (R1/R2)", () => {
       ],
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     expect(result.action).toBe("allow");
     expect(result.maskedBody).toBe(body);
   });
@@ -133,9 +142,10 @@ describe("text secret scanning is not degraded (R3)", () => {
       messages: [{ role: "user", content: "api_key: sk-proj-abcdefghijklmnopqrstuvwxyz1234567890" }],
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     expect(result.action).toBe("mask");
-    expect(result.maskedBody).toContain("<<PRIVACY_MASK:PROVIDER_API_KEY>>");
+    expect(result.maskedBody).toContain("{{API_KEY_bcdfg}}");
   });
 
   it("JWT in prompt text is still masked", () => {
@@ -143,9 +153,10 @@ describe("text secret scanning is not degraded (R3)", () => {
       messages: [{ role: "user", content: "token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U" }],
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     expect(result.action).toBe("mask");
-    expect(result.maskedBody).toContain("<<PRIVACY_MASK:JWT>>");
+    expect(result.maskedBody).toContain("{{JWT_bcdfg}}");
   });
 
   it("bare eyJ+45 under a non-data key (text) is still masked as BASE64_TOKEN", () => {
@@ -153,9 +164,10 @@ describe("text secret scanning is not degraded (R3)", () => {
       messages: [{ role: "user", content: `token: ${"eyJ" + "A".repeat(45)}` }],
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     expect(result.action).toBe("mask");
-    expect(result.maskedBody).toContain("<<PRIVACY_MASK:BASE64_TOKEN>>");
+    expect(result.maskedBody).toContain("{{BASE64_bcdfg}}");
   });
 
   it("base64url JWT under a data key is still scanned (not pure base64)", () => {
@@ -164,8 +176,9 @@ describe("text secret scanning is not degraded (R3)", () => {
       messages: [{ role: "user", content: [{ type: "base64", data: `token: ${jwt}` }] }],
     });
 
-    const result = maskJsonBody(body, scan);
+    const { registry, scan } = makeScan();
+    const result = maskJsonBody(body, scan, registry);
     expect(result.action).toBe("mask");
-    expect(result.maskedBody).toContain("<<PRIVACY_MASK:JWT>>");
+    expect(result.maskedBody).toContain("{{JWT_bcdfg}}");
   });
 });

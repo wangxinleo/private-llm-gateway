@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { applyMasks } from "@/scanner/pii";
-import { buildMaskTag } from "@/scanner/mask-tag";
+import { MaskRegistry } from "@/scanner/mask-registry";
 import { maskJsonBody } from "@/scanner/json-mask";
 import { runPipeline } from "@/scanner/pipeline";
 import type { Finding } from "@/types";
@@ -27,9 +27,9 @@ describe("quantify: applyMasks O(findings x text) explosion curve", () => {
         category: "CONTEXTUAL_SECRET",
         action: "mask",
         matched: `zzz_nonexistent_${i}_${Math.random().toString(36).slice(2)}`,
-        maskTag: buildMaskTag("CONTEXTUAL_SECRET"),
       }));
-      const t = benchmark(() => applyMasks(text, findings), 3);
+      const registry = new MaskRegistry();
+      const t = benchmark(() => applyMasks(text, findings, registry), 3);
       // eslint-disable-next-line no-console
       console.log(`findings=${count}: ${t.toFixed(1)} ms`);
     }
@@ -77,8 +77,10 @@ describe("reproduce: tool-call outputs (file contents) as dense finding sources"
     const total = 1.2 * 1024 * 1024;
     const payload = buildToolCallPayload(total, 24 * 1024);
 
-    const tFull = benchmark(() => maskJsonBody(payload, (t, s) => runPipeline(t, s)));
-    const result = maskJsonBody(payload, (t, s) => runPipeline(t, s));
+    const registry = new MaskRegistry();
+    const scan = (t: string, s: number) => runPipeline(t, s, [], registry);
+    const tFull = benchmark(() => maskJsonBody(payload, scan, registry));
+    const result = maskJsonBody(payload, scan, registry);
     // eslint-disable-next-line no-console
     console.log(`\nreproduce: payload ${(total / 1024 / 1024).toFixed(2)} MB`);
     // eslint-disable-next-line no-console

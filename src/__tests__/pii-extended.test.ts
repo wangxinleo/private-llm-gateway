@@ -3,6 +3,7 @@ import { scanPii } from "@/scanner/pii";
 import { scanSecretPrefixes } from "@/scanner/secrets";
 import { scanFilename } from "@/scanner/filename";
 import { runPipeline } from "@/scanner/pipeline";
+import { MaskRegistry } from "@/scanner/mask-registry";
 import { SCANNER_RULES, RUNTIME, DEFAULT_RULE_TOGGLES } from "@/config";
 
 function categories(text: string): string[] {
@@ -95,10 +96,11 @@ describe("rule toggles (R2.1)", () => {
   it("pipeline honors disabled secret categories", () => {
     // secrets 仅在敏感键值对/资产锚点窗口内扫描,需构造锚点
     const body = JSON.stringify({ messages: [{ role: "user", content: "password: Bearer abcdefghijklmnopqrst1234" }] });
-    const enabled = runPipeline(body, body.length, []);
+    const registry = new MaskRegistry();
+    const enabled = runPipeline(body, body.length, [], registry);
     expect(enabled.findings.some((f) => f.category === "BEARER_TOKEN")).toBe(true);
     SCANNER_RULES.BEARER_TOKEN = false;
-    const disabled = runPipeline(body, body.length, []);
+    const disabled = runPipeline(body, body.length, [], registry);
     expect(disabled.findings.some((f) => f.category === "BEARER_TOKEN")).toBe(false);
     SCANNER_RULES.BEARER_TOKEN = true;
   });
